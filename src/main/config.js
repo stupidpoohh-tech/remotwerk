@@ -32,8 +32,21 @@ function defaults() {
     focusMode: false,
     // 오버레이 캐릭터 위치(드래그로 이동, 화면 비율 0..1로 저장)
     overlayPos: { x: 0.82, y: 0.72 },
-    // Firebase 웹 설정(JSON). null 이면 로컬 데모 트랜스포트로 동작한다.
-    firebase: null
+    // Firebase 웹 설정. null 이면 로컬 데모 트랜스포트로 동작한다.
+    // 이 프로젝트(remotwerk-aa0d2)로 기본 연결되며, 페어링 코드만 입력하면 상대와 묶인다.
+    // 웹 API 키는 클라이언트 공개용(비밀 아님)이라 커밋해도 되고, 실제 보호는 RTDB 보안 규칙이 담당한다.
+    // 주의: databaseURL 은 Realtime Database 전용 값이라 콘솔 기본 스니펫엔 없어 여기서 채운다.
+    //   RTDB 인스턴스가 미국이 아닌 리전이면(예: 싱가포르) 콘솔의 실제 URL 로 교체해야 한다.
+    firebase: {
+      apiKey: 'AIzaSyBeVN-PB5CrMv9g75hSlUAKX8xRAigsXOM',
+      authDomain: 'remotwerk-aa0d2.firebaseapp.com',
+      databaseURL: 'https://remotwerk-aa0d2-default-rtdb.firebaseio.com',
+      projectId: 'remotwerk-aa0d2',
+      storageBucket: 'remotwerk-aa0d2.firebasestorage.app',
+      messagingSenderId: '981582145619',
+      appId: '1:981582145619:web:95f9c96280a83a159bfea6',
+      measurementId: 'G-4F2NZFC4BE'
+    }
   };
 }
 

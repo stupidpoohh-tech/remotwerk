@@ -112,6 +112,27 @@ rooms/{code}/
 - 히스토리는 상대가 보낸(from ≠ 나) **오늘(KST)** 신호만. 로컬 자정(KST)에 비운다.
   하루 이상 지난 신호는 베스트 에포트로 정리한다.
 
+### 프로젝트 설정 (remotwerk-aa0d2)
+
+앱은 기본으로 Firebase 프로젝트 `remotwerk-aa0d2` 에 연결된다(설정은
+`src/main/config.js` 의 기본값). 두 사람이 앱을 켜고 **같은 페어링 코드**만 넣으면 묶인다.
+
+> 웹 API 키는 클라이언트 공개용이라 커밋해도 안전하다(비밀이 아님). 실제 접근 보호는
+> **Realtime Database 보안 규칙**이 담당한다.
+
+콘솔에서 한 번 해둘 것:
+
+1. **Realtime Database 생성** — Firebase 콘솔 → Build → Realtime Database → 인스턴스 생성.
+2. **databaseURL 확인** — 인스턴스 URL이 미국이 아니면(예: 싱가포르
+   `https://remotwerk-aa0d2-default-rtdb.asia-southeast1.firebasedatabase.app`)
+   `config.js` 의 `databaseURL` 을 콘솔의 실제 값으로 교체.
+3. **보안 규칙** — 계정 없이 페어링 코드로만 쓰므로, 최소한 아래처럼 `rooms` 하위만
+   허용하는 규칙을 권장(둘만 아는 코드가 사실상의 열쇠):
+   ```json
+   { "rules": { "rooms": { "$code": { ".read": true, ".write": true } } } }
+   ```
+   (더 조이려면 Firebase 익명 인증을 붙여 `auth != null` 조건을 추가 — 범위 밖.)
+
 ### Firebase 없이 검증 (로컬 데모)
 
 설정에서 Firebase를 비워 두면 `BroadcastChannel` 기반 **로컬 루프백**으로 동작한다.
