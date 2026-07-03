@@ -40,7 +40,7 @@ function defaults() {
     firebase: {
       apiKey: 'AIzaSyBeVN-PB5CrMv9g75hSlUAKX8xRAigsXOM',
       authDomain: 'remotwerk-aa0d2.firebaseapp.com',
-      databaseURL: 'https://remotwerk-aa0d2-default-rtdb.firebaseio.com',
+      databaseURL: 'https://remotwerk-aa0d2-default-rtdb.asia-southeast1.firebasedatabase.app',
       projectId: 'remotwerk-aa0d2',
       storageBucket: 'remotwerk-aa0d2.firebasestorage.app',
       messagingSenderId: '981582145619',

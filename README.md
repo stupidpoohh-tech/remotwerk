@@ -123,9 +123,9 @@ rooms/{code}/
 콘솔에서 한 번 해둘 것:
 
 1. **Realtime Database 생성** — Firebase 콘솔 → Build → Realtime Database → 인스턴스 생성.
-2. **databaseURL 확인** — 인스턴스 URL이 미국이 아니면(예: 싱가포르
-   `https://remotwerk-aa0d2-default-rtdb.asia-southeast1.firebasedatabase.app`)
-   `config.js` 의 `databaseURL` 을 콘솔의 실제 값으로 교체.
+2. **databaseURL** — 인스턴스는 **싱가포르(asia-southeast1)** 리전으로 생성되어 있고,
+   `config.js` 의 `databaseURL` 이 이미 실제 값
+   (`https://remotwerk-aa0d2-default-rtdb.asia-southeast1.firebasedatabase.app`)으로 설정되어 있다.
 3. **보안 규칙** — 계정 없이 페어링 코드로만 쓰므로, 최소한 아래처럼 `rooms` 하위만
    허용하는 규칙을 권장(둘만 아는 코드가 사실상의 열쇠):
    ```json
