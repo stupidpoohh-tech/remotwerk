@@ -39,6 +39,22 @@
   function rect(x, y, w, h, slot)    { return { shape: 'rect', x, y, w, h, slot }; }
   function ellipse(x, y, w, h, slot) { return { shape: 'ellipse', x, y, w, h, slot }; }
 
+  // 5조각(大자 가이드) 이족 골격 — 인앱 리깅·업로드 도구(Prompt B)용.
+  //   조각: 몸통+머리(torso) / 좌팔(armL) / 우팔(armR) / 좌다리(legL) / 우다리(legR)
+  //   관절: 어깨·골반뿐(팔꿈치·무릎 없음), 머리는 몸통에 포함.
+  //   neutral: 大자(스프레드) 가이드에 맞춘 기본 각도. 애니메이션 회전은 이 위에 델타로 얹힌다.
+  //   animSource: 코어 애니메이션의 어깨/골반 트랙(*_upper)을 그대로 읽어 근사 재생.
+  //   guideRot: 大자 가이드에서 각 조각이 벌어진 각도. 리깅 도구가 가이드 윤곽을 이 각도로
+  //     그리고, 업로드한 조각의 기본 fit.rot 로 쓴다. 관절 회전(어깨/골반)은 이 위에 얹힌다.
+  const BIPEDAL5_BONES = [
+    { name: 'root',  parent: null,   pivotOffset: [0, 0],     part: null,                              z: 5 },
+    { name: 'torso', parent: 'root', pivotOffset: [0, 0],     part: rect(-34, -122, 68, 122, 'torso'), z: 5, guideRot: 0,   animSource: 'torso' },
+    { name: 'armL',  parent: 'torso',pivotOffset: [-26, -88], part: rect(-12, 0, 24, 82, 'armL'),      z: 4, guideRot: 28,  animSource: 'armL_upper' },
+    { name: 'armR',  parent: 'torso',pivotOffset: [26, -88],  part: rect(-12, 0, 24, 82, 'armR'),      z: 6, guideRot: -28, animSource: 'armR_upper' },
+    { name: 'legL',  parent: 'root', pivotOffset: [-13, 0],   part: rect(-14, 0, 28, 92, 'legL'),      z: 2, guideRot: 14,  animSource: 'legL_upper' },
+    { name: 'legR',  parent: 'root', pivotOffset: [13, 0],    part: rect(-14, 0, 28, 92, 'legR'),      z: 3, guideRot: -14, animSource: 'legR_upper' }
+  ];
+
   // 캐릭터 표시 영역(로컬 좌표계 기준 대략 -30..30 x, -120..90 y).
   // 렌더 시 이 원점(root=골반)이 어디에 놓일지는 엔진이 정한다.
   const SKELETONS = {
@@ -49,6 +65,15 @@
       slots: ['head', 'torso', 'arm', 'hand', 'leg', 'foot'],
       // 캐릭터 콘텐츠 상자(대략). 오버레이 배치/드래그 히트박스 계산에 쓴다.
       box: { w: 120, h: 210, originX: 60, originY: 150 }
+    },
+    bipedal5: {
+      id: 'bipedal5',
+      bones: BIPEDAL5_BONES,
+      // 슬롯 = 조각 5개. 사용자가 부위별 투명 PNG 1장씩 올린다.
+      slots: ['torso', 'armL', 'armR', 'legL', 'legR'],
+      box: { w: 130, h: 220, originX: 65, originY: 122 },
+      // 大자 가이드에서 각 조각 슬롯의 관절(회전 중심)은 pivotOffset 로 고정되어 있다.
+      spread: true
     }
   };
 

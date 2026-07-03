@@ -17,7 +17,6 @@
   let cfg = null;
   let transport = null;
   let ctrl = null;              // 엔진 컨트롤러
-  let partnerCharId = 'preset2';
 
   // 상태: 'ambient' | 'gesture' | 'away'
   let state = 'ambient';
@@ -34,26 +33,43 @@
 
     await transport.ready.catch((e) => console.error('[overlay] transport', e));
 
-    // 상대 캐릭터 결정: Firebase members 우선, 없으면 설정 캐시
+    // 상대 캐릭터 결정: 프리셋 id 또는 다운로드한 커스텀 번들
     try {
-      partnerCharId = (await transport.getPartnerCharacterId()) || cfg.partnerCharacterId || 'preset2';
+      applyCharDef(await transport.getPartnerCharacter());
     } catch (_) {
-      partnerCharId = cfg.partnerCharacterId || 'preset2';
+      applyCharDef({ kind: 'local', id: cfg.partnerCharacterId || 'preset2' });
     }
-
-    buildCharacter(partnerCharId);
-    startAmbient();
+    // 자율 생활은 buildFromRig() 안에서 시작된다.
 
     transport.onSignal(onSignal);
+    // 상대가 캐릭터를 바꾸면 실시간 교체(Firebase)
+    if (transport.onPartnerCharacter) transport.onPartnerCharacter(applyCharDef);
     host.onConfigChanged(onConfigChanged);
     setupDrag();
   }
 
-  function buildCharacter(charId) {
+  // 정규화된 캐릭터 정의 → 렌더. kind: 'bundle'(커스텀) | 'preset' | 'local'
+  let lastCharSig = null;
+  function applyCharDef(def) {
+    if (!def) return;
+    // 실제로 바뀐 경우에만 다시 그린다(멤버 감시가 자주 울려도 재빌드 방지)
+    const sig = def.kind === 'bundle'
+      ? 'bundle:' + JSON.stringify(def.bundle).length + ':' + (def.id || '')
+      : (def.kind || 'preset') + ':' + def.id;
+    if (sig === lastCharSig) return;
+    lastCharSig = sig;
+
+    const rigInput = def.kind === 'bundle'
+      ? RW.characters.bundleToRig(def.bundle)
+      : RW.characters.rigFor(def.id, cfg);
+    buildFromRig(rigInput);
+  }
+
+  function buildFromRig({ skeleton, rig }) {
     if (ctrl) ctrl.stop();
     anchorEl.innerHTML = '';
-    const { skeleton, rig } = RW.presets.rigFor(charId);
     ctrl = RW.engine.mount(anchorEl, { skeleton, rig });
+    if (state !== 'away') startAmbient();
   }
 
   // ---- 위치 ----
@@ -115,12 +131,17 @@
   // ---- 설정 변경 반영 ----
   async function onConfigChanged(next) {
     const prevPartner = cfg.partnerCharacterId;
+    const prevCustoms = JSON.stringify(cfg.customCharacters || []);
     cfg = next;
     positionChar();
-    if (next.partnerCharacterId && next.partnerCharacterId !== prevPartner) {
-      partnerCharId = next.partnerCharacterId;
-      buildCharacter(partnerCharId);
-      if (state !== 'away') startAmbient();
+    // 로컬 데모에서만: 상대 캐릭터는 config 로 지정되므로 변경 시 다시 그림.
+    // (Firebase 모드의 상대 캐릭터는 members 감시(onPartnerCharacter)로 반영된다.)
+    if (transport.mode === 'local') {
+      const customsChanged = JSON.stringify(next.customCharacters || []) !== prevCustoms;
+      if ((next.partnerCharacterId && next.partnerCharacterId !== prevPartner) || customsChanged) {
+        lastCharSig = null; // 번들 편집 등으로 같은 id라도 강제 재빌드
+        applyCharDef({ kind: 'local', id: next.partnerCharacterId || 'preset2' });
+      }
     }
   }
 

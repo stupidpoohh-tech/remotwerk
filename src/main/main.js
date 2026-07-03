@@ -148,6 +148,24 @@ function createSettings() {
   return w;
 }
 
+function createRigger() {
+  if (win.rigger && !win.rigger.isDestroyed()) {
+    win.rigger.show();
+    win.rigger.focus();
+    return win.rigger;
+  }
+  const w = new BrowserWindow({
+    width: 900, height: 680,
+    title: 'Remotwerk — 캐릭터 만들기',
+    resizable: true,
+    webPreferences: baseWebPrefs()
+  });
+  w.loadFile(path.join(RENDERER, 'rigger', 'rigger.html'));
+  win.rigger = w;
+  w.on('closed', () => { win.rigger = null; });
+  return w;
+}
+
 // ---------------------------------------------------------------------------
 // 즉시 숨김(보스키) / 복원
 // ---------------------------------------------------------------------------
@@ -218,6 +236,7 @@ function refreshTrayMenu() {
     { label: '즉시 숨김 / 복원', accelerator: 'CommandOrControl+Shift+H', click: () => toggleBossKey() },
     { type: 'separator' },
     { label: '페어링 · 캐릭터 설정', click: () => createSettings() },
+    { label: '캐릭터 만들기 (업로드·리깅)', click: () => createRigger() },
     { type: 'separator' },
     { label: '종료', click: () => { app.isQuiting = true; app.quit(); } }
   ]);
@@ -246,6 +265,7 @@ function registerIpc() {
   ipcMain.on('ui:open-remote', () => createRemote());
   ipcMain.on('ui:open-history', () => createHistory());
   ipcMain.on('ui:open-settings', () => createSettings());
+  ipcMain.on('ui:open-rigger', () => createRigger());
   ipcMain.on('ui:hide-all', () => hideAll());
   ipcMain.on('ui:quit', () => { app.isQuiting = true; app.quit(); });
   ipcMain.on('ui:close-self', (e) => {

@@ -32,6 +32,9 @@ function defaults() {
     focusMode: false,
     // 오버레이 캐릭터 위치(드래그로 이동, 화면 비율 0..1로 저장)
     overlayPos: { x: 0.82, y: 0.72 },
+    // 내가 만든 커스텀 캐릭터들(리깅 도구 산출물). 프리셋과 동일 포맷의 번들을 담는다.
+    //   [{ id, name, swatch, bundle: { skeletonId:'bipedal5', slots:{...} } }]
+    customCharacters: [],
     // Firebase 웹 설정. null 이면 로컬 데모 트랜스포트로 동작한다.
     // 이 프로젝트(remotwerk-aa0d2)로 기본 연결되며, 페어링 코드만 입력하면 상대와 묶인다.
     // 웹 API 키는 클라이언트 공개용(비밀 아님)이라 커밋해도 되고, 실제 보호는 RTDB 보안 규칙이 담당한다.

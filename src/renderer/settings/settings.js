@@ -22,13 +22,23 @@
     $('pairCode').value = cfg.pairCode || '';
     $('firebase').value = cfg.firebase ? JSON.stringify(cfg.firebase, null, 2) : '';
 
-    buildGrid('myGrid', () => myChar, (id) => { myChar = id; }, true);
-    buildGrid('partnerGrid', () => partnerChar, (id) => { partnerChar = id; }, false);
+    rebuildGrids();
 
     $('genCode').addEventListener('click', () => {
       $('pairCode').value = genCode();
     });
     $('save').addEventListener('click', save);
+
+    // 리깅 도구에서 새 캐릭터를 저장하면 config 가 갱신 → 그리드 다시 그림
+    host.onConfigChanged((next) => {
+      cfg = next;
+      rebuildGrids();
+    });
+  }
+
+  function rebuildGrids() {
+    buildGrid('myGrid', () => myChar, (id) => { myChar = id; });
+    buildGrid('partnerGrid', () => partnerChar, (id) => { partnerChar = id; });
   }
 
   function genCode() {
@@ -37,36 +47,38 @@
     return `${w}-${Math.floor(1000 + Math.random() * 9000)}`;
   }
 
-  // 캐릭터 타일 그리드 + (+) 비활성 타일
-  function buildGrid(containerId, getSel, setSel, allowAddPlaceholder) {
+  // 캐릭터 타일 그리드(프리셋 + 커스텀) + (+) 업로드 타일
+  function buildGrid(containerId, getSel, setSel) {
     const el = $(containerId);
     el.innerHTML = '';
     const tiles = {};
 
-    for (const p of RW.presets.PRESETS) {
+    for (const c of RW.characters.listAll(cfg)) {
       const tile = document.createElement('div');
       tile.className = 'tile';
-      tile.innerHTML = `<div class="preview"></div><div class="cap">${p.name}</div>`;
-      renderPreview(tile.querySelector('.preview'), p.id);
+      const badge = c.custom ? '<span class="custom-badge">내 제작</span>' : '';
+      tile.innerHTML = `<div class="preview"></div>${badge}<div class="cap">${c.name}</div>`;
+      renderPreview(tile.querySelector('.preview'), c.id);
       tile.addEventListener('click', () => {
-        setSel(p.id);
-        for (const k of Object.keys(tiles)) tiles[k].classList.toggle('selected', k === p.id);
+        setSel(c.id);
+        for (const k of Object.keys(tiles)) tiles[k].classList.toggle('selected', k === c.id);
       });
-      tiles[p.id] = tile;
+      tiles[c.id] = tile;
       el.appendChild(tile);
     }
     tiles[getSel()] && tiles[getSel()].classList.add('selected');
 
-    // (+) 자리만 잡아 두고 비활성
+    // (+) 캐릭터 만들기(리깅·업로드 도구 열기)
     const add = document.createElement('div');
     add.className = 'tile add';
-    add.title = '캐릭터 업로드(추후 지원)';
-    add.innerHTML = `+<div class="cap">업로드(준비중)</div>`;
+    add.title = '내 캐릭터 만들기 (이미지 업로드 · 大자 정합)';
+    add.innerHTML = `+<div class="cap">캐릭터 만들기</div>`;
+    add.addEventListener('click', () => host.openRigger());
     el.appendChild(add);
   }
 
-  // 미니 프리뷰 — 뉴트럴 포즈로 캐릭터를 그린다(축소).
-  function renderPreview(container, presetId) {
+  // 미니 프리뷰 — 뉴트럴 포즈로 캐릭터를 그린다(축소). 프리셋/커스텀 공통.
+  function renderPreview(container, charId) {
     const wrap = document.createElement('div');
     wrap.style.position = 'absolute';
     wrap.style.left = '50%';
@@ -79,7 +91,7 @@
     anchor.style.top = '120px';
     wrap.appendChild(anchor);
     container.appendChild(wrap);
-    const { skeleton, rig } = RW.presets.rigFor(presetId);
+    const { skeleton, rig } = RW.characters.rigFor(charId, cfg);
     RW.engine.mount(anchor, { skeleton, rig });
   }
 
@@ -102,14 +114,18 @@
     status.textContent = '저장 중…';
     await host.setConfig(patch);
 
-    // Firebase 모드면 방 멤버십에 내 캐릭터 등록
+    // Firebase 모드면 방 멤버십에 내 캐릭터 등록(커스텀이면 Storage 로 번들 공유)
     if (firebase && patch.pairCode) {
       try {
-        const t = RW.transport.createTransport(Object.assign({}, cfg, patch));
+        const merged = Object.assign({}, cfg, patch);
+        const custom = (merged.customCharacters || []).find((c) => c.id === myChar);
+        const t = RW.transport.createTransport(merged);
         await t.ready;
-        await t.setMyCharacter(myChar);
+        await t.setMyCharacter(myChar, custom ? custom.bundle : null);
         t.destroy();
-        status.textContent = '저장됨 · 방에 연결되었습니다.';
+        status.textContent = custom
+          ? '저장됨 · 커스텀 캐릭터를 상대와 공유했습니다.'
+          : '저장됨 · 방에 연결되었습니다.';
       } catch (e) {
         console.error(e);
         status.textContent = '저장됨 · Firebase 연결 확인이 필요해요.';

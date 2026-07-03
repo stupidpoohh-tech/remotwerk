@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('rwHost', {
   openRemote: () => ipcRenderer.send('ui:open-remote'),
   openHistory: () => ipcRenderer.send('ui:open-history'),
   openSettings: () => ipcRenderer.send('ui:open-settings'),
+  openRigger: () => ipcRenderer.send('ui:open-rigger'),
   hideAll: () => ipcRenderer.send('ui:hide-all'),
   closeSelf: () => ipcRenderer.send('ui:close-self'),
   quit: () => ipcRenderer.send('ui:quit'),

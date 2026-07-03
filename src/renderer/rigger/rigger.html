@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self';
+             script-src 'self' https://www.gstatic.com;
+             style-src 'self' 'unsafe-inline';
+             img-src 'self' data: blob:;
+             connect-src 'self' https://*.firebaseio.com https://*.firebasedatabase.app https://*.googleapis.com wss://*.firebaseio.com;" />
+  <link rel="stylesheet" href="rigger.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="stageWrap">
+      <div class="stage-title">大자 가이드 — 조각을 윤곽에 맞춰 정합</div>
+      <div id="stage">
+        <div id="scaled">
+          <svg id="guide" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div id="charAnchor"></div>
+        </div>
+      </div>
+      <div class="stage-foot">
+        <button id="previewBtn" class="ghost">▶ 동작 미리보기</button>
+        <span id="sizeInfo" class="size"></span>
+      </div>
+    </div>
+
+    <aside id="panel">
+      <h1>내 캐릭터 만들기</h1>
+      <p class="hint">투명 배경 PNG 5장을 올려 크기·위치·회전으로 가이드에 맞춥니다.
+        관절(어깨·골반)은 가이드에 고정되어 있어 따로 찍지 않습니다.</p>
+
+      <label class="field">
+        <span>캐릭터 이름</span>
+        <input id="charName" type="text" placeholder="예: 뽀삐" maxlength="16" />
+      </label>
+
+      <div id="slots"></div>
+
+      <div class="panel-actions">
+        <span id="status" class="status"></span>
+        <button id="saveBtn" class="primary">저장하고 내 캐릭터로</button>
+      </div>
+    </aside>
+  </div>
+
+  <script src="../shared/skeleton.js"></script>
+  <script src="../shared/gestures.js"></script>
+  <script src="../shared/animations.js"></script>
+  <script src="../shared/engine.js"></script>
+  <script src="../shared/presets.js"></script>
+  <script src="../shared/characters.js"></script>
+  <script src="../shared/transport.js"></script>
+  <script src="rigger.js"></script>
+</body>
+</html>
