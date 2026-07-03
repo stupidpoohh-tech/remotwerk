@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self';
+             script-src 'self' https://www.gstatic.com;
+             style-src 'self' 'unsafe-inline';
+             img-src 'self' data: blob:;
+             connect-src 'self' https://*.firebaseio.com https://*.firebasedatabase.app https://*.googleapis.com wss://*.firebaseio.com;" />
+  <link rel="stylesheet" href="viewer.css" />
+</head>
+<body>
+  <header>
+    <h1>동작 뷰어 <span class="tag">디버그</span></h1>
+    <div class="row">
+      <label>캐릭터
+        <select id="charSelect"></select>
+      </label>
+      <label class="chk"><input type="checkbox" id="loopChk" /> 반복</label>
+    </div>
+  </header>
+
+  <div id="stage">
+    <div id="charAnchor"></div>
+  </div>
+
+  <div id="nowPlaying">현재: —</div>
+
+  <section>
+    <h2>능동 동작 (8)</h2>
+    <div id="activeBtns" class="btns"></div>
+    <h2>자율 생활 · 보조</h2>
+    <div id="ambientBtns" class="btns"></div>
+    <div class="footer">
+      <button id="stopBtn" class="ghost">■ 정지(뉴트럴)</button>
+    </div>
+  </section>
+
+  <script src="../shared/skeleton.js"></script>
+  <script src="../shared/gestures.js"></script>
+  <script src="../shared/animations.js"></script>
+  <script src="../shared/engine.js"></script>
+  <script src="../shared/presets.js"></script>
+  <script src="../shared/characters.js"></script>
+  <script src="viewer.js"></script>
+</body>
+</html>

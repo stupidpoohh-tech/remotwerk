@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('rwHost', {
   openHistory: () => ipcRenderer.send('ui:open-history'),
   openSettings: () => ipcRenderer.send('ui:open-settings'),
   openRigger: () => ipcRenderer.send('ui:open-rigger'),
+  openViewer: () => ipcRenderer.send('ui:open-viewer'),
   hideAll: () => ipcRenderer.send('ui:hide-all'),
   closeSelf: () => ipcRenderer.send('ui:close-self'),
   quit: () => ipcRenderer.send('ui:quit'),

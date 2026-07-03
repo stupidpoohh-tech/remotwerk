@@ -1,0 +1,23 @@
+rules_version = '2';
+
+// Remotwerk — Firebase Storage 보안 규칙
+// 계정 없이 페어링 코드로만 쓰므로, 커스텀 캐릭터 번들이 놓이는
+// rooms/{code}/characters/** 경로만 열어 둔다(둘만 아는 코드가 사실상의 열쇠).
+// 업로드는 5MB 이하 JSON/이미지로 제한한다.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    match /rooms/{code}/characters/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.resource == null
+                   || (request.resource.size < 5 * 1024 * 1024
+                       && (request.resource.contentType.matches('application/json')
+                           || request.resource.contentType.matches('image/.*')));
+    }
+
+    // 그 외 경로는 모두 차단
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -32,11 +32,34 @@ function baseWebPrefs() {
   };
 }
 
+// 모든 디스플레이를 합친 가상 데스크톱 전체 범위(음수 좌표 포함).
+function virtualDesktopBounds() {
+  const displays = screen.getAllDisplays();
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const d of displays) {
+    const b = d.bounds; // workArea 아님 — 작업표시줄까지 포함한 전체 화면
+    minX = Math.min(minX, b.x);
+    minY = Math.min(minY, b.y);
+    maxX = Math.max(maxX, b.x + b.width);
+    maxY = Math.max(maxY, b.y + b.height);
+  }
+  if (!isFinite(minX)) {
+    const p = screen.getPrimaryDisplay().bounds;
+    return { x: p.x, y: p.y, width: p.width, height: p.height };
+  }
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+function fitOverlayToVirtualDesktop() {
+  if (!win.overlay || win.overlay.isDestroyed()) return;
+  win.overlay.setBounds(virtualDesktopBounds());
+}
+
 function createOverlay() {
   if (win.overlay && !win.overlay.isDestroyed()) return win.overlay;
 
-  const display = screen.getPrimaryDisplay();
-  const { x, y, width, height } = display.workArea;
+  // 캐릭터가 모니터 경계를 넘어 이동할 수 있도록, 오버레이는 가상 데스크톱 전체를 덮는다.
+  const { x, y, width, height } = virtualDesktopBounds();
 
   const w = new BrowserWindow({
     x, y, width, height,
@@ -166,6 +189,25 @@ function createRigger() {
   return w;
 }
 
+// 디버그용 동작 뷰어 — 캐릭터를 골라 동작을 즉시 재생해 본다.
+function createViewer() {
+  if (win.viewer && !win.viewer.isDestroyed()) {
+    win.viewer.show();
+    win.viewer.focus();
+    return win.viewer;
+  }
+  const w = new BrowserWindow({
+    width: 520, height: 640,
+    title: 'Remotwerk — 동작 뷰어 (디버그)',
+    resizable: true,
+    webPreferences: baseWebPrefs()
+  });
+  w.loadFile(path.join(RENDERER, 'viewer', 'viewer.html'));
+  win.viewer = w;
+  w.on('closed', () => { win.viewer = null; });
+  return w;
+}
+
 // ---------------------------------------------------------------------------
 // 즉시 숨김(보스키) / 복원
 // ---------------------------------------------------------------------------
@@ -237,6 +279,7 @@ function refreshTrayMenu() {
     { type: 'separator' },
     { label: '페어링 · 캐릭터 설정', click: () => createSettings() },
     { label: '캐릭터 만들기 (업로드·리깅)', click: () => createRigger() },
+    { label: '동작 뷰어 (디버그)', click: () => createViewer() },
     { type: 'separator' },
     { label: '종료', click: () => { app.isQuiting = true; app.quit(); } }
   ]);
@@ -266,6 +309,7 @@ function registerIpc() {
   ipcMain.on('ui:open-history', () => createHistory());
   ipcMain.on('ui:open-settings', () => createSettings());
   ipcMain.on('ui:open-rigger', () => createRigger());
+  ipcMain.on('ui:open-viewer', () => createViewer());
   ipcMain.on('ui:hide-all', () => hideAll());
   ipcMain.on('ui:quit', () => { app.isQuiting = true; app.quit(); });
   ipcMain.on('ui:close-self', (e) => {
@@ -292,6 +336,13 @@ function registerShortcuts() {
   globalShortcut.register('CommandOrControl+Shift+H', () => toggleBossKey());
 }
 
+// 모니터 추가/제거/해상도 변경 시 오버레이를 가상 데스크톱 전체로 다시 맞춘다.
+function registerDisplayEvents() {
+  screen.on('display-added', fitOverlayToVirtualDesktop);
+  screen.on('display-removed', fitOverlayToVirtualDesktop);
+  screen.on('display-metrics-changed', fitOverlayToVirtualDesktop);
+}
+
 // ---------------------------------------------------------------------------
 // 앱 라이프사이클
 // ---------------------------------------------------------------------------
@@ -307,6 +358,7 @@ if (!app.requestSingleInstanceLock()) {
 
     registerIpc();
     registerShortcuts();
+    registerDisplayEvents();
     buildTray();
 
     createOverlay();
