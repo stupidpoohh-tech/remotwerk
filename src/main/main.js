@@ -376,7 +376,8 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(() => {
     const cfg = config.load();
-    console.log('[main] 시작 — pairCode =', cfg.pairCode, '| config:', require('path').join(app.getPath('userData'), 'config.json'));
+    console.log('[main] start | paired =', !!cfg.pairCode, '| pairCode =', cfg.pairCode, '| config =', require('path').join(app.getPath('userData'), 'config.json'));
+    console.log('[main] Open settings anytime with Ctrl/Cmd+Shift+S or the tray icon.');
 
     registerIpc();
     registerShortcuts();
