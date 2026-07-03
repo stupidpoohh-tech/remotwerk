@@ -134,76 +134,81 @@ function positionRemoteAtCursor(w) {
   w.setPosition(x, y);
 }
 
+// 일반 창(설정/히스토리/리깅/뷰어)을 확실히 보이게 한다.
+// 오버레이는 화면 전체를 덮는 screen-saver 레벨 항상-위 창이라, 일반 창이 그 뒤에 가려질 수
+// 있다(특히 투명 합성이 약한 환경). 잠깐 오버레이 위로 띄운 뒤 일반 레벨로 되돌려 가시성을 보장.
+function bringToFront(w) {
+  if (!w || w.isDestroyed()) return;
+  if (w.isMinimized()) w.restore();
+  w.show();
+  w.setAlwaysOnTop(true, 'screen-saver');
+  w.focus();
+  w.moveTop();
+  setTimeout(() => { if (w && !w.isDestroyed()) w.setAlwaysOnTop(false); }, 700);
+}
+
 function createHistory() {
-  if (win.history && !win.history.isDestroyed()) {
-    win.history.show();
-    win.history.focus();
-    return win.history;
-  }
+  if (win.history && !win.history.isDestroyed()) { bringToFront(win.history); return win.history; }
   const w = new BrowserWindow({
     width: 360, height: 520,
     title: 'Remotwerk — 오늘 받은 신호',
     resizable: true,
     skipTaskbar: false,
+    show: false,
     webPreferences: baseWebPrefs()
   });
   w.loadFile(path.join(RENDERER, 'history', 'history.html'));
   win.history = w;
+  w.once('ready-to-show', () => bringToFront(w));
   w.on('closed', () => { win.history = null; });
   return w;
 }
 
 function createSettings() {
-  if (win.settings && !win.settings.isDestroyed()) {
-    win.settings.show();
-    win.settings.focus();
-    return win.settings;
-  }
+  if (win.settings && !win.settings.isDestroyed()) { bringToFront(win.settings); return win.settings; }
   const w = new BrowserWindow({
     width: 480, height: 620,
     title: 'Remotwerk — 설정',
     resizable: true,
+    show: false,
     webPreferences: baseWebPrefs()
   });
   w.loadFile(path.join(RENDERER, 'settings', 'settings.html'));
   win.settings = w;
+  w.once('ready-to-show', () => bringToFront(w));
   w.on('closed', () => { win.settings = null; });
   return w;
 }
 
 function createRigger() {
-  if (win.rigger && !win.rigger.isDestroyed()) {
-    win.rigger.show();
-    win.rigger.focus();
-    return win.rigger;
-  }
+  if (win.rigger && !win.rigger.isDestroyed()) { bringToFront(win.rigger); return win.rigger; }
   const w = new BrowserWindow({
     width: 900, height: 680,
     title: 'Remotwerk — 캐릭터 만들기',
     resizable: true,
+    show: false,
     webPreferences: baseWebPrefs()
   });
   w.loadFile(path.join(RENDERER, 'rigger', 'rigger.html'));
   win.rigger = w;
+  w.once('ready-to-show', () => bringToFront(w));
   w.on('closed', () => { win.rigger = null; });
   return w;
 }
 
 // 디버그용 동작 뷰어 — 캐릭터를 골라 동작을 즉시 재생해 본다.
 function createViewer() {
-  if (win.viewer && !win.viewer.isDestroyed()) {
-    win.viewer.show();
-    win.viewer.focus();
-    return win.viewer;
-  }
+  if (win.viewer && !win.viewer.isDestroyed()) { bringToFront(win.viewer); return win.viewer; }
   const w = new BrowserWindow({
     width: 520, height: 640,
     title: 'Remotwerk — 동작 뷰어 (디버그)',
     resizable: true,
+    show: false,
     webPreferences: baseWebPrefs()
   });
   w.loadFile(path.join(RENDERER, 'viewer', 'viewer.html'));
   win.viewer = w;
+  w.once('ready-to-show', () => bringToFront(w));
   w.on('closed', () => { win.viewer = null; });
   return w;
 }
@@ -238,14 +243,19 @@ function toggleBossKey() {
 // ---------------------------------------------------------------------------
 
 function buildTrayIcon() {
-  // 텍스트 에셋 없이 동작하도록 1x 투명 아이콘을 코드로 생성한다.
+  // 텍스트 에셋 없이도 "보이는" 아이콘을 코드로 그린다(보라색 원형 점).
   // (실제 배포 시 assets 의 아이콘으로 교체)
-  const size = 16;
+  const size = 16, r = 7, cx = 7.5, cy = 7.5;
+  const buf = Buffer.alloc(size * size * 4, 0);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4;
+      const inside = (x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r;
+      if (inside) { buf[i] = 138; buf[i + 1] = 99; buf[i + 2] = 255; buf[i + 3] = 255; } // RGBA 보라
+    }
+  }
   const img = nativeImage.createEmpty();
-  img.addRepresentation({
-    width: size, height: size, scaleFactor: 1,
-    buffer: Buffer.alloc(size * size * 4, 0)
-  });
+  img.addRepresentation({ width: size, height: size, scaleFactor: 1, buffer: buf });
   return img;
 }
 
@@ -358,13 +368,15 @@ if (!app.requestSingleInstanceLock()) {
 
     registerIpc();
     registerShortcuts();
-    registerDisplayEvents();
-    buildTray();
 
-    createOverlay();
-
-    // 페어링이 안 되어 있으면 설정 화면을 먼저 띄운다.
+    // 페어링 전이면 설정 화면부터 띄운다. 오버레이/트레이 생성보다 먼저 열어,
+    // 그쪽에서 예외가 나더라도 설정 창이 막히지 않게 한다.
     if (!cfg.pairCode) createSettings();
+
+    // 오버레이/트레이/디스플레이 이벤트는 실패해도 앱이 죽지 않도록 각각 보호한다.
+    try { createOverlay(); } catch (e) { console.error('[main] createOverlay 실패', e); }
+    try { buildTray(); } catch (e) { console.error('[main] buildTray 실패', e); }
+    try { registerDisplayEvents(); } catch (e) { console.error('[main] display 이벤트', e); }
 
     app.on('activate', () => {
       if (!win.overlay || win.overlay.isDestroyed()) createOverlay();
