@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self';
+             script-src 'self' https://www.gstatic.com;
+             style-src 'self' 'unsafe-inline';
+             img-src 'self' data:;
+             connect-src 'self' https://*.firebaseio.com https://*.firebasedatabase.app https://*.googleapis.com wss://*.firebaseio.com;" />
+  <link rel="stylesheet" href="overlay.css" />
+</head>
+<body>
+  <!-- 내 화면 = 상대 캐릭터. 바운딩 밖은 클릭 통과. -->
+  <div id="char" title="드래그해서 옮길 수 있어요">
+    <div class="rw-anchor"></div>
+  </div>
+
+  <script src="../shared/skeleton.js"></script>
+  <script src="../shared/gestures.js"></script>
+  <script src="../shared/animations.js"></script>
+  <script src="../shared/engine.js"></script>
+  <script src="../shared/presets.js"></script>
+  <script src="../shared/transport.js"></script>
+  <script src="overlay.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "id": "preset2",
+  "name": "캐릭터2",
+  "skeletonId": "bipedal",
+  "swatch": "#ff6fa5",
+  "_note": "슬롯별 image 를 채우면 아트로 교체된다. 본/피벗/z/골격은 공통 골격 정의를 따른다.",
+  "slots": {
+    "head":  { "color": "#ffe0cf", "border": "2px solid rgba(0,0,0,.15)", "image": null },
+    "torso": { "color": "#ff6fa5", "radius": 14, "image": null },
+    "arm":   { "color": "#ff6fa5", "radius": 8, "image": null },
+    "hand":  { "color": "#ffe0cf", "image": null },
+    "leg":   { "color": "#d24f84", "radius": 8, "image": null },
+    "foot":  { "color": "#3a3a3a", "radius": 5, "image": null }
+  }
+}

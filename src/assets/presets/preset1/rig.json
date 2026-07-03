@@ -1,0 +1,15 @@
+{
+  "id": "preset1",
+  "name": "캐릭터1",
+  "skeletonId": "bipedal",
+  "swatch": "#8a63ff",
+  "_note": "본 계층/회전 중심점/z-순서는 공통 골격(skeleton.js)에 정의됨. 여기서는 골격 종류와 슬롯별 아트만 채운다. 최종 아트 교체 시 각 슬롯에 image(부위별 이미지 경로 또는 data URI)를 넣는다.",
+  "slots": {
+    "head":  { "color": "#ffd9c0", "border": "2px solid rgba(0,0,0,.15)", "image": null },
+    "torso": { "color": "#8a63ff", "radius": 14, "image": null },
+    "arm":   { "color": "#8a63ff", "radius": 8, "image": null },
+    "hand":  { "color": "#ffd9c0", "image": null },
+    "leg":   { "color": "#5b3ecc", "radius": 8, "image": null },
+    "foot":  { "color": "#3a3a3a", "radius": 5, "image": null }
+  }
+}

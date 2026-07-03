@@ -1,0 +1,65 @@
+'use strict';
+
+// 계정 시스템 없는 로컬 설정 저장소.
+// userData 폴더에 config.json 하나로 페어링 코드/내 캐릭터/집중 모드 등을 보관한다.
+
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const { app } = require('electron');
+
+let cachedPath = null;
+let cached = null;
+
+function configPath() {
+  if (!cachedPath) {
+    cachedPath = path.join(app.getPath('userData'), 'config.json');
+  }
+  return cachedPath;
+}
+
+function defaults() {
+  return {
+    // 익명 사용자 식별자 (방 안에서 나/상대를 구분하는 용도)
+    userId: 'u_' + crypto.randomBytes(6).toString('hex'),
+    pairCode: null,
+    // 내가 고른 캐릭터(상대 화면에 상주할 캐릭터)
+    characterId: 'preset1',
+    // 상대가 고른 캐릭터(내 화면에 상주). 실서비스에선 Firebase members에서 읽지만
+    // 로컬/데모 모드를 위해 캐시해 둔다.
+    partnerCharacterId: 'preset2',
+    // 집중 모드: 켜면 들어오는 신호를 라이브 재생하지 않고 히스토리로만 쌓는다.
+    focusMode: false,
+    // 오버레이 캐릭터 위치(드래그로 이동, 화면 비율 0..1로 저장)
+    overlayPos: { x: 0.82, y: 0.72 },
+    // Firebase 웹 설정(JSON). null 이면 로컬 데모 트랜스포트로 동작한다.
+    firebase: null
+  };
+}
+
+function load() {
+  if (cached) return cached;
+  let data = {};
+  try {
+    data = JSON.parse(fs.readFileSync(configPath(), 'utf8'));
+  } catch (_) {
+    data = {};
+  }
+  cached = Object.assign(defaults(), data);
+  // userId 는 최초 1회만 생성해 고정
+  if (!data.userId) save(cached);
+  return cached;
+}
+
+function save(next) {
+  cached = Object.assign(load(), next);
+  try {
+    fs.mkdirSync(path.dirname(configPath()), { recursive: true });
+    fs.writeFileSync(configPath(), JSON.stringify(cached, null, 2), 'utf8');
+  } catch (err) {
+    console.error('[config] 저장 실패', err);
+  }
+  return cached;
+}
+
+module.exports = { load, save };

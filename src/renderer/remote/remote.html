@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self';
+             script-src 'self' https://www.gstatic.com;
+             style-src 'self' 'unsafe-inline';
+             img-src 'self' data:;
+             connect-src 'self' https://*.firebaseio.com https://*.firebasedatabase.app https://*.googleapis.com wss://*.firebaseio.com;" />
+  <link rel="stylesheet" href="remote.css" />
+</head>
+<body>
+  <div id="radial">
+    <div id="center">
+      <span id="center-label">신호</span>
+    </div>
+    <!-- 8버튼은 remote.js 가 라디얼로 배치 -->
+  </div>
+  <div id="toast"></div>
+
+  <script src="../shared/skeleton.js"></script>
+  <script src="../shared/gestures.js"></script>
+  <script src="../shared/animations.js"></script>
+  <script src="../shared/presets.js"></script>
+  <script src="../shared/transport.js"></script>
+  <script src="remote.js"></script>
+</body>
+</html>

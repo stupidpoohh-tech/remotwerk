@@ -1,0 +1,58 @@
+/* 오버레이 — 투명 전면 창. 캐릭터만 보이고 나머지는 클릭 통과. */
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  /* 기본은 이벤트 통과. 캐릭터 위에서만 JS 로 pointer-events 를 켠다. */
+  user-select: none;
+  cursor: default;
+}
+
+#char {
+  position: absolute;
+  width: 120px;
+  height: 210px;
+  /* left/top 은 overlay.js 가 overlayPos 로 설정 */
+  pointer-events: none;
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.25));
+}
+#char.grabbable { cursor: grab; pointer-events: auto; }
+#char.grabbing { cursor: grabbing; pointer-events: auto; }
+
+/* 골반(root) 원점이 놓일 지점 */
+.rw-anchor {
+  position: absolute;
+  left: 60px;
+  top: 120px;
+}
+
+.rw-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  will-change: transform, opacity;
+}
+
+.rw-bone { position: absolute; }
+.rw-part {
+  position: absolute;
+  box-sizing: border-box;
+}
+
+/* 분노 오오라 레이어 */
+.rw-aura {
+  position: absolute;
+  left: -55px;
+  top: -140px;
+  width: 110px;
+  height: 190px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 90, 60, 0.55) 0%, rgba(255, 120, 40, 0.25) 45%, rgba(255, 120, 40, 0) 72%);
+  opacity: 0;
+  transform-origin: 50% 60%;
+  z-index: 0;
+  pointer-events: none;
+}

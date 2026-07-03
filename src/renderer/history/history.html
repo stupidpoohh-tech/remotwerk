@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self';
+             script-src 'self' https://www.gstatic.com;
+             style-src 'self' 'unsafe-inline';
+             img-src 'self' data:;
+             connect-src 'self' https://*.firebaseio.com https://*.firebasedatabase.app https://*.googleapis.com wss://*.firebaseio.com;" />
+  <link rel="stylesheet" href="history.css" />
+</head>
+<body>
+  <header>
+    <h1>오늘 받은 신호</h1>
+    <p class="sub">자정(KST)에 비워집니다</p>
+  </header>
+  <ul id="list"></ul>
+  <div id="empty" class="empty" hidden>아직 받은 신호가 없어요.</div>
+
+  <script src="../shared/skeleton.js"></script>
+  <script src="../shared/gestures.js"></script>
+  <script src="../shared/animations.js"></script>
+  <script src="../shared/presets.js"></script>
+  <script src="../shared/transport.js"></script>
+  <script src="history.js"></script>
+</body>
+</html>
