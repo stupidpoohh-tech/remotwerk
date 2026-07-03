@@ -154,11 +154,12 @@ function createHistory() {
     title: 'Remotwerk — 오늘 받은 신호',
     resizable: true,
     skipTaskbar: false,
-    show: false,
+    center: true,
     webPreferences: baseWebPrefs()
   });
   w.loadFile(path.join(RENDERER, 'history', 'history.html'));
   win.history = w;
+  bringToFront(w);
   w.once('ready-to-show', () => bringToFront(w));
   w.on('closed', () => { win.history = null; });
   return w;
@@ -170,11 +171,12 @@ function createSettings() {
     width: 480, height: 620,
     title: 'Remotwerk — 설정',
     resizable: true,
-    show: false,
+    center: true,
     webPreferences: baseWebPrefs()
   });
   w.loadFile(path.join(RENDERER, 'settings', 'settings.html'));
   win.settings = w;
+  bringToFront(w);
   w.once('ready-to-show', () => bringToFront(w));
   w.on('closed', () => { win.settings = null; });
   return w;
@@ -186,11 +188,12 @@ function createRigger() {
     width: 900, height: 680,
     title: 'Remotwerk — 캐릭터 만들기',
     resizable: true,
-    show: false,
+    center: true,
     webPreferences: baseWebPrefs()
   });
   w.loadFile(path.join(RENDERER, 'rigger', 'rigger.html'));
   win.rigger = w;
+  bringToFront(w);
   w.once('ready-to-show', () => bringToFront(w));
   w.on('closed', () => { win.rigger = null; });
   return w;
@@ -203,11 +206,12 @@ function createViewer() {
     width: 520, height: 640,
     title: 'Remotwerk — 동작 뷰어 (디버그)',
     resizable: true,
-    show: false,
+    center: true,
     webPreferences: baseWebPrefs()
   });
   w.loadFile(path.join(RENDERER, 'viewer', 'viewer.html'));
   win.viewer = w;
+  bringToFront(w);
   w.once('ready-to-show', () => bringToFront(w));
   w.on('closed', () => { win.viewer = null; });
   return w;
@@ -287,7 +291,7 @@ function refreshTrayMenu() {
     },
     { label: '즉시 숨김 / 복원', accelerator: 'CommandOrControl+Shift+H', click: () => toggleBossKey() },
     { type: 'separator' },
-    { label: '페어링 · 캐릭터 설정', click: () => createSettings() },
+    { label: '페어링 · 캐릭터 설정', accelerator: 'CommandOrControl+Shift+S', click: () => createSettings() },
     { label: '캐릭터 만들기 (업로드·리깅)', click: () => createRigger() },
     { label: '동작 뷰어 (디버그)', click: () => createViewer() },
     { type: 'separator' },
@@ -344,6 +348,7 @@ function registerIpc() {
 function registerShortcuts() {
   globalShortcut.register('CommandOrControl+Shift+R', () => createRemote());
   globalShortcut.register('CommandOrControl+Shift+H', () => toggleBossKey());
+  globalShortcut.register('CommandOrControl+Shift+S', () => createSettings());
 }
 
 // 모니터 추가/제거/해상도 변경 시 오버레이를 가상 데스크톱 전체로 다시 맞춘다.
@@ -361,10 +366,17 @@ function registerDisplayEvents() {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => createRemote());
+  // 앱은 트레이에 상주하므로, 이미 실행 중일 때 다시 켜면 이 핸들러가 뜬다.
+  // 페어링 전이면 설정창을, 이후면 리모컨을 앞으로 띄운다.
+  app.on('second-instance', () => {
+    const cfg = config.load();
+    if (!cfg.pairCode) createSettings();
+    else createRemote();
+  });
 
   app.whenReady().then(() => {
     const cfg = config.load();
+    console.log('[main] 시작 — pairCode =', cfg.pairCode, '| config:', require('path').join(app.getPath('userData'), 'config.json'));
 
     registerIpc();
     registerShortcuts();
