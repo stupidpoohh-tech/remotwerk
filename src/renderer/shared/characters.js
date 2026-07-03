@@ -10,11 +10,13 @@
   const RW = (root.RW = root.RW || {});
 
   // 번들 → 엔진 mount 입력 { skeleton, rig }
+  // proportions 가 있으면 그 비율로 골격을 생성(리깅 도구에서 가이드 비율을 조절한 캐릭터).
   function bundleToRig(bundle) {
-    return {
-      skeleton: RW.skeleton.getSkeleton(bundle.skeletonId || 'bipedal5'),
-      rig: { skeletonId: bundle.skeletonId || 'bipedal5', slots: bundle.slots || {} }
-    };
+    const skeletonId = bundle.skeletonId || 'bipedal5';
+    const skeleton = (bundle.proportions && skeletonId === 'bipedal5')
+      ? RW.skeleton.buildBipedal5(bundle.proportions)
+      : RW.skeleton.getSkeleton(skeletonId);
+    return { skeleton, rig: { skeletonId, slots: bundle.slots || {} } };
   }
 
   function customList(config) {

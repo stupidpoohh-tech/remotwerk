@@ -1,9 +1,10 @@
 'use strict';
 /* 리깅·업로드 도구 (Prompt B).
  *  - 大자(spread) 가이드에 맞춰 부위별 투명 PNG 5장을 정합(크기·위치·회전·z).
- *  - 자유 분할/관절 찍기 없음. 관절(어깨·골반)은 가이드에 고정.
+ *  - 가이드 비율(몸통 길이/너비, 어깨 높이/너비, 골반 너비, 팔·다리 길이/두께)을 조절 가능.
+ *    비율은 번들에 저장되어 상대 화면·애니메이션에도 동일하게 적용된다.
  *  - 코어 애니메이션(능동8+자율2)을 그대로 재생해 검증(5절 근사 처리 반영).
- *  - 저장: 프리셋과 동일 포맷(부위 이미지 + 리그 JSON) 번들 → config + (Firebase면) Storage 공유.
+ *  - 저장: 프리셋과 동일 포맷(부위 이미지 + 리그 JSON + proportions) → config + (Firebase면) Storage 공유.
  */
 
 (function () {
@@ -11,41 +12,86 @@
   const host = window.rwHost;
 
   const S = 2;                       // 스테이지 확대 배율(#scaled 의 scale 과 동일)
-  const MAX_SIDE = 512;              // 업로드 이미지 다운스케일 한 변 최대
-  const MAX_TOTAL = 2 * 1024 * 1024; // 번들 총용량 상한(약 2MB)
+  const MAX_SIDE = 512;
+  const MAX_TOTAL = 2 * 1024 * 1024;
 
   const LABELS = { torso: '몸통+머리', armL: '좌팔', armR: '우팔', legL: '좌다리', legR: '우다리' };
+  const SLOTS = ['torso', 'armL', 'armR', 'legL', 'legR'];
 
-  const skeleton = RW.skeleton.getSkeleton('bipedal5');
-  const slotBones = skeleton.bones.filter((b) => b.part);   // 5조각
-  const absPivot = computeAbsPivots(skeleton);
+  // 조절 가능한 가이드 비율 슬라이더(값은 정수 슬라이더 → proportions 로 변환)
+  const PROP_FIELDS = [
+    { key: 'torsoLen', label: '몸통 길이', min: 60, max: 175 },
+    { key: 'torsoW',   label: '몸통 너비', min: 40, max: 110 },
+    { key: 'shoulderRatio', label: '어깨 높이', min: 45, max: 95, ratio: true },  // %
+    { key: 'shoulderX', label: '어깨 너비', min: 8,  max: 60 },
+    { key: 'hipX',     label: '골반 너비', min: 3,  max: 42 },
+    { key: 'armLen',   label: '팔 길이',   min: 40, max: 135 },
+    { key: 'armW',     label: '팔 두께',   min: 10, max: 52 },
+    { key: 'legLen',   label: '다리 길이', min: 40, max: 145 },
+    { key: 'legW',     label: '다리 두께', min: 10, max: 58 }
+  ];
 
   let cfg = null;
   let ctrl = null;
   let selected = 'torso';
+  let proportions = Object.assign({}, RW.skeleton.BIPEDAL5_DEFAULT);
   const state = {};                  // slot → { image, natW, natH, scale, offx, offy, rot, z, base }
 
-  for (const b of slotBones) {
-    state[b.part.slot] = {
-      image: null, natW: 0, natH: 0,
-      scale: 1, offx: 0, offy: 0,
-      rot: b.guideRot || 0,
-      z: b.z,
-      base: { x: b.part.x, y: b.part.y, w: b.part.w, h: b.part.h }
-    };
-  }
+  function workingSkeleton() { return RW.skeleton.buildBipedal5(proportions); }
+  function boneOf(sk, slot) { return sk.bones.find((b) => b.part && b.part.slot === slot); }
+
+  // 슬롯 상태 초기화(기본 골격 기준)
+  (function initState() {
+    const sk = workingSkeleton();
+    for (const slot of SLOTS) {
+      const b = boneOf(sk, slot);
+      state[slot] = {
+        image: null, natW: 0, natH: 0,
+        scale: 1, offx: 0, offy: 0,
+        rot: b.guideRot || 0, z: b.z,
+        base: { x: b.part.x, y: b.part.y, w: b.part.w, h: b.part.h }
+      };
+    }
+  })();
 
   async function main() {
     cfg = await host.getConfig();
-    drawGuide();
+    buildProps();
     buildPanel();
-    render();
+    redraw();
     document.getElementById('previewBtn').addEventListener('click', preview);
     document.getElementById('saveBtn').addEventListener('click', save);
+    document.getElementById('resetProps').addEventListener('click', resetProps);
     setupDrag();
   }
 
-  // ---- 절대 관절 좌표(펠비스 원점) ----
+  // ---- 가이드 비율 슬라이더 ----
+  function buildProps() {
+    const host = document.getElementById('proportions');
+    host.innerHTML = '';
+    for (const f of PROP_FIELDS) {
+      const val = f.ratio ? Math.round(proportions[f.key] * 100) : proportions[f.key];
+      const row = document.createElement('div');
+      row.className = 'ctl';
+      row.innerHTML = `<label>${f.label}</label><input type="range" min="${f.min}" max="${f.max}" value="${val}"><span class="val">${val}</span>`;
+      const input = row.querySelector('input');
+      const out = row.querySelector('.val');
+      input.addEventListener('input', () => {
+        out.textContent = input.value;
+        proportions[f.key] = f.ratio ? (+input.value / 100) : +input.value;
+        redraw();
+      });
+      host.appendChild(row);
+    }
+  }
+
+  function resetProps() {
+    proportions = Object.assign({}, RW.skeleton.BIPEDAL5_DEFAULT);
+    buildProps();
+    redraw();
+  }
+
+  // ---- 大자 가이드(SVG) ----
   function computeAbsPivots(sk) {
     const byName = {}; sk.bones.forEach((b) => (byName[b.name] = b));
     const abs = {};
@@ -60,14 +106,15 @@
     return abs;
   }
 
-  // ---- 大자 가이드 그리기(SVG) ----
   function drawGuide() {
+    const sk = workingSkeleton();
+    const abs = computeAbsPivots(sk);
     const svg = document.getElementById('guide');
     const NS = 'http://www.w3.org/2000/svg';
     svg.innerHTML = '';
-    for (const b of slotBones) {
-      const slot = b.part.slot;
-      const pv = absPivot[b.name];
+    for (const slot of SLOTS) {
+      const b = boneOf(sk, slot);
+      const pv = abs[b.name];
       const g = document.createElementNS(NS, 'g');
       g.setAttribute('transform', `translate(${pv.x} ${pv.y}) rotate(${b.guideRot || 0})`);
 
@@ -95,23 +142,24 @@
     }
   }
 
-  // ---- 오른쪽 패널(슬롯 카드) ----
+  // ---- 슬롯 카드 ----
   function buildPanel() {
-    const host = document.getElementById('slots');
-    host.innerHTML = '';
-    for (const b of slotBones) {
-      const slot = b.part.slot;
+    const panel = document.getElementById('slots');
+    panel.innerHTML = '';
+    const sk = workingSkeleton();
+    for (const slot of SLOTS) {
+      const b = boneOf(sk, slot);
       const card = document.createElement('div');
-      card.className = 'slot';
+      card.className = 'slot' + (state[slot].image ? ' filled' : '');
       card.dataset.slot = slot;
       card.innerHTML = `
         <div class="slot-head">
-          <span class="slot-name empty">${LABELS[slot]}</span>
+          <span class="slot-name ${state[slot].image ? 'filled' : 'empty'}">${LABELS[slot]}</span>
           <label class="upload">이미지 올리기<input type="file" accept="image/png,image/*"></label>
         </div>
         <div class="controls">
-          <div class="ctl"><label>크기</label><input type="range" class="scale" min="30" max="250" value="100"></div>
-          <div class="ctl"><label>회전</label><input type="range" class="rot" min="-180" max="180" value="${b.guideRot || 0}"></div>
+          <div class="ctl"><label>크기</label><input type="range" class="scale" min="30" max="250" value="${Math.round(state[slot].scale * 100)}"></div>
+          <div class="ctl"><label>회전</label><input type="range" class="rot" min="-180" max="180" value="${state[slot].rot}"></div>
           <div class="zbtns"><button class="zup">앞으로</button><button class="zdown">뒤로</button></div>
         </div>`;
       card.addEventListener('click', () => selectSlot(slot));
@@ -120,7 +168,7 @@
       card.querySelector('.rot').addEventListener('input', (e) => { state[slot].rot = +e.target.value; render(); });
       card.querySelector('.zup').addEventListener('click', (e) => { e.stopPropagation(); state[slot].z += 1; render(); });
       card.querySelector('.zdown').addEventListener('click', (e) => { e.stopPropagation(); state[slot].z -= 1; render(); });
-      host.appendChild(card);
+      panel.appendChild(card);
     }
     selectSlot(selected);
   }
@@ -134,21 +182,17 @@
   function onUpload(slot, file) {
     if (!file) return;
     loadDownscaled(file, MAX_SIDE).then(({ dataUrl, w, h }) => {
+      const b = boneOf(workingSkeleton(), slot);
       const s = state[slot];
       s.image = dataUrl; s.natW = w; s.natH = h;
-      // 새 이미지: 정합값 초기화(가이드 각도로)
-      s.scale = 1; s.offx = 0; s.offy = 0; s.rot = (slotBoneOf(slot).guideRot || 0);
-      const card = document.querySelector(`.slot[data-slot="${slot}"]`);
-      card.classList.add('filled');
-      card.querySelector('.slot-name').className = 'slot-name filled';
-      card.querySelector('.scale').value = 100;
-      card.querySelector('.rot').value = s.rot;
+      // 새 이미지: 현재 비율의 가이드 상자를 base 로 스냅샷(이후 비율을 바꿔도 이 조각은 안정)
+      s.base = { x: b.part.x, y: b.part.y, w: b.part.w, h: b.part.h };
+      s.scale = 1; s.offx = 0; s.offy = 0; s.rot = b.guideRot || 0; s.z = b.z;
+      buildPanel();
       selectSlot(slot);
       render();
     }).catch((e) => setStatus('이미지를 불러오지 못했어요: ' + e.message));
   }
-
-  function slotBoneOf(slot) { return slotBones.find((b) => b.part.slot === slot); }
 
   function loadDownscaled(file, max) {
     return new Promise((resolve, reject) => {
@@ -181,12 +225,11 @@
   }
   function buildBundle() {
     const slots = {};
-    for (const b of slotBones) {
-      const slot = b.part.slot;
+    for (const slot of SLOTS) {
       const s = state[slot];
       if (s.image) slots[slot] = { image: s.image, fit: fitOf(s), z: s.z };
     }
-    return { skeletonId: 'bipedal5', slots };
+    return { skeletonId: 'bipedal5', proportions: Object.assign({}, proportions), slots };
   }
 
   // ---- 렌더 ----
@@ -199,20 +242,18 @@
       if (ctrl) ctrl.stop();
       const anchor = document.getElementById('charAnchor');
       anchor.innerHTML = '';
-      ctrl = RW.engine.mount(anchor, RW.characters.bundleToRig(buildBundle()));
+      ctrl = RW.engine.mount(anchor, { skeleton: workingSkeleton(), rig: { skeletonId: 'bipedal5', slots: buildBundle().slots } });
       updateSize();
     });
   }
+  // 비율/가이드 변경 시: 가이드도 다시 그리고 캐릭터도 다시 렌더
+  function redraw() { drawGuide(); render(); }
 
   function updateSize() {
     let bytes = 0;
-    for (const slot of Object.keys(state)) {
-      const im = state[slot].image;
-      if (im) bytes += Math.floor(im.length * 0.75);
-    }
-    const kb = Math.round(bytes / 1024);
+    for (const slot of SLOTS) { const im = state[slot].image; if (im) bytes += Math.floor(im.length * 0.75); }
     const info = document.getElementById('sizeInfo');
-    info.textContent = `번들 크기 ≈ ${kb} KB`;
+    info.textContent = `번들 크기 ≈ ${Math.round(bytes / 1024)} KB`;
     info.style.color = bytes > MAX_TOTAL ? '#c0392b' : '';
   }
 
@@ -229,11 +270,10 @@
     window.addEventListener('mousemove', (e) => {
       if (!dragging) return;
       const s = state[selected];
-      const dx = (e.clientX - lastX) / S;   // 스테이지(스케일) → 스켈레톤 px
+      const dx = (e.clientX - lastX) / S;
       const dy = (e.clientY - lastY) / S;
       lastX = e.clientX; lastY = e.clientY;
-      // 파트는 pivot 기준 rot 만큼 회전되어 그려지므로, 화면 이동을 -rot 로 회전해 로컬 이동으로 변환
-      const r = -s.rot * Math.PI / 180;
+      const r = -s.rot * Math.PI / 180;   // 화면 이동 → 로컬(파트는 pivot 기준 rot 회전)
       s.offx += dx * Math.cos(r) - dy * Math.sin(r);
       s.offy += dx * Math.sin(r) + dy * Math.cos(r);
       render();
@@ -241,10 +281,9 @@
     window.addEventListener('mouseup', () => { dragging = false; });
   }
 
-  // ---- 미리보기(코어 동작 세트 재생) ----
+  // ---- 미리보기 ----
   function preview() {
     if (!ctrl) return;
-    // 자리비우기(g5)→얼굴부비기(g6)로 사라졌다 걸어 들어오는 것까지 보여준다.
     const seq = ['g2_twerk', 'g4_ballet', 'g3_despair', 'g8_w_shrug', 'g7_rage_aura', 'g5_leave', 'g6_nuzzle', 'g1_slump_roll'];
     ctrl.play(seq, { onDone: () => render() });
   }
@@ -263,14 +302,12 @@
 
     const id = 'custom_' + Date.now().toString(36);
     const entry = { id, name, swatch: '#9b7bff', bundle };
-
     const nextCustoms = (cfg.customCharacters || []).concat([entry]);
+
     setStatus('저장 중…');
-    // config 에 추가 + 내 캐릭터로 선택. 로컬 데모 확인을 위해 상대(오버레이) 캐릭터도 이 캐릭터로.
     await host.setConfig({ customCharacters: nextCustoms, characterId: id, partnerCharacterId: id });
     cfg = await host.getConfig();
 
-    // Firebase 모드면 Storage 로 번들 공유 + members 에 characterRef 기록
     if (cfg.firebase && cfg.pairCode) {
       try {
         const t = RW.transport.createTransport(cfg);
@@ -285,14 +322,7 @@
     } else {
       setStatus('저장 완료(로컬 데모). 오버레이에서 새 캐릭터가 보입니다.');
     }
-    filledHint(filled);
-  }
-
-  function filledHint(filled) {
-    if (filled < 5) {
-      const s = document.getElementById('status');
-      s.textContent += `  (${filled}/5 조각 — 나머지도 채우면 더 온전해요)`;
-    }
+    if (filled < 5) document.getElementById('status').textContent += `  (${filled}/5 조각)`;
   }
 
   function setStatus(msg) { document.getElementById('status').textContent = msg; }

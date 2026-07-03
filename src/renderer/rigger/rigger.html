@@ -36,6 +36,14 @@
         <input id="charName" type="text" placeholder="예: 뽀삐" maxlength="16" />
       </label>
 
+      <details id="propsBox" open>
+        <summary>가이드 비율 조정</summary>
+        <p class="hint small">내 캐릭터 체형에 맞게 大자 가이드 자체를 조절하세요(짧은 몸통·긴 다리 등).
+          이 비율은 저장되어 상대 화면·애니메이션에도 그대로 적용됩니다.</p>
+        <div id="proportions"></div>
+        <button id="resetProps" class="ghost small">비율 초기화</button>
+      </details>
+
       <div id="slots"></div>
 
       <div class="panel-actions">

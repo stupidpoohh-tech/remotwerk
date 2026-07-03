@@ -46,17 +46,42 @@
   //   animSource: 코어 애니메이션의 어깨/골반 트랙(*_upper)을 그대로 읽어 근사 재생.
   //   guideRot: 大자 가이드에서 각 조각이 벌어진 각도. 리깅 도구가 가이드 윤곽을 이 각도로
   //     그리고, 업로드한 조각의 기본 fit.rot 로 쓴다. 관절 회전(어깨/골반)은 이 위에 얹힌다.
-  const BIPEDAL5_BONES = [
-    { name: 'root',  parent: null,   pivotOffset: [0, 0],     part: null,                              z: 5 },
-    { name: 'torso', parent: 'root', pivotOffset: [0, 0],     part: rect(-34, -122, 68, 122, 'torso'), z: 5, guideRot: 0,   animSource: 'torso' },
-    { name: 'armL',  parent: 'torso',pivotOffset: [-26, -88], part: rect(-12, 0, 24, 82, 'armL'),      z: 4, guideRot: 28,  animSource: 'armL_upper' },
-    { name: 'armR',  parent: 'torso',pivotOffset: [26, -88],  part: rect(-12, 0, 24, 82, 'armR'),      z: 6, guideRot: -28, animSource: 'armR_upper' },
-    { name: 'legL',  parent: 'root', pivotOffset: [-13, 0],   part: rect(-14, 0, 28, 92, 'legL'),      z: 2, guideRot: 14,  animSource: 'legL_upper' },
-    { name: 'legR',  parent: 'root', pivotOffset: [13, 0],    part: rect(-14, 0, 28, 92, 'legR'),      z: 3, guideRot: -14, animSource: 'legR_upper' }
-  ];
+  // 5조각 골격은 "비율(proportions)"로 생성한다. 리깅 도구에서 大자 가이드 비율을
+  // 조절하면 그 값이 캐릭터 번들에 저장되고, 상대 클라이언트도 같은 비율로 렌더한다.
+  const BIPEDAL5_DEFAULT = {
+    torsoLen: 122,       // 몸통+머리 길이(세로)
+    torsoW: 68,          // 몸통 너비
+    shoulderRatio: 0.72, // 어깨 높이(몸통 길이 대비 위쪽 비율)
+    shoulderX: 26,       // 어깨 좌우 간격(중심에서)
+    hipX: 13,            // 골반 좌우 간격(중심에서)
+    armLen: 82,          // 팔 길이
+    armW: 24,            // 팔 두께
+    legLen: 92,          // 다리 길이
+    legW: 28             // 다리 두께
+  };
 
-  // 캐릭터 표시 영역(로컬 좌표계 기준 대략 -30..30 x, -120..90 y).
-  // 렌더 시 이 원점(root=골반)이 어디에 놓일지는 엔진이 정한다.
+  function buildBipedal5(p) {
+    const q = Object.assign({}, BIPEDAL5_DEFAULT, p || {});
+    const shoulderY = -Math.round(q.torsoLen * q.shoulderRatio);
+    const bones = [
+      { name: 'root',  parent: null,    pivotOffset: [0, 0], part: null, z: 5 },
+      { name: 'torso', parent: 'root',  pivotOffset: [0, 0], part: rect(-q.torsoW / 2, -q.torsoLen, q.torsoW, q.torsoLen, 'torso'), z: 5, guideRot: 0,   animSource: 'torso' },
+      { name: 'armL',  parent: 'torso', pivotOffset: [-q.shoulderX, shoulderY], part: rect(-q.armW / 2, 0, q.armW, q.armLen, 'armL'), z: 4, guideRot: 28,  animSource: 'armL_upper' },
+      { name: 'armR',  parent: 'torso', pivotOffset: [q.shoulderX, shoulderY],  part: rect(-q.armW / 2, 0, q.armW, q.armLen, 'armR'), z: 6, guideRot: -28, animSource: 'armR_upper' },
+      { name: 'legL',  parent: 'root',  pivotOffset: [-q.hipX, 0], part: rect(-q.legW / 2, 0, q.legW, q.legLen, 'legL'), z: 2, guideRot: 14,  animSource: 'legL_upper' },
+      { name: 'legR',  parent: 'root',  pivotOffset: [q.hipX, 0],  part: rect(-q.legW / 2, 0, q.legW, q.legLen, 'legR'), z: 3, guideRot: -14, animSource: 'legR_upper' }
+    ];
+    return {
+      id: 'bipedal5',
+      bones,
+      slots: ['torso', 'armL', 'armR', 'legL', 'legR'],
+      box: { w: 130, h: 220, originX: 65, originY: 122 },
+      spread: true,
+      proportions: q
+    };
+  }
+
+  // 캐릭터 표시 영역(로컬 좌표계 기준). 렌더 시 원점(root=골반)이 어디 놓일지는 엔진이 정한다.
   const SKELETONS = {
     bipedal: {
       id: 'bipedal',
@@ -66,20 +91,12 @@
       // 캐릭터 콘텐츠 상자(대략). 오버레이 배치/드래그 히트박스 계산에 쓴다.
       box: { w: 120, h: 210, originX: 60, originY: 150 }
     },
-    bipedal5: {
-      id: 'bipedal5',
-      bones: BIPEDAL5_BONES,
-      // 슬롯 = 조각 5개. 사용자가 부위별 투명 PNG 1장씩 올린다.
-      slots: ['torso', 'armL', 'armR', 'legL', 'legR'],
-      box: { w: 130, h: 220, originX: 65, originY: 122 },
-      // 大자 가이드에서 각 조각 슬롯의 관절(회전 중심)은 pivotOffset 로 고정되어 있다.
-      spread: true
-    }
+    bipedal5: buildBipedal5(BIPEDAL5_DEFAULT)
   };
 
   function getSkeleton(id) {
     return SKELETONS[id] || SKELETONS.bipedal;
   }
 
-  RW.skeleton = { SKELETONS, getSkeleton };
+  RW.skeleton = { SKELETONS, getSkeleton, buildBipedal5, BIPEDAL5_DEFAULT };
 })(typeof window !== 'undefined' ? window : globalThis);

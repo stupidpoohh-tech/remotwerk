@@ -81,6 +81,20 @@ input[type="text"] {
 .ctl { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 .ctl label { font-size: 11px; width: 34px; opacity: 0.7; }
 .ctl input[type="range"] { flex: 1; }
+.ctl .val { font-size: 11px; width: 28px; text-align: right; opacity: 0.6; font-variant-numeric: tabular-nums; }
+
+/* 가이드 비율 패널 */
+#propsBox {
+  border: 1px solid #e2e2ea;
+  border-radius: 10px;
+  padding: 8px 10px 10px;
+  margin-bottom: 14px;
+  background: #fafafd;
+}
+#propsBox summary { font-size: 13px; font-weight: 600; cursor: pointer; }
+#propsBox .ctl label { width: 56px; }
+.hint.small { font-size: 11px; margin: 8px 0; }
+button.small { font-size: 11px; padding: 5px 9px; margin-top: 8px; }
 .zbtns { display: flex; gap: 6px; margin-top: 8px; }
 .zbtns button { font-size: 11px; padding: 4px 8px; border: none; border-radius: 6px; background: #e8e8f0; cursor: pointer; }
 
