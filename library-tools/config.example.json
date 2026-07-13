@@ -1,0 +1,16 @@
+{
+  "book": {
+    "title": "우리한과수업",
+    "author": "",
+    "publisher": "",
+    "isbn": "",
+    "year": "2026",
+    "price": "",
+    "note": "지역 주민으로서 대출 이용을 희망합니다."
+  },
+  "libraries": [
+    { "name": "예시) 우리동네 시립도서관", "url": "https://lib.example.go.kr", "requestUrl": "" },
+    { "name": "예시) 직장 근처 구립도서관 (신청 페이지 직접 지정)", "url": "https://lib2.example.go.kr", "requestUrl": "https://lib2.example.go.kr/hope/request" }
+  ],
+  "chromiumPath": ""
+}

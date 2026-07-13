@@ -1,0 +1,14 @@
+{
+  "name": "library-tools",
+  "private": true,
+  "version": "0.1.0",
+  "description": "전국 도서관 목록 수집 + 희망도서 신청 반자동 도우미",
+  "type": "module",
+  "scripts": {
+    "collect": "node collect-libraries.mjs",
+    "helper": "node request-helper.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.45.0"
+  }
+}

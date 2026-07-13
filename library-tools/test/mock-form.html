@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>희망도서 신청 (테스트용 모의 폼)</title></head>
+<body>
+<h1>희망도서(구입신청)</h1>
+<!-- 국내 도서관 사이트에서 흔한 테이블 기반 폼 구조를 재현 -->
+<form action="#" onsubmit="return false;">
+  <table>
+    <tr><th>서명</th><td><input type="text" name="reqTitle"></td></tr>
+    <tr><th>저자</th><td><input type="text" name="reqAuthor"></td></tr>
+    <tr><th>출판사</th><td><input type="text" name="pubComp"></td></tr>
+    <tr><th>ISBN</th><td><input type="text" name="isbnNo"></td></tr>
+    <tr><th>발행년</th><td><input type="text" name="pubYear"></td></tr>
+    <tr><th>신청사유</th><td><textarea name="etcContent"></textarea></td></tr>
+  </table>
+  <input type="submit" value="신청">
+  <button type="button">취소</button>
+</form>
+<p><label for="ph">플레이스홀더 방식 필드(채워지면 안 됨 — title 은 이미 위에서 사용):</label>
+<input id="ph" type="text" placeholder="도서명을 입력하세요"></p>
+<a href="./hope-list.html">희망도서 신청 목록</a>
+</body>
+</html>
