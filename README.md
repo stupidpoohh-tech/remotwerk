@@ -129,12 +129,17 @@ rooms/{code}/
 2. **databaseURL** — 인스턴스는 **싱가포르(asia-southeast1)** 리전으로 생성되어 있고,
    `config.js` 의 `databaseURL` 이 이미 실제 값
    (`https://remotwerk-aa0d2-default-rtdb.asia-southeast1.firebasedatabase.app`)으로 설정되어 있다.
-3. **보안 규칙** — 계정 없이 페어링 코드로만 쓰므로, 최소한 아래처럼 `rooms` 하위만
-   허용하는 규칙을 권장(둘만 아는 코드가 사실상의 열쇠):
-   ```json
-   { "rules": { "rooms": { "$code": { ".read": true, ".write": true } } } }
-   ```
+3. **보안 규칙** — 저장소 루트의 **`database.rules.json`** 내용을 콘솔
+   (Realtime Database → **규칙** 탭)에 붙여넣고 **게시**한다. 계정 없이 페어링 코드로만
+   쓰므로 `rooms/{code}` 하위만 열고(둘만 아는 코드가 사실상의 열쇠) 그 밖은 모두 차단한다.
+
+   > **`.indexOn` 이 중요하다.** 히스토리 조회가 `orderByChild('ts')` 를 쓰기 때문에
+   > `signals` 에 `.indexOn: ["ts"]` 가 없으면 조회마다 "Using an unspecified index" 경고와
+   > 함께 클라이언트에서 전량 필터링해 느려진다.
+
    (더 조이려면 Firebase 익명 인증을 붙여 `auth != null` 조건을 추가 — 범위 밖.)
+
+   테스트 모드로 만들었다면 **30일 뒤 전부 차단**되므로, 만료 전에 위 규칙으로 교체해야 한다.
 
 ### Firebase 없이 검증 (로컬 데모)
 
