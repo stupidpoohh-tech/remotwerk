@@ -103,7 +103,9 @@ src/
 - **익명 인증**(`signInAnonymously`)으로 설치마다 서버가 발급·검증하는 uid 를 받는다.
 - **방 id 는 서버가 만든 추측 불가능한 push key.** 초대 코드는 `invites/{code} → roomId`
   매핑일 뿐이며 **1회용 + 24시간 만료**다. 참여 즉시 삭제되고, 이후엔 코드가 없어도 이어진다.
-- **방 정원은 2명.** 보안 규칙의 `numChildren() < 2` 가 세 번째 참여를 거부한다.
+- **방 정원은 좌석 2개(`a`·`b`)로 고정.** 각 좌석은 비어 있을 때 본인 uid 로만 한 번
+  쓸 수 있어서 세 번째 사람은 앉을 자리가 없다.
+  (RTDB 보안 규칙에는 자식 개수를 세는 `numChildren()` 이 없으므로 좌석 방식으로 구현했다.)
 - 초대 코드는 혼동 문자(I·O·0·1)를 뺀 32글자 × 10자리 = **약 1.1×10¹⁵ 조합**이라
   전수 조사가 불가능하다.
 
@@ -114,6 +116,8 @@ src/
 ```
 invites/{code}:            { roomId, createdBy, expiresAt }   # 1회용·24h·참여 후 삭제
 rooms/{roomId}/
+  a: <uid>                 # 좌석 1 (방을 만든 쪽) — 비어 있을 때 본인 uid 로만 1회 쓰기
+  b: <uid>                 # 좌석 2 (참여한 쪽)   — 〃, a 와 달라야 함
   members/{uid}:           { characterId, characterRef, joinedAt, lastSeen }
   signals/{pushId}:        { from, gestureId, ts }
 ```

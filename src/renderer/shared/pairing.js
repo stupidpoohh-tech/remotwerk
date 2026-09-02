@@ -7,8 +7,10 @@
  * 새 모델:
  *   - 방 id 는 서버가 만든 추측 불가능한 push key (rooms/{roomId}).
  *   - 초대 코드는 invites/{code} → roomId 매핑일 뿐이며, 1회용 + 24시간 만료.
- *   - 실제 접근 권한은 "그 방의 members 에 내 uid 가 있는가"로만 판단(보안 규칙).
- *   - 방 정원은 2명. 가득 차면 규칙이 세 번째 사람의 참여를 거부한다.
+ *   - 실제 접근 권한은 "내 uid 가 그 방의 좌석(a/b)에 앉아 있는가"로만 판단(보안 규칙).
+ *   - 방 정원은 좌석 2개(a·b)로 고정한다. 각 좌석은 비어 있을 때 본인 uid 로만 한 번
+ *     쓸 수 있어서, 세 번째 사람은 앉을 자리가 없다.
+ *     (RTDB 보안 규칙에는 자식 개수를 세는 numChildren() 이 없어 좌석 방식으로 구현.)
  */
 
 (function (root) {
@@ -42,7 +44,10 @@
     // 추측 불가능한 방 id
     const roomId = dbMod.push(dbMod.ref(db, 'rooms')).key;
 
-    // 내 멤버십부터 등록(규칙: 자리가 있으면 본인 노드만 생성 가능)
+    // 좌석 a 를 내 uid 로 선점(규칙: 비어 있을 때 본인 uid 로만 1회)
+    await dbMod.set(dbMod.ref(db, `rooms/${roomId}/a`), uid);
+
+    // 좌석에 앉았으니 멤버 정보 기록
     await dbMod.set(dbMod.ref(db, `rooms/${roomId}/members/${uid}`), {
       characterId: cfg.characterId || 'preset1',
       joinedAt: dbMod.serverTimestamp()
@@ -78,15 +83,22 @@
     const roomId = inv.roomId;
     if (!roomId) throw new Error('초대 정보가 손상되었어요.');
 
-    // 멤버십 등록 — 방이 가득 찼으면 보안 규칙이 거부한다.
+    // 좌석 b 선점 — 이미 차 있으면 보안 규칙이 거부한다(정원 2명).
     try {
-      await dbMod.set(dbMod.ref(db, `rooms/${roomId}/members/${uid}`), {
-        characterId: cfg.characterId || 'preset2',
-        joinedAt: dbMod.serverTimestamp()
-      });
+      await dbMod.set(dbMod.ref(db, `rooms/${roomId}/b`), uid);
     } catch (e) {
-      throw new Error('이 방에는 이미 두 명이 있어요. (또는 참여 권한이 없어요)');
+      // 내가 이미 그 좌석에 앉아 있는 경우(재시도)엔 성공으로 본다.
+      const seat = await dbMod.get(dbMod.ref(db, `rooms/${roomId}/b`)).catch(() => null);
+      if (!(seat && seat.exists() && seat.val() === uid)) {
+        throw new Error('이 방에는 이미 두 명이 있어요.');
+      }
     }
+
+    // 좌석에 앉았으니 멤버 정보 기록
+    await dbMod.set(dbMod.ref(db, `rooms/${roomId}/members/${uid}`), {
+      characterId: cfg.characterId || 'preset2',
+      joinedAt: dbMod.serverTimestamp()
+    });
 
     // 1회용: 사용한 초대장은 지운다(규칙상 그 방의 멤버가 삭제 가능)
     await dbMod.remove(dbMod.ref(db, `invites/${code}`)).catch(() => {});

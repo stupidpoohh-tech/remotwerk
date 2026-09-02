@@ -7,7 +7,7 @@
       "$code": {
         ".read": "auth != null && data.exists() && data.child('expiresAt').val() > now",
 
-        ".write": "auth != null && ( !data.exists() || data.child('createdBy').val() === auth.uid || root.child('rooms').child(data.child('roomId').val()).child('members').hasChild(auth.uid) )",
+        ".write": "auth != null && ( !data.exists() || data.child('createdBy').val() === auth.uid || root.child('rooms').child(data.child('roomId').val()).child('b').val() === auth.uid )",
 
         ".validate": "newData.hasChildren(['roomId', 'createdBy', 'expiresAt']) && newData.child('createdBy').val() === auth.uid && newData.child('expiresAt').isNumber() && newData.child('expiresAt').val() <= now + 86400000"
       }
@@ -15,18 +15,29 @@
 
     "rooms": {
       "$roomId": {
-        ".read": "auth != null && data.child('members').hasChild(auth.uid)",
-        ".write": "auth != null && root.child('rooms').child($roomId).child('members').hasChild(auth.uid)",
+        ".read": "auth != null && ( data.child('a').val() === auth.uid || data.child('b').val() === auth.uid )",
+
+        "a": {
+          ".write": "auth != null && !data.exists() && newData.val() === auth.uid",
+          ".validate": "newData.isString()"
+        },
+
+        "b": {
+          ".write": "auth != null && !data.exists() && newData.val() === auth.uid && root.child('rooms').child($roomId).child('a').val() !== auth.uid",
+          ".validate": "newData.isString()"
+        },
 
         "members": {
           "$uid": {
-            ".write": "auth != null && $uid === auth.uid && ( data.exists() || root.child('rooms').child($roomId).child('members').numChildren() < 2 )",
+            ".write": "auth != null && $uid === auth.uid && ( root.child('rooms').child($roomId).child('a').val() === auth.uid || root.child('rooms').child($roomId).child('b').val() === auth.uid )",
             ".validate": "newData.hasChildren(['characterId'])"
           }
         },
 
         "signals": {
+          ".write": "auth != null && ( root.child('rooms').child($roomId).child('a').val() === auth.uid || root.child('rooms').child($roomId).child('b').val() === auth.uid )",
           ".indexOn": ["ts"],
+
           "$signalId": {
             ".validate": "newData.hasChildren(['from', 'gestureId', 'ts']) && newData.child('from').val() === auth.uid"
           }
