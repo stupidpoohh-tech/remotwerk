@@ -30,12 +30,31 @@
     $('copyCode').addEventListener('click', onCopyCode);
     $('save').addEventListener('click', save);
 
+    initAppSection();
+
     // 리깅 도구에서 새 캐릭터를 저장하면 config 가 갱신 → 그리드 다시 그림
     host.onConfigChanged((next) => {
       cfg = next;
       rebuildGrids();
       refreshPairStatus();
     });
+  }
+
+  // ---- 앱(버전 · 자동 시작 · 로그) ----
+  async function initAppSection() {
+    let info = null;
+    try { info = await host.getAppInfo(); } catch (_) { /* 구버전 preload */ }
+    if (!info) { $('appVersion').textContent = '버전 정보를 읽을 수 없어요.'; return; }
+
+    $('appVersion').textContent =
+      `Remotwerk v${info.version}` + (info.packaged ? '' : ' (개발 실행)');
+    $('autoLaunch').checked = !!info.autoLaunch;
+
+    $('autoLaunch').addEventListener('change', async (e) => {
+      const applied = await host.setAutoLaunch(e.target.checked);
+      e.target.checked = !!applied;   // OS 가 거부하면 되돌린다
+    });
+    $('openLogs').addEventListener('click', (e) => { e.preventDefault(); host.openLogs(); });
   }
 
   // ---- 페어링 ----

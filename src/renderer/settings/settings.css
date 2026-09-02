@@ -118,3 +118,10 @@ button {
   .actions { background: rgba(26, 26, 32, 0.92); border-color: #2e2e38; }
 }
 .status { font-size: 12px; opacity: 0.7; }
+
+/* 앱 섹션 */
+.toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.toggle input { width: 16px; height: 16px; }
+.appinfo { font-size: 11px; opacity: 0.6; margin: 10px 0 0; }
+.appinfo a { color: #8a63ff; text-decoration: none; }
+.appinfo a:hover { text-decoration: underline; }

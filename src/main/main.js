@@ -5,8 +5,9 @@
 // 투명·항상 위·클릭 통과는 OS별로 세부가 다르므로 각 플랫폼에서 확인이 필요하다.
 
 const path = require('path');
+const fs = require('fs');
 const {
-  app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, screen, nativeImage
+  app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, screen, nativeImage, shell
 } = require('electron');
 
 const config = require('./config');
@@ -18,6 +19,78 @@ const RENDERER = path.join(__dirname, '..', 'renderer');
 /** @type {Object<string, BrowserWindow>} */
 const win = {};
 let tray = null;
+
+// ---------------------------------------------------------------------------
+// 에러 로깅 — 배포본에서 사용자 문의를 받았을 때 원인을 볼 수 있어야 한다.
+// ---------------------------------------------------------------------------
+
+function logDir() { return path.join(app.getPath('userData'), 'logs'); }
+function logFile() { return path.join(logDir(), 'main.log'); }
+
+function logError(tag, err) {
+  const line = `[${new Date().toISOString()}] ${tag}: ${(err && err.stack) || err}\n`;
+  console.error(line.trim());
+  try {
+    fs.mkdirSync(logDir(), { recursive: true });
+    // 로그가 무한정 커지지 않도록 1MB 넘으면 새로 시작
+    try {
+      if (fs.statSync(logFile()).size > 1024 * 1024) fs.writeFileSync(logFile(), '');
+    } catch (_) { /* 파일 없음 */ }
+    fs.appendFileSync(logFile(), line);
+  } catch (_) { /* 로깅 실패는 무시 */ }
+}
+
+process.on('uncaughtException', (e) => logError('uncaughtException', e));
+process.on('unhandledRejection', (e) => logError('unhandledRejection', e));
+
+// ---------------------------------------------------------------------------
+// 자동 시작(로그인 시 실행) — 상주 앱이라 기본 동작에 가깝다.
+// ---------------------------------------------------------------------------
+
+function getAutoLaunch() {
+  try { return !!app.getLoginItemSettings().openAtLogin; } catch (_) { return false; }
+}
+
+function setAutoLaunch(enabled) {
+  try {
+    app.setLoginItemSettings({
+      openAtLogin: !!enabled,
+      // 자동 시작으로 켜졌을 때는 설정창을 띄우지 않기 위한 표식
+      args: ['--autostart']
+    });
+  } catch (e) {
+    logError('setAutoLaunch', e);
+  }
+  return getAutoLaunch();
+}
+
+const startedByAutoLaunch = process.argv.includes('--autostart');
+
+// ---------------------------------------------------------------------------
+// 자동 업데이트 — 패키징된 빌드에서만 동작한다.
+// ---------------------------------------------------------------------------
+
+function setupAutoUpdate() {
+  if (!app.isPackaged) return;              // 개발 실행(npm start)에서는 건너뜀
+  let autoUpdater;
+  try {
+    ({ autoUpdater } = require('electron-updater'));
+  } catch (e) {
+    logError('autoUpdater(모듈 없음)', e);
+    return;
+  }
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('error', (e) => logError('autoUpdater', e));
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('[main] update downloaded:', info && info.version);
+    if (tray) tray.setToolTip('Remotwerk — 업데이트 준비됨(재시작 시 적용)');
+    refreshTrayMenu();
+  });
+  autoUpdater.checkForUpdates().catch((e) => logError('checkForUpdates', e));
+  // 6시간마다 재확인 (상주 앱이라 오래 켜져 있다)
+  setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 6 * 60 * 60 * 1000);
+}
 
 // ---------------------------------------------------------------------------
 // 창 생성
@@ -290,6 +363,12 @@ function refreshTrayMenu() {
       }
     },
     { label: '즉시 숨김 / 복원', accelerator: 'CommandOrControl+Shift+H', click: () => toggleBossKey() },
+    {
+      label: '컴퓨터 켤 때 자동 시작',
+      type: 'checkbox',
+      checked: getAutoLaunch(),
+      click: (item) => setAutoLaunch(item.checked)
+    },
     { type: 'separator' },
     { label: '페어링 · 캐릭터 설정', accelerator: 'CommandOrControl+Shift+S', click: () => createSettings() },
     { label: '캐릭터 만들기 (업로드·리깅)', click: () => createRigger() },
@@ -329,6 +408,25 @@ function registerIpc() {
   ipcMain.on('ui:close-self', (e) => {
     const w = BrowserWindow.fromWebContents(e.sender);
     if (w && !w.isDestroyed()) w.close();
+  });
+
+  // 앱 정보 / 자동 시작 / 로그
+  ipcMain.handle('app:get-info', () => ({
+    version: app.getVersion(),
+    packaged: app.isPackaged,
+    autoLaunch: getAutoLaunch(),
+    logPath: logFile()
+  }));
+  ipcMain.handle('app:set-auto-launch', (_e, enabled) => {
+    const v = setAutoLaunch(enabled);
+    refreshTrayMenu();
+    return v;
+  });
+  ipcMain.on('app:open-logs', () => {
+    try {
+      fs.mkdirSync(logDir(), { recursive: true });
+      shell.openPath(logDir());
+    } catch (e) { logError('openLogs', e); }
   });
 
   ipcMain.on('overlay:set-interactive', (_e, interactive) => {
@@ -376,7 +474,10 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(() => {
     const cfg = config.load();
-    console.log('[main] start | paired =', !!cfg.roomId, '| roomId =', cfg.roomId, '| config =', require('path').join(app.getPath('userData'), 'config.json'));
+    console.log('[main] start | v' + app.getVersion(), '| packaged =', app.isPackaged,
+      '| paired =', !!cfg.roomId, '| autostart =', startedByAutoLaunch);
+    console.log('[main] config =', path.join(app.getPath('userData'), 'config.json'));
+    console.log('[main] logs   =', logFile());
     console.log('[main] Open settings anytime with Ctrl/Cmd+Shift+S or the tray icon.');
 
     registerIpc();
@@ -384,12 +485,14 @@ if (!app.requestSingleInstanceLock()) {
 
     // 페어링 전이면 설정 화면부터 띄운다. 오버레이/트레이 생성보다 먼저 열어,
     // 그쪽에서 예외가 나더라도 설정 창이 막히지 않게 한다.
-    if (!cfg.roomId) createSettings();
+    // 단, 로그인 시 자동 실행으로 켜진 경우엔 조용히 시작한다(업무 방해 금지).
+    if (!cfg.roomId && !startedByAutoLaunch) createSettings();
 
     // 오버레이/트레이/디스플레이 이벤트는 실패해도 앱이 죽지 않도록 각각 보호한다.
-    try { createOverlay(); } catch (e) { console.error('[main] createOverlay 실패', e); }
-    try { buildTray(); } catch (e) { console.error('[main] buildTray 실패', e); }
-    try { registerDisplayEvents(); } catch (e) { console.error('[main] display 이벤트', e); }
+    try { createOverlay(); } catch (e) { logError('createOverlay', e); }
+    try { buildTray(); } catch (e) { logError('buildTray', e); }
+    try { registerDisplayEvents(); } catch (e) { logError('registerDisplayEvents', e); }
+    try { setupAutoUpdate(); } catch (e) { logError('setupAutoUpdate', e); }
 
     app.on('activate', () => {
       if (!win.overlay || win.overlay.isDestroyed()) createOverlay();

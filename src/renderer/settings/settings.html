@@ -59,6 +59,19 @@
     <textarea id="firebase" rows="6" placeholder='{ "apiKey": "...", "databaseURL": "https://...firebasedatabase.app", "projectId": "..." }'></textarea>
   </section>
 
+  <section>
+    <h2>앱</h2>
+    <label class="toggle">
+      <input type="checkbox" id="autoLaunch" />
+      <span>컴퓨터 켤 때 자동으로 시작</span>
+    </label>
+    <p class="hint">상주하며 신호를 받는 앱이라 켜 두는 걸 권합니다.</p>
+    <p class="appinfo">
+      <span id="appVersion">버전 확인 중…</span>
+      · <a href="#" id="openLogs">로그 폴더 열기</a>
+    </p>
+  </section>
+
   <div class="actions">
     <span id="status" class="status"></span>
     <button id="save" class="primary">저장</button>
