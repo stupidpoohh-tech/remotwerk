@@ -3,13 +3,33 @@
     ".read": false,
     ".write": false,
 
-    "rooms": {
+    "invites": {
       "$code": {
-        ".read": true,
-        ".write": true,
+        ".read": "auth != null && data.exists() && data.child('expiresAt').val() > now",
+
+        ".write": "auth != null && ( !data.exists() || data.child('createdBy').val() === auth.uid || root.child('rooms').child(data.child('roomId').val()).child('members').hasChild(auth.uid) )",
+
+        ".validate": "newData.hasChildren(['roomId', 'createdBy', 'expiresAt']) && newData.child('createdBy').val() === auth.uid && newData.child('expiresAt').isNumber() && newData.child('expiresAt').val() <= now + 86400000"
+      }
+    },
+
+    "rooms": {
+      "$roomId": {
+        ".read": "auth != null && data.child('members').hasChild(auth.uid)",
+        ".write": "auth != null && root.child('rooms').child($roomId).child('members').hasChild(auth.uid)",
+
+        "members": {
+          "$uid": {
+            ".write": "auth != null && $uid === auth.uid && ( data.exists() || root.child('rooms').child($roomId).child('members').numChildren() < 2 )",
+            ".validate": "newData.hasChildren(['characterId'])"
+          }
+        },
 
         "signals": {
-          ".indexOn": ["ts"]
+          ".indexOn": ["ts"],
+          "$signalId": {
+            ".validate": "newData.hasChildren(['from', 'gestureId', 'ts']) && newData.child('from').val() === auth.uid"
+          }
         }
       }
     }

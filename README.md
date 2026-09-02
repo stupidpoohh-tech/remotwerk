@@ -96,14 +96,32 @@ src/
 - 엔진은 희소 키프레임을 **본별 트랙**으로 펼쳐 선형 보간한다(회전/오프셋). 가시성·
   좌우반전(피겨 턴 인상)은 계단 보간, 오오라 강도는 별도 레이어로 표현한다.
 
-## Firebase 데이터 모델
+## 보안 모델 · Firebase 데이터 모델
 
-계정 없이 공유 **페어링 코드**로 두 사람을 한 방에 묶는다(Realtime Database).
+**접근 권한은 "코드를 아는가"가 아니라 "이 uid 가 그 방의 멤버인가"로 판단한다.**
+
+- **익명 인증**(`signInAnonymously`)으로 설치마다 서버가 발급·검증하는 uid 를 받는다.
+- **방 id 는 서버가 만든 추측 불가능한 push key.** 초대 코드는 `invites/{code} → roomId`
+  매핑일 뿐이며 **1회용 + 24시간 만료**다. 참여 즉시 삭제되고, 이후엔 코드가 없어도 이어진다.
+- **방 정원은 2명.** 보안 규칙의 `numChildren() < 2` 가 세 번째 참여를 거부한다.
+- 초대 코드는 혼동 문자(I·O·0·1)를 뺀 32글자 × 10자리 = **약 1.1×10¹⁵ 조합**이라
+  전수 조사가 불가능하다.
+
+> 이전 모델은 `rooms/{코드}` 를 코드만 알면 누구나 읽고 쓸 수 있었고, 코드가
+> `BEAR-5607` 형태로 약 7만 가지뿐이라 **전수 조사로 남의 방에 침입할 수 있었다.**
+> 공개 배포를 위해 위 구조로 교체했다.
 
 ```
-rooms/{code}/
-  members/{userId}: { characterId, joinedAt }
-  signals/{pushId}: { from, gestureId, ts }
+invites/{code}:            { roomId, createdBy, expiresAt }   # 1회용·24h·참여 후 삭제
+rooms/{roomId}/
+  members/{uid}:           { characterId, characterRef, joinedAt, lastSeen }
+  signals/{pushId}:        { from, gestureId, ts }
+```
+
+Storage(커스텀 캐릭터 번들):
+
+```
+rooms/{roomId}/characters/{uid}/bundle.json   # 쓰기는 본인 uid 폴더만
 ```
 
 - 신호 하나는 `{ from, gestureId, ts }` 로 매우 가볍다.
@@ -118,28 +136,32 @@ rooms/{code}/
 ### 프로젝트 설정 (remotwerk-aa0d2)
 
 앱은 기본으로 Firebase 프로젝트 `remotwerk-aa0d2` 에 연결된다(설정은
-`src/main/config.js` 의 기본값). 두 사람이 앱을 켜고 **같은 페어링 코드**만 넣으면 묶인다.
+`src/main/config.js` 의 기본값).
 
 > 웹 API 키는 클라이언트 공개용이라 커밋해도 안전하다(비밀이 아님). 실제 접근 보호는
-> **Realtime Database 보안 규칙**이 담당한다.
+> **익명 인증 + 보안 규칙**이 담당한다.
 
 콘솔에서 한 번 해둘 것:
 
-1. **Realtime Database 생성** — Firebase 콘솔 → Build → Realtime Database → 인스턴스 생성.
-2. **databaseURL** — 인스턴스는 **싱가포르(asia-southeast1)** 리전으로 생성되어 있고,
-   `config.js` 의 `databaseURL` 이 이미 실제 값
-   (`https://remotwerk-aa0d2-default-rtdb.asia-southeast1.firebasedatabase.app`)으로 설정되어 있다.
-3. **보안 규칙** — 저장소 루트의 **`database.rules.json`** 내용을 콘솔
-   (Realtime Database → **규칙** 탭)에 붙여넣고 **게시**한다. 계정 없이 페어링 코드로만
-   쓰므로 `rooms/{code}` 하위만 열고(둘만 아는 코드가 사실상의 열쇠) 그 밖은 모두 차단한다.
+1. **익명 인증 켜기** — Authentication → **로그인 방법** → **익명** → 사용 설정.
+   **이게 꺼져 있으면 앱이 로그인하지 못해 페어링·신호가 전부 실패한다.**
+2. **Realtime Database 생성** — Build → Realtime Database → 인스턴스 생성
+   (이 프로젝트는 **싱가포르 `asia-southeast1`**, `config.js` 의 `databaseURL` 이 이미 그 값).
+3. **RTDB 보안 규칙** — 저장소 루트 **`database.rules.json`** 을 Realtime Database →
+   **규칙** 탭에 붙여넣고 **게시**.
 
    > **`.indexOn` 이 중요하다.** 히스토리 조회가 `orderByChild('ts')` 를 쓰기 때문에
    > `signals` 에 `.indexOn: ["ts"]` 가 없으면 조회마다 "Using an unspecified index" 경고와
    > 함께 클라이언트에서 전량 필터링해 느려진다.
 
-   (더 조이려면 Firebase 익명 인증을 붙여 `auth != null` 조건을 추가 — 범위 밖.)
+4. **Storage 보안 규칙** — 저장소 루트 **`storage.rules`** 를 Storage → **규칙** 탭에
+   붙여넣고 **게시**. (쓰기는 본인 uid 폴더만, 읽기는 로그인 사용자만)
 
-   테스트 모드로 만들었다면 **30일 뒤 전부 차단**되므로, 만료 전에 위 규칙으로 교체해야 한다.
+테스트 모드로 만들었다면 **30일 뒤 전부 차단**되므로 만료 전에 위 규칙으로 교체해야 한다.
+
+> ⚠️ **기존 사용자 재페어링 필요.** 보안 모델을 바꾸면서 경로가 `rooms/{코드}` →
+> `rooms/{roomId}` 로 바뀌었다. 예전 `pairCode` 만 있고 `roomId` 가 없는 설치는 자동으로
+> 로컬 데모 모드로 떨어지므로, 설정창에서 **초대 코드를 새로 발급/참여**해야 한다.
 
 ### Firebase 없이 검증 (로컬 데모)
 

@@ -370,13 +370,13 @@ if (!app.requestSingleInstanceLock()) {
   // 페어링 전이면 설정창을, 이후면 리모컨을 앞으로 띄운다.
   app.on('second-instance', () => {
     const cfg = config.load();
-    if (!cfg.pairCode) createSettings();
+    if (!cfg.roomId) createSettings();
     else createRemote();
   });
 
   app.whenReady().then(() => {
     const cfg = config.load();
-    console.log('[main] start | paired =', !!cfg.pairCode, '| pairCode =', cfg.pairCode, '| config =', require('path').join(app.getPath('userData'), 'config.json'));
+    console.log('[main] start | paired =', !!cfg.roomId, '| roomId =', cfg.roomId, '| config =', require('path').join(app.getPath('userData'), 'config.json'));
     console.log('[main] Open settings anytime with Ctrl/Cmd+Shift+S or the tray icon.');
 
     registerIpc();
@@ -384,7 +384,7 @@ if (!app.requestSingleInstanceLock()) {
 
     // 페어링 전이면 설정 화면부터 띄운다. 오버레이/트레이 생성보다 먼저 열어,
     // 그쪽에서 예외가 나더라도 설정 창이 막히지 않게 한다.
-    if (!cfg.pairCode) createSettings();
+    if (!cfg.roomId) createSettings();
 
     // 오버레이/트레이/디스플레이 이벤트는 실패해도 앱이 죽지 않도록 각각 보호한다.
     try { createOverlay(); } catch (e) { console.error('[main] createOverlay 실패', e); }

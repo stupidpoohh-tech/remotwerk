@@ -1,0 +1,98 @@
+'use strict';
+/* 페어링 — 1회용 초대 코드로 두 사람을 한 방에 묶는다.
+ *
+ * 이전 모델(취약): rooms/{코드} 를 코드만 알면 누구나 읽고 쓸 수 있었다.
+ *   코드가 'BEAR-5607' 형태로 약 7만 가지뿐이라 전수 조사가 가능했다.
+ *
+ * 새 모델:
+ *   - 방 id 는 서버가 만든 추측 불가능한 push key (rooms/{roomId}).
+ *   - 초대 코드는 invites/{code} → roomId 매핑일 뿐이며, 1회용 + 24시간 만료.
+ *   - 실제 접근 권한은 "그 방의 members 에 내 uid 가 있는가"로만 판단(보안 규칙).
+ *   - 방 정원은 2명. 가득 차면 규칙이 세 번째 사람의 참여를 거부한다.
+ */
+
+(function (root) {
+  const RW = (root.RW = root.RW || {});
+
+  // 혼동되는 글자(I, O, 0, 1) 제외한 32글자. 10자리 → 32^10 ≈ 1.1×10^15 조합.
+  const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const CODE_LEN = 10;
+  const INVITE_TTL_MS = 24 * 60 * 60 * 1000;
+
+  function genCode() {
+    const bytes = new Uint32Array(CODE_LEN);
+    (root.crypto || root.msCrypto).getRandomValues(bytes);
+    let out = '';
+    for (let i = 0; i < CODE_LEN; i++) out += ALPHABET[bytes[i] % ALPHABET.length];
+    return out.slice(0, 5) + '-' + out.slice(5);   // 표시용: XXXXX-XXXXX
+  }
+
+  // 입력 정규화: 대문자화 + 구분자 제거 + 허용 문자만 남김
+  function normalize(raw) {
+    return String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+      .split('').filter((c) => ALPHABET.indexOf(c) >= 0).join('');
+  }
+  function isValidCode(raw) { return normalize(raw).length === CODE_LEN; }
+
+  // 새 방을 만들고 초대 코드를 발급한다(초대하는 쪽).
+  async function createRoomAndInvite(cfg) {
+    const fb = await RW.fb.init(cfg.firebase);
+    const { db, dbMod, uid } = fb;
+
+    // 추측 불가능한 방 id
+    const roomId = dbMod.push(dbMod.ref(db, 'rooms')).key;
+
+    // 내 멤버십부터 등록(규칙: 자리가 있으면 본인 노드만 생성 가능)
+    await dbMod.set(dbMod.ref(db, `rooms/${roomId}/members/${uid}`), {
+      characterId: cfg.characterId || 'preset1',
+      joinedAt: dbMod.serverTimestamp()
+    });
+
+    const code = genCode();
+    const expiresAt = Date.now() + INVITE_TTL_MS;
+    await dbMod.set(dbMod.ref(db, `invites/${normalize(code)}`), {
+      roomId, createdBy: uid, expiresAt
+    });
+
+    return { code, roomId, expiresAt, uid };
+  }
+
+  // 상대가 준 코드로 방에 참여한다(초대받는 쪽).
+  async function joinWithCode(cfg, rawCode) {
+    const code = normalize(rawCode);
+    if (code.length !== CODE_LEN) throw new Error('코드 형식이 올바르지 않아요.');
+
+    const fb = await RW.fb.init(cfg.firebase);
+    const { db, dbMod, uid } = fb;
+
+    let snap;
+    try {
+      snap = await dbMod.get(dbMod.ref(db, `invites/${code}`));
+    } catch (_) {
+      throw new Error('코드를 확인할 수 없어요. (만료되었거나 잘못된 코드)');
+    }
+    if (!snap.exists()) throw new Error('코드를 찾을 수 없어요. (만료되었거나 이미 사용된 코드)');
+
+    const inv = snap.val() || {};
+    if (inv.expiresAt && inv.expiresAt < Date.now()) throw new Error('만료된 코드예요. 새로 발급받아 주세요.');
+    const roomId = inv.roomId;
+    if (!roomId) throw new Error('초대 정보가 손상되었어요.');
+
+    // 멤버십 등록 — 방이 가득 찼으면 보안 규칙이 거부한다.
+    try {
+      await dbMod.set(dbMod.ref(db, `rooms/${roomId}/members/${uid}`), {
+        characterId: cfg.characterId || 'preset2',
+        joinedAt: dbMod.serverTimestamp()
+      });
+    } catch (e) {
+      throw new Error('이 방에는 이미 두 명이 있어요. (또는 참여 권한이 없어요)');
+    }
+
+    // 1회용: 사용한 초대장은 지운다(규칙상 그 방의 멤버가 삭제 가능)
+    await dbMod.remove(dbMod.ref(db, `invites/${code}`)).catch(() => {});
+
+    return { roomId, uid };
+  }
+
+  RW.pairing = { genCode, normalize, isValidCode, createRoomAndInvite, joinWithCode, CODE_LEN };
+})(typeof window !== 'undefined' ? window : globalThis);

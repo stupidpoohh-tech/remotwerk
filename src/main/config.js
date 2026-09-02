@@ -20,8 +20,11 @@ function configPath() {
 
 function defaults() {
   return {
-    // 익명 사용자 식별자 (방 안에서 나/상대를 구분하는 용도)
+    // 로컬 데모(루프백)용 식별자. Firebase 모드에서는 익명 인증 uid 를 쓴다.
     userId: 'u_' + crypto.randomBytes(6).toString('hex'),
+    // 페어링된 방 id (서버가 만든 추측 불가능한 값). 이게 있어야 Firebase 모드로 동작한다.
+    roomId: null,
+    // 마지막으로 발급/입력한 초대 코드 — 표시용일 뿐 접근 권한과 무관(1회용·24시간 만료).
     pairCode: null,
     // 내가 고른 캐릭터(상대 화면에 상주할 캐릭터)
     characterId: 'preset1',

@@ -15,11 +15,29 @@
 
   <section>
     <h2>페어링</h2>
-    <p class="hint">두 사람이 같은 코드를 입력하면 한 방에 묶입니다. 한쪽이 만들고, 다른 쪽이 입력하세요.</p>
+    <p class="hint">한쪽이 <b>초대 코드</b>를 만들어 상대에게 전달하고, 상대가 그 코드로 참여합니다.
+      코드는 <b>1회용</b>이며 24시간 뒤 만료돼요. 한 번 연결되면 코드 없이도 계속 이어집니다.</p>
+
+    <div id="pairStatus" class="pair-status">확인 중…</div>
+
     <div class="row">
-      <input id="pairCode" type="text" placeholder="예: LOVE-2451" autocomplete="off" />
-      <button id="genCode" class="ghost">코드 생성</button>
+      <button id="createInvite" class="primary">초대 코드 만들기</button>
     </div>
+
+    <div id="inviteBox" class="invite-box" hidden>
+      <div class="code-row">
+        <span id="inviteCode" class="code"></span>
+        <button id="copyCode" class="ghost">복사</button>
+      </div>
+      <p class="hint small" id="inviteExpiry"></p>
+    </div>
+
+    <div class="row" style="margin-top:12px">
+      <input id="joinCode" type="text" placeholder="받은 코드 입력 (예: A7K2M-P9XQ4)" autocomplete="off" />
+      <button id="joinBtn" class="ghost">참여</button>
+    </div>
+
+    <p id="pairMsg" class="hint small"></p>
   </section>
 
   <section>
@@ -52,6 +70,8 @@
   <script src="../shared/engine.js"></script>
   <script src="../shared/presets.js"></script>
   <script src="../shared/characters.js"></script>
+  <script src="../shared/fb.js"></script>
+  <script src="../shared/pairing.js"></script>
   <script src="../shared/transport.js"></script>
   <script src="settings.js"></script>
 </body>

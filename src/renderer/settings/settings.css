@@ -18,6 +18,36 @@ section { margin-bottom: 22px; }
 .tag { font-size: 10px; background: #8a63ff; color: #fff; padding: 1px 6px; border-radius: 8px; vertical-align: middle; }
 
 .row { display: flex; gap: 8px; }
+
+/* 페어링 */
+.pair-status {
+  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+.pair-status.ok { background: #e6f7ee; color: #1d7a4c; }
+.pair-status.warn { background: #fff4e0; color: #9a6a1a; }
+@media (prefers-color-scheme: dark) {
+  .pair-status.ok { background: #16351f; color: #7fdca8; }
+  .pair-status.warn { background: #3a2f16; color: #f0c983; }
+}
+
+.invite-box {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px dashed #c9c1e8;
+  border-radius: 10px;
+}
+.code-row { display: flex; align-items: center; gap: 10px; }
+.code {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  user-select: all;
+}
+.hint.small { font-size: 11px; margin: 6px 0 0; }
 input, textarea {
   width: 100%;
   box-sizing: border-box;

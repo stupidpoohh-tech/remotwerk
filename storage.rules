@@ -1,18 +1,25 @@
 rules_version = '2';
 
 // Remotwerk — Firebase Storage 보안 규칙
-// 계정 없이 페어링 코드로만 쓰므로, 커스텀 캐릭터 번들이 놓이는
-// rooms/{code}/characters/** 경로만 열어 둔다(둘만 아는 코드가 사실상의 열쇠).
-// 업로드는 5MB 이하 JSON/이미지로 제한한다.
+//
+// 커스텀 캐릭터 번들은 rooms/{roomId}/characters/{uid}/bundle.json 에 놓인다.
+//   - roomId 는 서버가 만든 추측 불가능한 값이라 경로 자체가 1차 방어선이다.
+//   - 쓰기: 로그인한 본인(uid) 폴더에만. 남의 캐릭터를 덮어쓸 수 없다.
+//   - 읽기: 로그인한 사용자만. (Storage 규칙에서는 RTDB 의 방 멤버십을 조회할 수 없어
+//     "멤버만"까지는 강제하지 못한다. 대신 익명 인증 + 추측 불가능한 roomId 로 막는다.)
+//   - 업로드는 5MB 이하 JSON/이미지로 제한(앱 자체 상한은 2MB).
 service firebase.storage {
   match /b/{bucket}/o {
 
-    match /rooms/{code}/characters/{allPaths=**} {
-      allow read: if true;
-      allow write: if request.resource == null
-                   || (request.resource.size < 5 * 1024 * 1024
-                       && (request.resource.contentType.matches('application/json')
-                           || request.resource.contentType.matches('image/.*')));
+    match /rooms/{roomId}/characters/{userId}/{allPaths=**} {
+      allow read: if request.auth != null;
+
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && ( request.resource == null
+                        || ( request.resource.size < 5 * 1024 * 1024
+                             && ( request.resource.contentType.matches('application/json')
+                                  || request.resource.contentType.matches('image/.*') ) ) );
     }
 
     // 그 외 경로는 모두 차단
