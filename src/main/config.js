@@ -35,6 +35,8 @@ function defaults() {
     focusMode: false,
     // 오버레이 캐릭터 위치(드래그로 이동, 화면 비율 0..1로 저장)
     overlayPos: { x: 0.82, y: 0.72 },
+    // 오버레이 캐릭터 크기 배율(0.5 ~ 2.0). 발밑을 기준으로 커지고 작아진다.
+    overlayScale: 1,
     // 내가 만든 커스텀 캐릭터들(리깅 도구 산출물). 프리셋과 동일 포맷의 번들을 담는다.
     //   [{ id, name, swatch, bundle: { skeletonId:'bipedal5', slots:{...} } }]
     customCharacters: [],

@@ -30,6 +30,7 @@
     $('copyCode').addEventListener('click', onCopyCode);
     $('save').addEventListener('click', save);
 
+    initSizeSection();
     initAppSection();
 
     // 리깅 도구에서 새 캐릭터를 저장하면 config 가 갱신 → 그리드 다시 그림
@@ -37,6 +38,22 @@
       cfg = next;
       rebuildGrids();
       refreshPairStatus();
+    });
+  }
+
+  // ---- 캐릭터 크기 ----
+  function initSizeSection() {
+    const slider = $('charSize');
+    const out = $('charSizeVal');
+    const cur = Math.round((Number(cfg.overlayScale) || 1) * 100);
+    slider.value = Math.max(50, Math.min(200, cur));
+    out.textContent = slider.value + '%';
+
+    // 끄는 동안엔 숫자만 갱신하고, 놓을 때 저장한다(설정 저장 폭주 방지).
+    slider.addEventListener('input', () => { out.textContent = slider.value + '%'; });
+    slider.addEventListener('change', async () => {
+      await host.setConfig({ overlayScale: Number(slider.value) / 100 });
+      cfg = await host.getConfig();
     });
   }
 

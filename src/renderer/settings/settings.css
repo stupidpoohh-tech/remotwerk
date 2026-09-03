@@ -119,6 +119,11 @@ button {
 }
 .status { font-size: 12px; opacity: 0.7; }
 
+/* 슬라이더 행 */
+.ctl-row { display: flex; align-items: center; gap: 10px; }
+.ctl-row input[type="range"] { flex: 1; }
+.ctl-row .val { font-size: 12px; width: 44px; text-align: right; opacity: 0.7; font-variant-numeric: tabular-nums; }
+
 /* 앱 섹션 */
 .toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
 .toggle input { width: 16px; height: 16px; }

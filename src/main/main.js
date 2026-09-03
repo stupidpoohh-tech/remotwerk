@@ -342,7 +342,10 @@ function buildTray() {
   } catch (_) {
     return; // 일부 환경(헤드리스)에서는 트레이 생성이 불가할 수 있음
   }
-  tray.setToolTip('Remotwerk');
+  tray.setToolTip('Remotwerk — 클릭하면 리모컨');
+  // 좌클릭/더블클릭으로 바로 리모컨을 연다(메뉴를 거치지 않아도 되게).
+  tray.on('click', () => createRemote());
+  tray.on('double-click', () => createRemote());
   refreshTrayMenu();
 }
 

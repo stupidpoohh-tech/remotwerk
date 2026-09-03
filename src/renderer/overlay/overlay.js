@@ -72,11 +72,24 @@
     if (state !== 'away') startAmbient();
   }
 
-  // ---- 위치 ----
+  // ---- 위치 · 크기 ----
   function positionChar() {
     const pos = (cfg && cfg.overlayPos) || { x: 0.82, y: 0.72 };
     charEl.style.left = `calc(${clamp01(pos.x) * 100}% - 60px)`;
     charEl.style.top = `calc(${clamp01(pos.y) * 100}% - 120px)`;
+    applyScale();
+  }
+
+  // 크기 배율. 발밑(#char 기준 60,206)을 기준으로 키워 바닥에 선 채로 커지게 한다.
+  // #char 자체에 transform 을 걸면 getBoundingClientRect 도 같이 커져 드래그 히트박스가 맞는다.
+  function applyScale() {
+    const s = charScale();
+    charEl.style.transformOrigin = '60px 206px';
+    charEl.style.transform = `scale(${s})`;
+  }
+  function charScale() {
+    const s = Number(cfg && cfg.overlayScale);
+    return isFinite(s) && s > 0 ? Math.max(0.4, Math.min(2.5, s)) : 1;
   }
   function clamp01(v) { return Math.max(0, Math.min(1, v)); }
 
@@ -145,23 +158,33 @@
     }
   }
 
-  // ---- 드래그 이동 (+ 캐릭터 위에서만 클릭 받기) ----
+  // ---- 드래그 이동 · 클릭으로 리모컨 열기 (+ 캐릭터 위에서만 클릭 받기) ----
+  const CLICK_SLOP = 5;   // 이 거리 이내로 움직였다 떼면 "클릭"으로 본다
+
   function setupDrag() {
     let hovering = false;
     let dragging = false;
+    let moved = false;
     let startX = 0, startY = 0, baseLeft = 0, baseTop = 0;
 
     function charRect() { return charEl.getBoundingClientRect(); }
     function inside(x, y) {
       const r = charRect();
-      // 실제 그림 영역에 가깝게 살짝 안쪽으로 히트박스
-      return x >= r.left + 20 && x <= r.right - 20 && y >= r.top + 10 && y <= r.bottom - 10;
+      // 실제 그림 영역에 가깝게 살짝 안쪽으로. 크기 배율에 비례해 인셋도 커진다.
+      const s = charScale();
+      const ix = 20 * s, iy = 10 * s;
+      return x >= r.left + ix && x <= r.right - ix && y >= r.top + iy && y <= r.bottom - iy;
     }
 
     document.addEventListener('mousemove', (e) => {
       if (dragging) {
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
+        if (Math.abs(dx) > CLICK_SLOP || Math.abs(dy) > CLICK_SLOP) {
+          moved = true;
+          charEl.classList.add('grabbing');
+        }
+        // 레이아웃 좌표(offset)에 더한다. transform(scale) 이 걸려 있어도 정확하다.
         charEl.style.left = (baseLeft + dx) + 'px';
         charEl.style.top = (baseTop + dy) + 'px';
         return;
@@ -176,11 +199,10 @@
 
     charEl.addEventListener('mousedown', (e) => {
       dragging = true;
-      charEl.classList.add('grabbing');
+      moved = false;
       host.setOverlayInteractive(true);
-      const r = charRect();
       startX = e.clientX; startY = e.clientY;
-      baseLeft = r.left; baseTop = r.top;
+      baseLeft = charEl.offsetLeft; baseTop = charEl.offsetTop;
       e.preventDefault();
     });
 
@@ -188,10 +210,15 @@
       if (!dragging) return;
       dragging = false;
       charEl.classList.remove('grabbing');
-      // 위치를 화면 비율로 저장(펠비스 기준점)
-      const r = charRect();
-      const x = (r.left + 60) / window.innerWidth;
-      const y = (r.top + 120) / window.innerHeight;
+
+      if (!moved) {
+        // 끌지 않고 톡 눌렀다 뗀 것 → 리모컨 열기
+        host.openRemote();
+        return;
+      }
+      // 위치를 화면 비율로 저장(펠비스 기준점, 레이아웃 좌표 기준)
+      const x = (charEl.offsetLeft + 60) / window.innerWidth;
+      const y = (charEl.offsetTop + 120) / window.innerHeight;
       host.setConfig({ overlayPos: { x: clamp01(x), y: clamp01(y) } });
     });
   }
