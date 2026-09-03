@@ -1,7 +1,7 @@
 {
   "name": "remotwerk",
   "productName": "Remotwerk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "커플 데스크톱 캐릭터 앱 — 상대 화면 위에 상주하며 몸짓 신호를 주고받는 현존(presence) 아바타",
   "main": "src/main/main.js",
   "author": "Remotwerk",
@@ -40,7 +40,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build/icon.png",
@@ -55,13 +57,17 @@
       "shortcutName": "Remotwerk"
     },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "icon": "build/icon.png",
       "category": "public.app-category.social-networking",
       "artifactName": "${productName}-${version}.${ext}"
     },
     "linux": {
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "icon": "build/icon.png",
       "category": "Utility"
     },
