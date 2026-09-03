@@ -13,14 +13,19 @@
 <body>
   <div id="app">
     <div id="stageWrap">
-      <div class="stage-title">大자 가이드 — 조각을 윤곽에 맞춰 정합</div>
+      <div class="stage-title">
+        <span id="stageHint">캐릭터 전체 이미지를 올리고, 관절(보라 점)과 자르기 상자를 맞추세요</span>
+      </div>
       <div id="stage">
         <div id="scaled">
+          <div id="srcLayer"></div>
           <svg id="guide" xmlns="http://www.w3.org/2000/svg"></svg>
           <div id="charAnchor"></div>
         </div>
       </div>
       <div class="stage-foot">
+        <label class="chk"><input type="checkbox" id="showSrc" checked /> 원본 보기</label>
+        <label class="chk"><input type="checkbox" id="showResult" /> 결과 보기</label>
         <button id="previewBtn" class="ghost">▶ 동작 미리보기</button>
         <span id="sizeInfo" class="size"></span>
       </div>
@@ -28,23 +33,46 @@
 
     <aside id="panel">
       <h1>내 캐릭터 만들기</h1>
-      <p class="hint">투명 배경 PNG 5장을 올려 크기·위치·회전으로 가이드에 맞춥니다.
-        관절(어깨·골반)은 가이드에 고정되어 있어 따로 찍지 않습니다.</p>
 
       <label class="field">
         <span>캐릭터 이름</span>
         <input id="charName" type="text" placeholder="예: 뽀삐" maxlength="16" />
       </label>
 
+      <details id="srcBox" open>
+        <summary>1. 원본 이미지 올리기</summary>
+        <p class="hint small">투명 배경 PNG 1장(캐릭터 전체)을 올리세요. 팔다리가 벌어진
+          大자 포즈일수록 잘 잘립니다.</p>
+        <label class="upload block">전체 이미지 올리기<input type="file" id="srcFile" accept="image/png,image/*"></label>
+        <div id="srcCtl" class="hidden-until-src">
+          <div class="ctl"><label>크기</label><input type="range" id="srcScale" min="10" max="400" value="100"><span class="val" id="srcScaleVal">100</span></div>
+          <p class="hint small">스테이지에서 드래그하면 원본 이미지가 움직입니다(“원본 이동” 선택 시).</p>
+        </div>
+      </details>
+
       <details id="propsBox" open>
-        <summary>가이드 비율 조정</summary>
-        <p class="hint small">내 캐릭터 체형에 맞게 大자 가이드 자체를 조절하세요(짧은 몸통·긴 다리 등).
-          이 비율은 저장되어 상대 화면·애니메이션에도 그대로 적용됩니다.</p>
+        <summary>2. 관절 위치 맞추기 (가이드 비율)</summary>
+        <p class="hint small">보라 점이 캐릭터의 <b>실제 어깨·골반</b>에 오도록 맞추세요.
+          이 위치를 중심으로 팔다리가 회전합니다.</p>
         <div id="proportions"></div>
         <button id="resetProps" class="ghost small">비율 초기화</button>
       </details>
 
-      <div id="slots"></div>
+      <details id="cutBox" open>
+        <summary>3. 자르기 상자 맞추고 잘라내기</summary>
+        <p class="hint small">아래에서 조각을 고르고, 스테이지를 드래그해 상자를 옮기세요.
+          크기·회전은 슬라이더로 조절합니다.</p>
+        <div class="row">
+          <button id="fitToGuide" class="ghost small">가이드에 맞추기</button>
+          <button id="cutBtn" class="primary small">✂ 5조각 잘라내기</button>
+        </div>
+        <p id="cutMsg" class="hint small"></p>
+      </details>
+
+      <details id="slotsBox" open>
+        <summary>4. 조각별 미세 조정</summary>
+        <div id="slots"></div>
+      </details>
 
       <div class="panel-actions">
         <span id="status" class="status"></span>

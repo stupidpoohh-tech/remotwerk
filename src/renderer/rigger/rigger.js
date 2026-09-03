@@ -1,10 +1,16 @@
 'use strict';
-/* 리깅·업로드 도구 (Prompt B).
- *  - 大자(spread) 가이드에 맞춰 부위별 투명 PNG 5장을 정합(크기·위치·회전·z).
- *  - 가이드 비율(몸통 길이/너비, 어깨 높이/너비, 골반 너비, 팔·다리 길이/두께)을 조절 가능.
- *    비율은 번들에 저장되어 상대 화면·애니메이션에도 동일하게 적용된다.
- *  - 코어 애니메이션(능동8+자율2)을 그대로 재생해 검증(5절 근사 처리 반영).
- *  - 저장: 프리셋과 동일 포맷(부위 이미지 + 리그 JSON + proportions) → config + (Firebase면) Storage 공유.
+/* 리깅·업로드 도구.
+ *
+ * 흐름: 전체 이미지 1장 업로드 → 관절(어깨·골반) 위치를 비율로 맞춤 →
+ *       5개 자르기 상자를 맞추고 잘라냄 → 조각별 미세 조정 → 미리보기 → 저장.
+ *
+ * 좌표계 정리(중요):
+ *   - 스켈레톤 좌표: 골반이 원점(0,0). 스테이지는 이걸 S배 확대해 보여준다.
+ *   - 원본 이미지는 스켈레톤 좌표에 (src.x, src.y) 위치, src.scale 배로 깔린다.
+ *       skel = src.(x,y) + imgPx * src.scale     →     imgPx = (skel - src.(x,y)) / src.scale
+ *   - 자르기 상자는 스켈레톤 좌표의 회전 사각형 { cx, cy, w, h, rot }.
+ *   - 잘라낸 조각의 fit 은 "관절(pivot) 기준으로 rot 만큼 회전시키면 원래 자리에 놓이도록"
+ *     역회전해 계산한다. 그래서 잘린 그대로의 포즈가 캐릭터의 기본 자세가 된다.
  */
 
 (function () {
@@ -12,46 +18,54 @@
   const host = window.rwHost;
 
   const S = 2;                       // 스테이지 확대 배율(#scaled 의 scale 과 동일)
-  const MAX_SIDE = 512;
-  const MAX_TOTAL = 2 * 1024 * 1024;
+  const MAX_SIDE = 1024;             // 원본 이미지 다운스케일 한 변 최대
+  const MAX_TOTAL = 2 * 1024 * 1024; // 번들 총용량 상한
 
   const LABELS = { torso: '몸통+머리', armL: '좌팔', armR: '우팔', legL: '좌다리', legR: '우다리' };
   const SLOTS = ['torso', 'armL', 'armR', 'legL', 'legR'];
 
-  // 조절 가능한 가이드 비율 슬라이더(값은 정수 슬라이더 → proportions 로 변환)
   const PROP_FIELDS = [
-    { key: 'torsoLen', label: '몸통 길이', min: 60, max: 175 },
-    { key: 'torsoW',   label: '몸통 너비', min: 40, max: 110 },
-    { key: 'shoulderRatio', label: '어깨 높이', min: 45, max: 95, ratio: true },  // %
-    { key: 'shoulderX', label: '어깨 너비', min: 8,  max: 60 },
-    { key: 'hipX',     label: '골반 너비', min: 3,  max: 42 },
-    { key: 'armLen',   label: '팔 길이',   min: 40, max: 135 },
-    { key: 'armW',     label: '팔 두께',   min: 10, max: 52 },
-    { key: 'legLen',   label: '다리 길이', min: 40, max: 145 },
-    { key: 'legW',     label: '다리 두께', min: 10, max: 58 }
+    { key: 'torsoLen', label: '몸통 길이', min: 60, max: 220 },
+    { key: 'torsoW',   label: '몸통 너비', min: 40, max: 200 },
+    { key: 'shoulderRatio', label: '어깨 높이', min: 30, max: 95, ratio: true },
+    { key: 'shoulderX', label: '어깨 너비', min: 8,  max: 120 },
+    { key: 'hipX',     label: '골반 너비', min: 3,  max: 90 },
+    { key: 'armLen',   label: '팔 길이',   min: 20, max: 180 },
+    { key: 'armW',     label: '팔 두께',   min: 10, max: 100 },
+    { key: 'legLen',   label: '다리 길이', min: 20, max: 180 },
+    { key: 'legW',     label: '다리 두께', min: 10, max: 110 }
   ];
 
   let cfg = null;
   let ctrl = null;
   let selected = 'torso';
+  let dragTarget = 'cut';            // 'cut' | 'src' | 'piece'
   let proportions = Object.assign({}, RW.skeleton.BIPEDAL5_DEFAULT);
-  const state = {};                  // slot → { image, natW, natH, scale, offx, offy, rot, z, base }
+  let boxesTouched = false;
+
+  // 원본 이미지 상태 (스켈레톤 좌표에 놓인다)
+  const source = { img: null, dataUrl: null, natW: 0, natH: 0, x: 0, y: 0, scale: 1 };
+
+  // 자르기 상자 (스켈레톤 좌표의 회전 사각형)
+  const cutBoxes = {};               // slot → { cx, cy, w, h, rot }
+
+  // 잘라낸 조각 상태
+  const state = {};                  // slot → { image, scale, offx, offy, rot, z, base }
 
   function workingSkeleton() { return RW.skeleton.buildBipedal5(proportions); }
   function boneOf(sk, slot) { return sk.bones.find((b) => b.part && b.part.slot === slot); }
 
-  // 슬롯 상태 초기화(기본 골격 기준)
   (function initState() {
     const sk = workingSkeleton();
     for (const slot of SLOTS) {
       const b = boneOf(sk, slot);
       state[slot] = {
-        image: null, natW: 0, natH: 0,
-        scale: 1, offx: 0, offy: 0,
+        image: null, scale: 1, offx: 0, offy: 0,
         rot: b.guideRot || 0, z: b.z,
         base: { x: b.part.x, y: b.part.y, w: b.part.w, h: b.part.h }
       };
     }
+    syncBoxesToGuide();
   })();
 
   async function main() {
@@ -59,39 +73,24 @@
     buildProps();
     buildPanel();
     redraw();
+
+    document.getElementById('srcFile').addEventListener('change', (e) => onSourceUpload(e.target.files[0]));
+    document.getElementById('srcScale').addEventListener('input', (e) => {
+      source.scale = Math.max(0.05, +e.target.value / 100);
+      document.getElementById('srcScaleVal').textContent = e.target.value;
+      redraw();
+    });
+    document.getElementById('fitToGuide').addEventListener('click', () => { syncBoxesToGuide(); boxesTouched = false; redraw(); });
+    document.getElementById('cutBtn').addEventListener('click', cutAll);
     document.getElementById('previewBtn').addEventListener('click', preview);
     document.getElementById('saveBtn').addEventListener('click', save);
     document.getElementById('resetProps').addEventListener('click', resetProps);
+    document.getElementById('showSrc').addEventListener('change', redraw);
+    document.getElementById('showResult').addEventListener('change', redraw);
     setupDrag();
   }
 
-  // ---- 가이드 비율 슬라이더 ----
-  function buildProps() {
-    const host = document.getElementById('proportions');
-    host.innerHTML = '';
-    for (const f of PROP_FIELDS) {
-      const val = f.ratio ? Math.round(proportions[f.key] * 100) : proportions[f.key];
-      const row = document.createElement('div');
-      row.className = 'ctl';
-      row.innerHTML = `<label>${f.label}</label><input type="range" min="${f.min}" max="${f.max}" value="${val}"><span class="val">${val}</span>`;
-      const input = row.querySelector('input');
-      const out = row.querySelector('.val');
-      input.addEventListener('input', () => {
-        out.textContent = input.value;
-        proportions[f.key] = f.ratio ? (+input.value / 100) : +input.value;
-        redraw();
-      });
-      host.appendChild(row);
-    }
-  }
-
-  function resetProps() {
-    proportions = Object.assign({}, RW.skeleton.BIPEDAL5_DEFAULT);
-    buildProps();
-    redraw();
-  }
-
-  // ---- 大자 가이드(SVG) ----
+  // ---- 절대 관절 좌표 ----
   function computeAbsPivots(sk) {
     const byName = {}; sk.bones.forEach((b) => (byName[b.name] = b));
     const abs = {};
@@ -106,39 +105,106 @@
     return abs;
   }
 
+  // 가이드(비율)로부터 자르기 상자를 다시 만든다.
+  function syncBoxesToGuide() {
+    const sk = workingSkeleton();
+    const abs = computeAbsPivots(sk);
+    for (const slot of SLOTS) {
+      const b = boneOf(sk, slot);
+      const P = abs[b.name];
+      const th = (b.guideRot || 0) * Math.PI / 180;
+      // 본 로컬에서 상자 중심
+      const lx = b.part.x + b.part.w / 2;
+      const ly = b.part.y + b.part.h / 2;
+      // guideRot 만큼 회전해 스켈레톤 좌표 중심으로
+      cutBoxes[slot] = {
+        cx: P.x + lx * Math.cos(th) - ly * Math.sin(th),
+        cy: P.y + lx * Math.sin(th) + ly * Math.cos(th),
+        w: b.part.w, h: b.part.h, rot: b.guideRot || 0
+      };
+    }
+  }
+
+  // ---- 가이드 비율 슬라이더 ----
+  function buildProps() {
+    const el = document.getElementById('proportions');
+    el.innerHTML = '';
+    for (const f of PROP_FIELDS) {
+      const val = f.ratio ? Math.round(proportions[f.key] * 100) : Math.round(proportions[f.key]);
+      const row = document.createElement('div');
+      row.className = 'ctl';
+      row.innerHTML = `<label>${f.label}</label><input type="range" min="${f.min}" max="${f.max}" value="${val}"><span class="val">${val}</span>`;
+      const input = row.querySelector('input');
+      const out = row.querySelector('.val');
+      input.addEventListener('input', () => {
+        out.textContent = input.value;
+        proportions[f.key] = f.ratio ? (+input.value / 100) : +input.value;
+        if (!boxesTouched) syncBoxesToGuide();   // 아직 손대지 않았으면 가이드를 따라간다
+        redraw();
+      });
+      el.appendChild(row);
+    }
+  }
+
+  function resetProps() {
+    proportions = Object.assign({}, RW.skeleton.BIPEDAL5_DEFAULT);
+    buildProps();
+    syncBoxesToGuide(); boxesTouched = false;
+    redraw();
+  }
+
+  // ---- 스테이지 그리기 ----
+  function drawSource() {
+    const layer = document.getElementById('srcLayer');
+    const show = document.getElementById('showSrc').checked && source.dataUrl;
+    if (!show) { layer.style.display = 'none'; return; }
+    layer.style.display = 'block';
+    layer.style.left = source.x + 'px';
+    layer.style.top = source.y + 'px';
+    layer.style.width = (source.natW * source.scale) + 'px';
+    layer.style.height = (source.natH * source.scale) + 'px';
+    layer.style.backgroundImage = `url("${source.dataUrl}")`;
+  }
+
   function drawGuide() {
     const sk = workingSkeleton();
     const abs = computeAbsPivots(sk);
     const svg = document.getElementById('guide');
     const NS = 'http://www.w3.org/2000/svg';
     svg.innerHTML = '';
+
     for (const slot of SLOTS) {
       const b = boneOf(sk, slot);
-      const pv = abs[b.name];
-      const g = document.createElementNS(NS, 'g');
-      g.setAttribute('transform', `translate(${pv.x} ${pv.y}) rotate(${b.guideRot || 0})`);
+      const P = abs[b.name];
+      const box = cutBoxes[slot];
+      const isSel = slot === selected;
 
+      // 자르기 상자(회전 사각형)
+      const g = document.createElementNS(NS, 'g');
+      g.setAttribute('transform', `translate(${box.cx} ${box.cy}) rotate(${box.rot})`);
       const rect = document.createElementNS(NS, 'rect');
-      rect.setAttribute('x', b.part.x); rect.setAttribute('y', b.part.y);
-      rect.setAttribute('width', b.part.w); rect.setAttribute('height', b.part.h);
-      rect.setAttribute('rx', '6');
-      rect.setAttribute('fill', 'rgba(138,99,255,0.06)');
-      rect.setAttribute('stroke', 'rgba(138,99,255,0.55)');
-      rect.setAttribute('stroke-width', '1');
+      rect.setAttribute('x', -box.w / 2); rect.setAttribute('y', -box.h / 2);
+      rect.setAttribute('width', box.w); rect.setAttribute('height', box.h);
+      rect.setAttribute('rx', '3');
+      rect.setAttribute('fill', isSel ? 'rgba(255,140,0,0.13)' : 'rgba(138,99,255,0.05)');
+      rect.setAttribute('stroke', isSel ? '#ff8c00' : 'rgba(138,99,255,0.5)');
+      rect.setAttribute('stroke-width', isSel ? '1.6' : '1');
       rect.setAttribute('stroke-dasharray', '4 3');
       g.appendChild(rect);
-
-      const dot = document.createElementNS(NS, 'circle');
-      dot.setAttribute('r', '3'); dot.setAttribute('fill', '#8a63ff');
-      g.appendChild(dot);
-
       const label = document.createElementNS(NS, 'text');
-      label.setAttribute('x', b.part.x + 2); label.setAttribute('y', b.part.y + 12);
-      label.setAttribute('font-size', '9'); label.setAttribute('fill', 'rgba(90,70,180,.8)');
+      label.setAttribute('x', -box.w / 2 + 2); label.setAttribute('y', -box.h / 2 + 10);
+      label.setAttribute('font-size', '9');
+      label.setAttribute('fill', isSel ? '#c96a00' : 'rgba(90,70,180,.75)');
       label.textContent = LABELS[slot];
       g.appendChild(label);
-
       svg.appendChild(g);
+
+      // 관절(회전 중심) 점
+      const dot = document.createElementNS(NS, 'circle');
+      dot.setAttribute('cx', P.x); dot.setAttribute('cy', P.y);
+      dot.setAttribute('r', '3.5'); dot.setAttribute('fill', '#8a63ff');
+      dot.setAttribute('stroke', '#fff'); dot.setAttribute('stroke-width', '1');
+      svg.appendChild(dot);
     }
   }
 
@@ -146,28 +212,33 @@
   function buildPanel() {
     const panel = document.getElementById('slots');
     panel.innerHTML = '';
-    const sk = workingSkeleton();
     for (const slot of SLOTS) {
-      const b = boneOf(sk, slot);
+      const s = state[slot];
+      const box = cutBoxes[slot];
       const card = document.createElement('div');
-      card.className = 'slot' + (state[slot].image ? ' filled' : '');
+      card.className = 'slot' + (s.image ? ' filled' : '');
       card.dataset.slot = slot;
       card.innerHTML = `
         <div class="slot-head">
-          <span class="slot-name ${state[slot].image ? 'filled' : 'empty'}">${LABELS[slot]}</span>
-          <label class="upload">이미지 올리기<input type="file" accept="image/png,image/*"></label>
+          <span class="slot-name ${s.image ? 'filled' : 'empty'}">${LABELS[slot]}</span>
+        </div>
+        <div class="cutctl">
+          <div class="ctl"><label>너비</label><input type="range" class="bw" min="10" max="300" value="${Math.round(box.w)}"></div>
+          <div class="ctl"><label>높이</label><input type="range" class="bh" min="10" max="300" value="${Math.round(box.h)}"></div>
+          <div class="ctl"><label>기울기</label><input type="range" class="brot" min="-180" max="180" value="${Math.round(box.rot)}"></div>
         </div>
         <div class="controls">
-          <div class="ctl"><label>크기</label><input type="range" class="scale" min="30" max="250" value="${Math.round(state[slot].scale * 100)}"></div>
-          <div class="ctl"><label>회전</label><input type="range" class="rot" min="-180" max="180" value="${state[slot].rot}"></div>
+          <div class="ctl"><label>조각크기</label><input type="range" class="scale" min="30" max="250" value="${Math.round(s.scale * 100)}"></div>
           <div class="zbtns"><button class="zup">앞으로</button><button class="zdown">뒤로</button></div>
         </div>`;
       card.addEventListener('click', () => selectSlot(slot));
-      card.querySelector('input[type=file]').addEventListener('change', (e) => onUpload(slot, e.target.files[0]));
-      card.querySelector('.scale').addEventListener('input', (e) => { state[slot].scale = +e.target.value / 100; render(); });
-      card.querySelector('.rot').addEventListener('input', (e) => { state[slot].rot = +e.target.value; render(); });
-      card.querySelector('.zup').addEventListener('click', (e) => { e.stopPropagation(); state[slot].z += 1; render(); });
-      card.querySelector('.zdown').addEventListener('click', (e) => { e.stopPropagation(); state[slot].z -= 1; render(); });
+      const on = (sel, ev, fn) => card.querySelector(sel).addEventListener(ev, fn);
+      on('.bw', 'input', (e) => { cutBoxes[slot].w = +e.target.value; boxesTouched = true; redraw(); });
+      on('.bh', 'input', (e) => { cutBoxes[slot].h = +e.target.value; boxesTouched = true; redraw(); });
+      on('.brot', 'input', (e) => { cutBoxes[slot].rot = +e.target.value; boxesTouched = true; redraw(); });
+      on('.scale', 'input', (e) => { state[slot].scale = +e.target.value / 100; render(); });
+      on('.zup', 'click', (e) => { e.stopPropagation(); state[slot].z += 1; render(); });
+      on('.zdown', 'click', (e) => { e.stopPropagation(); state[slot].z -= 1; render(); });
       panel.appendChild(card);
     }
     selectSlot(selected);
@@ -176,22 +247,27 @@
   function selectSlot(slot) {
     selected = slot;
     document.querySelectorAll('.slot').forEach((c) => c.classList.toggle('selected', c.dataset.slot === slot));
+    drawGuide();
   }
 
-  // ---- 업로드 + 다운스케일 ----
-  function onUpload(slot, file) {
+  // ---- 원본 업로드 ----
+  function onSourceUpload(file) {
     if (!file) return;
-    loadDownscaled(file, MAX_SIDE).then(({ dataUrl, w, h }) => {
-      const b = boneOf(workingSkeleton(), slot);
-      const s = state[slot];
-      s.image = dataUrl; s.natW = w; s.natH = h;
-      // 새 이미지: 현재 비율의 가이드 상자를 base 로 스냅샷(이후 비율을 바꿔도 이 조각은 안정)
-      s.base = { x: b.part.x, y: b.part.y, w: b.part.w, h: b.part.h };
-      s.scale = 1; s.offx = 0; s.offy = 0; s.rot = b.guideRot || 0; s.z = b.z;
-      buildPanel();
-      selectSlot(slot);
-      render();
-    }).catch((e) => setStatus('이미지를 불러오지 못했어요: ' + e.message));
+    loadDownscaled(file, MAX_SIDE).then(({ dataUrl, img, w, h }) => {
+      source.dataUrl = dataUrl; source.img = img; source.natW = w; source.natH = h;
+      // 캐릭터가 가이드에 대충 맞도록 초기 배치: 높이를 몸통+다리 길이에 맞춘다
+      const targetH = proportions.torsoLen + proportions.legLen;
+      source.scale = targetH / h;
+      source.x = -(w * source.scale) / 2;
+      source.y = -proportions.torsoLen;
+      const sc = document.getElementById('srcScale');
+      sc.value = Math.round(source.scale * 100);
+      document.getElementById('srcScaleVal').textContent = sc.value;
+      document.getElementById('srcCtl').classList.add('ready');
+      dragTarget = 'src';
+      setCutMsg('원본을 올렸어요. 스테이지를 드래그해 위치를 맞추세요.');
+      redraw();
+    }).catch((e) => setCutMsg('이미지를 불러오지 못했어요: ' + e.message));
   }
 
   function loadDownscaled(file, max) {
@@ -204,16 +280,74 @@
         w = Math.round(w * k); h = Math.round(h * k);
         const cv = document.createElement('canvas');
         cv.width = w; cv.height = h;
-        cv.getContext('2d').drawImage(img, 0, 0, w, h);
+        const ctx = cv.getContext('2d');
+        ctx.imageSmoothingEnabled = false;      // 픽셀아트 보존
+        ctx.drawImage(img, 0, 0, w, h);
         URL.revokeObjectURL(url);
-        resolve({ dataUrl: cv.toDataURL('image/png'), w, h });
+        const out = new Image();
+        out.onload = () => resolve({ dataUrl: cv.toDataURL('image/png'), img: out, w, h });
+        out.src = cv.toDataURL('image/png');
       };
       img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode 실패')); };
       img.src = url;
     });
   }
 
-  // ---- 상태 → 리그 번들 ----
+  // ---- 자르기 ----
+  function cutAll() {
+    if (!source.img) return setCutMsg('먼저 전체 이미지를 올려 주세요.');
+    const sk = workingSkeleton();
+    const abs = computeAbsPivots(sk);
+    let n = 0;
+    for (const slot of SLOTS) {
+      const b = boneOf(sk, slot);
+      const box = cutBoxes[slot];
+      const dataUrl = cropPiece(box);
+      if (!dataUrl) continue;
+      const fit = fitForCut(box, abs[b.name]);
+      const s = state[slot];
+      s.image = dataUrl;
+      s.base = { x: fit.x, y: fit.y, w: fit.w, h: fit.h };
+      s.rot = fit.rot; s.scale = 1; s.offx = 0; s.offy = 0;
+      n++;
+    }
+    document.getElementById('showResult').checked = true;
+    document.getElementById('showSrc').checked = false;
+    dragTarget = 'piece';
+    buildPanel();
+    redraw();
+    setCutMsg(`${n}조각을 잘랐어요. 결과를 보고 조각별로 미세 조정하세요.`);
+  }
+
+  // 회전 사각형 영역을 원본에서 잘라 축 정렬 이미지로 만든다.
+  function cropPiece(box) {
+    const outW = Math.max(1, Math.round(box.w / source.scale));
+    const outH = Math.max(1, Math.round(box.h / source.scale));
+    if (outW > 2000 || outH > 2000) return null;
+    const cxImg = (box.cx - source.x) / source.scale;
+    const cyImg = (box.cy - source.y) / source.scale;
+
+    const cv = document.createElement('canvas');
+    cv.width = outW; cv.height = outH;
+    const ctx = cv.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(outW / 2, outH / 2);
+    ctx.rotate(-box.rot * Math.PI / 180);
+    ctx.translate(-cxImg, -cyImg);
+    ctx.drawImage(source.img, 0, 0);
+    return cv.toDataURL('image/png');
+  }
+
+  // 관절 기준으로 rot 만큼 회전시키면 원래 자리에 놓이도록 역회전해 fit 계산
+  function fitForCut(box, P) {
+    const dx = box.cx - P.x, dy = box.cy - P.y;
+    const th = -box.rot * Math.PI / 180;
+    const rx = dx * Math.cos(th) - dy * Math.sin(th);
+    const ry = dx * Math.sin(th) + dy * Math.cos(th);
+    return { x: rx - box.w / 2, y: ry - box.h / 2, w: box.w, h: box.h, rot: box.rot };
+  }
+
+  // ---- 상태 → 번들 ----
   function fitOf(s) {
     return {
       x: s.base.x * s.scale + s.offx,
@@ -242,50 +376,75 @@
       if (ctrl) ctrl.stop();
       const anchor = document.getElementById('charAnchor');
       anchor.innerHTML = '';
+      anchor.style.display = document.getElementById('showResult').checked ? 'block' : 'none';
       ctrl = RW.engine.mount(anchor, { skeleton: workingSkeleton(), rig: { skeletonId: 'bipedal5', slots: buildBundle().slots } });
       updateSize();
     });
   }
-  // 비율/가이드 변경 시: 가이드도 다시 그리고 캐릭터도 다시 렌더
-  function redraw() { drawGuide(); render(); }
+  function redraw() { drawSource(); drawGuide(); render(); }
 
   function updateSize() {
     let bytes = 0;
     for (const slot of SLOTS) { const im = state[slot].image; if (im) bytes += Math.floor(im.length * 0.75); }
     const info = document.getElementById('sizeInfo');
-    info.textContent = `번들 크기 ≈ ${Math.round(bytes / 1024)} KB`;
+    info.textContent = `번들 ≈ ${Math.round(bytes / 1024)} KB`;
     info.style.color = bytes > MAX_TOTAL ? '#c0392b' : '';
   }
 
-  // ---- 드래그로 위치 정합 ----
+  function setCutMsg(m) { document.getElementById('cutMsg').textContent = m || ''; }
+
+  // ---- 드래그 ----
   function setupDrag() {
     const stage = document.getElementById('stage');
     let dragging = false, lastX = 0, lastY = 0;
-    stage.addEventListener('mousedown', (e) => {
-      const s = state[selected];
-      if (!s || !s.image) return;
-      dragging = true; lastX = e.clientX; lastY = e.clientY;
-      e.preventDefault();
-    });
+    stage.addEventListener('mousedown', (e) => { dragging = true; lastX = e.clientX; lastY = e.clientY; e.preventDefault(); });
     window.addEventListener('mousemove', (e) => {
       if (!dragging) return;
-      const s = state[selected];
       const dx = (e.clientX - lastX) / S;
       const dy = (e.clientY - lastY) / S;
       lastX = e.clientX; lastY = e.clientY;
-      const r = -s.rot * Math.PI / 180;   // 화면 이동 → 로컬(파트는 pivot 기준 rot 회전)
-      s.offx += dx * Math.cos(r) - dy * Math.sin(r);
-      s.offy += dx * Math.sin(r) + dy * Math.cos(r);
-      render();
+
+      if (dragTarget === 'src' && source.img) {
+        source.x += dx; source.y += dy;
+      } else if (dragTarget === 'piece' && state[selected].image) {
+        // 조각은 관절 기준 rot 로 회전돼 그려지므로, 화면 이동을 -rot 로 돌려 로컬 이동으로
+        const r = -state[selected].rot * Math.PI / 180;
+        state[selected].offx += dx * Math.cos(r) - dy * Math.sin(r);
+        state[selected].offy += dx * Math.sin(r) + dy * Math.cos(r);
+      } else {
+        cutBoxes[selected].cx += dx; cutBoxes[selected].cy += dy;
+        boxesTouched = true;
+      }
+      redraw();
     });
     window.addEventListener('mouseup', () => { dragging = false; });
+
+    // 드래그 대상 전환: 스페이스바로 원본/상자/조각 순환
+    document.addEventListener('keydown', (e) => {
+      if (e.code !== 'Space' || e.target.tagName === 'INPUT') return;
+      e.preventDefault();
+      dragTarget = dragTarget === 'src' ? 'cut' : (dragTarget === 'cut' ? 'piece' : 'src');
+      updateStageHint();
+    });
+    updateStageHint();
+  }
+
+  function updateStageHint() {
+    const map = {
+      src: '드래그 = 원본 이미지 이동 (스페이스로 전환)',
+      cut: '드래그 = 선택한 자르기 상자 이동 (스페이스로 전환)',
+      piece: '드래그 = 잘라낸 조각 미세 이동 (스페이스로 전환)'
+    };
+    document.getElementById('stageHint').textContent = map[dragTarget];
   }
 
   // ---- 미리보기 ----
   function preview() {
     if (!ctrl) return;
-    const seq = ['g2_twerk', 'g4_ballet', 'g3_despair', 'g8_w_shrug', 'g7_rage_aura', 'g5_leave', 'g6_nuzzle', 'g1_slump_roll'];
-    ctrl.play(seq, { onDone: () => render() });
+    document.getElementById('showResult').checked = true;
+    const seq = ['g2_twerk', 'g4_ballet', 'g3_despair', 'g8_w_shrug', 'g7_rage_aura', 'g6_nuzzle', 'g1_slump_roll'];
+    render();
+    setTimeout(() => ctrl.play(seq, { onDone: () => render() }), 50);
   }
 
   // ---- 저장 ----
@@ -294,11 +453,11 @@
     if (!name) return setStatus('캐릭터 이름을 입력해 주세요.');
     const bundle = buildBundle();
     const filled = Object.keys(bundle.slots).length;
-    if (filled === 0) return setStatus('최소 한 조각 이상 이미지를 올려 주세요.');
+    if (filled === 0) return setStatus('먼저 이미지를 올리고 조각을 잘라 주세요.');
 
     let bytes = 0;
     for (const k of Object.keys(bundle.slots)) bytes += Math.floor(bundle.slots[k].image.length * 0.75);
-    if (bytes > MAX_TOTAL) return setStatus('번들이 너무 큽니다. 이미지 크기를 줄여 주세요.');
+    if (bytes > MAX_TOTAL) return setStatus('번들이 너무 큽니다. 원본 크기를 줄여 주세요.');
 
     const id = 'custom_' + Date.now().toString(36);
     const entry = { id, name, swatch: '#9b7bff', bundle };
@@ -308,19 +467,19 @@
     await host.setConfig({ customCharacters: nextCustoms, characterId: id, partnerCharacterId: id });
     cfg = await host.getConfig();
 
-    if (cfg.firebase && cfg.pairCode) {
+    if (cfg.firebase && cfg.roomId) {
       try {
         const t = RW.transport.createTransport(cfg);
         await t.ready;
         await t.setMyCharacter(id, bundle);
         t.destroy();
-        setStatus('저장 완료 · 상대와 공유했어요. 이 창을 닫아도 됩니다.');
+        setStatus('저장 완료 · 상대와 공유했어요. 창을 닫아도 됩니다.');
       } catch (e) {
         console.error(e);
         setStatus('저장됨(로컬). Firebase 공유는 연결 확인이 필요해요.');
       }
     } else {
-      setStatus('저장 완료(로컬 데모). 오버레이에서 새 캐릭터가 보입니다.');
+      setStatus('저장 완료(로컬). 페어링 후 자동으로 공유됩니다.');
     }
     if (filled < 5) document.getElementById('status').textContent += `  (${filled}/5 조각)`;
   }

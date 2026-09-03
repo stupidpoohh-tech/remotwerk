@@ -38,6 +38,7 @@ html, body {
 
 .rw-bone { position: absolute; }
 .rw-part {
+  image-rendering: pixelated;
   position: absolute;
   box-sizing: border-box;
 }
