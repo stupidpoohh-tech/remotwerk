@@ -11,11 +11,13 @@
   const RW = (root.RW = root.RW || {});
 
   const BONE_PROPS = ['rot', 'x', 'y', 'vis'];
-  const ROOT_PROPS = ['x', 'y', 'rot', 'vis', 'flip', 'aura'];
+  // sx/sy = 스쿼시&스트레치. 치비 체형은 관절 회전보다 몸 전체의 눌림/늘어남이 더 잘 읽힌다.
+  const ROOT_PROPS = ['x', 'y', 'rot', 'vis', 'flip', 'aura', 'sx', 'sy'];
 
   function neutral(prop) {
     if (prop === 'vis') return true;
     if (prop === 'flip') return false;
+    if (prop === 'sx' || prop === 'sy') return 1;   // 스케일 기본값은 1
     return 0; // rot, x, y, aura
   }
   function isStepProp(prop) { return prop === 'vis' || prop === 'flip'; }
@@ -93,6 +95,9 @@
 
     const stage = document.createElement('div');
     stage.className = 'rw-stage';
+    // 변형 기준점을 발밑(groundY)으로 둔다. 스쿼시/바운스/넘어짐이 "바닥에 선 몸"처럼 읽힌다.
+    const groundY = (skeleton.box && skeleton.box.groundY != null) ? skeleton.box.groundY : 0;
+    stage.style.transformOrigin = `0px ${groundY}px`;
 
     const auraEl = document.createElement('div');
     auraEl.className = 'rw-aura';
@@ -145,8 +150,10 @@
     function applyPose(pose) {
       const r = pose.root;
       const flip = r.flip ? -1 : 1;
+      const sx = (r.sx == null ? 1 : r.sx) * flip;
+      const sy = (r.sy == null ? 1 : r.sy);
       stage.style.transform =
-        `translate(${r.x || 0}px, ${r.y || 0}px) rotate(${r.rot || 0}deg) scaleX(${flip})`;
+        `translate(${r.x || 0}px, ${r.y || 0}px) rotate(${r.rot || 0}deg) scale(${sx}, ${sy})`;
       stage.style.opacity = r.vis === false ? '0' : '1';
       const aura = r.aura || 0;
       auraEl.style.opacity = aura > 0 ? String(Math.min(1, aura)) : '0';

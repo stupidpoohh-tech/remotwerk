@@ -75,7 +75,7 @@
       id: 'bipedal5',
       bones,
       slots: ['torso', 'armL', 'armR', 'legL', 'legR'],
-      box: { w: 130, h: 220, originX: 65, originY: 122 },
+      box: { w: 130, h: 220, originX: 65, originY: 122, groundY: q.legLen },
       spread: true,
       proportions: q
     };
@@ -89,7 +89,7 @@
       // 슬롯 목록 — 프리셋 rig.json 이 부위별 이미지/색을 채운다.
       slots: ['head', 'torso', 'arm', 'hand', 'leg', 'foot'],
       // 캐릭터 콘텐츠 상자(대략). 오버레이 배치/드래그 히트박스 계산에 쓴다.
-      box: { w: 120, h: 210, originX: 60, originY: 150 }
+      box: { w: 120, h: 210, originX: 60, originY: 150, groundY: 86 }
     },
     bipedal5: buildBipedal5(BIPEDAL5_DEFAULT)
   };

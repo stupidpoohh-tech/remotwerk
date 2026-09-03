@@ -1,17 +1,22 @@
 'use strict';
 /* 애니메이션 데이터 — 골격별 키프레임 시퀀스.
  *
- * 이 값들은 각 동작의 "키 자세" 설명을 바탕으로 만든 저프레임 안무다. 코드가 생성하는 것이
- * 아니라 콘텐츠로 다듬어 넣는 데이터이며, 아트에 맞춰 계속 다듬는다.
+ * ▣ 안무 방향: "귀엽고 통통 튀게" · 치비(2~3등신) 체형 기준
  *
- * 다듬기 원칙(이번 개선 반영):
- *  - 예비동작(anticipation): 큰 자세 전에 반대 방향으로 살짝 준비.
- *  - 보조동작(secondary): 걷기엔 팔 스윙 + 몸통 바운스, 트월킹엔 머리 반동 등.
- *  - 마무리(settle): 도착/착지 후 작은 되돌림으로 뚝 끊기지 않게.
+ * 첨부 캐릭터처럼 머리가 크고 팔다리가 짧은 체형에서는 관절을 크게 꺾어도 잘 안 읽히고
+ * 오히려 부자연스럽다. 그래서 표현의 무게중심을 이렇게 옮겼다:
+ *
+ *   1) 관절 회전은 작게 (팔 ±40~85°, 다리 ±16~40°). 예전엔 ±140~168° 까지 썼다.
+ *   2) 대신 **몸 전체**의 이동(y 바운스) · 기울임(rot) · 스쿼시(sx/sy) 로 표현한다.
+ *      - 눌림: sy↓ sx↑   / 늘어남: sy↑ sx↓   (부피 보존처럼 보이게 반대로 움직인다)
+ *      - 변형 기준점은 발밑(groundY)이라 "바닥에 선 몸"으로 읽힌다.
+ *   3) 예비동작(anticipation) → 본동작 → 오버슈트 → 마무리 반동(settle) 을 넣어
+ *      뚝 끊기지 않고 통통 튀게 만든다.
  *
  * 프레임 표기:
- *   { t:<ms>, root:{x,y,rot,vis,flip,aura}, <bone>:{rot,x,y,vis} }  // 값은 뉴트럴(0) 기준 델타
- *   - vis/flip 은 계단 보간, 나머지는 선형 보간. 언급 없는 본/속성은 뉴트럴로 채워진다(희소 허용).
+ *   { t:<ms>, root:{x,y,rot,sx,sy,vis,flip,aura}, <bone>:{rot,x,y,vis} }  // 뉴트럴 기준 델타
+ *   - sx/sy 는 기본값 1, 나머지는 0. vis/flip 은 계단 보간, 나머지는 선형 보간.
+ *   - 언급 없는 본/속성은 뉴트럴로 채워진다(희소 프레임 허용).
  *   - 5조각 골격은 어깨/골반 트랙(*_upper)만 읽어 근사 재생한다(engine.animSource).
  */
 
@@ -20,183 +25,192 @@
 
   const anims = {
     // 1) 지루해서 늘어졌다가 그대로 뒹굴기
+    //    몸이 점점 눌리다가(sy↓) 옆으로 톡 넘어간다.
     g1_slump_roll: {
       loop: false,
       frames: [
         { t: 0 },
-        { t: 220, root: { y: -3 }, head: { rot: -5 } },                                                  // 한숨 예비
-        { t: 520, torso: { rot: 22 }, head: { rot: 18 }, armR_upper: { rot: 14 }, armL_upper: { rot: -14 }, legR_upper: { rot: 6 }, legL_upper: { rot: 6 } },
-        { t: 1000, torso: { rot: 46 }, head: { rot: 33 }, armR_upper: { rot: 22 }, armL_upper: { rot: -22 }, legR_lower: { rot: -26 }, legL_lower: { rot: -26 }, root: { y: 8 } },
-        { t: 1350, torso: { rot: 46 }, head: { rot: 33 }, root: { y: 8 } },                               // 한 박자 정지
-        { t: 1520, root: { rot: 14, y: 14 }, torso: { rot: 44 } },                                        // 옆으로 기우는 예비
-        { t: 1960, root: { rot: 72, y: 48 }, torso: { rot: 38 }, head: { rot: 22 }, armR_upper: { rot: 40 }, armL_upper: { rot: -40 }, legR_upper: { rot: 46 }, legL_upper: { rot: 46 }, legR_lower: { rot: -40 }, legL_lower: { rot: -40 } },
-        { t: 2360, root: { rot: 90, y: 55 }, torso: { rot: 30 }, legR_upper: { rot: 55 }, legL_upper: { rot: 55 } },
-        { t: 2560, root: { rot: 88, y: 52 } }                                                             // 착지 반동
+        { t: 200, root: { y: -3, sy: 1.04, sx: 0.97 }, head: { rot: -5 } },                 // 한숨 들이켜기
+        { t: 520, root: { y: 5, sy: 0.95, sx: 1.04 }, torso: { rot: 12 }, head: { rot: 10 }, armR_upper: { rot: 10 }, armL_upper: { rot: -10 } },
+        { t: 900, root: { y: 12, sy: 0.87, sx: 1.10 }, torso: { rot: 24 }, head: { rot: 18 }, armR_upper: { rot: 18 }, armL_upper: { rot: -18 }, legR_upper: { rot: 10 }, legL_upper: { rot: 10 } },
+        { t: 1250, root: { y: 12, sy: 0.87, sx: 1.10 }, torso: { rot: 24 }, head: { rot: 18 } }, // 한 박자 정지
+        { t: 1450, root: { y: 10, rot: 10, sy: 0.92, sx: 1.06 } },                          // 기우뚱
+        { t: 1850, root: { y: 30, rot: 60, sy: 0.95, sx: 1.04 }, torso: { rot: 18 }, legR_upper: { rot: 26 }, legL_upper: { rot: 26 }, armR_upper: { rot: 26 }, armL_upper: { rot: -26 } },
+        { t: 2200, root: { y: 38, rot: 88, sy: 0.90, sx: 1.08 }, legR_upper: { rot: 34 }, legL_upper: { rot: 34 } },
+        { t: 2420, root: { y: 36, rot: 85, sy: 0.94, sx: 1.04 } }                           // 착지 반동
       ]
     },
 
     // 2) 슬쩍 눈치보다가 둠칫둠칫 엉덩이 트월킹
+    //    스쿼트 자세에서 좌우로 튕기듯. 머리는 반대로 반동.
     g2_twerk: {
       loop: false,
       frames: [
         { t: 0 },
-        { t: 280, head: { rot: -26 }, torso: { rot: -3 } },                                              // 좌 살핌
-        { t: 560, head: { rot: 26 }, torso: { rot: 3 } },                                                // 우 살핌
-        { t: 780, head: { rot: 0 }, torso: { rot: 30 }, legR_upper: { rot: 14 }, legL_upper: { rot: 14 }, legR_lower: { rot: -22 }, legL_lower: { rot: -22 }, armR_upper: { rot: -18 }, armL_upper: { rot: 18 }, root: { y: 12 } },
-        // 둠칫둠칫 루프 — 엉덩이 좌우 + 머리 반동
-        { t: 920,  root: { y: 12, rot: -8, x: -6 }, head: { rot: 6 },  armR_upper: { rot: -14 }, armL_upper: { rot: 14 } },
-        { t: 1055, root: { y: 5,  rot: 8,  x: 6 },  head: { rot: -6 }, armR_upper: { rot: -22 }, armL_upper: { rot: 22 } },
-        { t: 1190, root: { y: 12, rot: -8, x: -6 }, head: { rot: 6 } },
-        { t: 1325, root: { y: 5,  rot: 8,  x: 6 },  head: { rot: -6 } },
-        { t: 1460, root: { y: 12, rot: -8, x: -6 }, head: { rot: 6 } },
-        { t: 1595, root: { y: 5,  rot: 8,  x: 6 },  head: { rot: -6 } },
-        { t: 1740, root: { y: 10, rot: -5, x: -4 } },
-        { t: 1960, root: { y: 0,  rot: 0,  x: 0 }, torso: { rot: 0 }, armR_upper: { rot: 0 }, armL_upper: { rot: 0 } }
+        { t: 250, head: { rot: -20 }, root: { sx: 1.02, sy: 0.99 } },                       // 좌 살핌
+        { t: 500, head: { rot: 20 } },                                                      // 우 살핌
+        { t: 700, root: { y: 10, sy: 0.90, sx: 1.08 }, head: { rot: 0 }, torso: { rot: 14 }, legR_upper: { rot: 9 }, legL_upper: { rot: 9 }, armR_upper: { rot: -14 }, armL_upper: { rot: 14 } },
+        // 둠칫둠칫
+        { t: 840,  root: { y: 13, rot: -7, x: -5, sy: 0.87, sx: 1.11 }, head: { rot: 5 } },
+        { t: 965,  root: { y: 5,  rot: 7,  x: 5,  sy: 0.97, sx: 1.02 }, head: { rot: -5 } },
+        { t: 1090, root: { y: 13, rot: -7, x: -5, sy: 0.87, sx: 1.11 }, head: { rot: 5 } },
+        { t: 1215, root: { y: 5,  rot: 7,  x: 5,  sy: 0.97, sx: 1.02 }, head: { rot: -5 } },
+        { t: 1340, root: { y: 13, rot: -7, x: -5, sy: 0.87, sx: 1.11 }, head: { rot: 5 } },
+        { t: 1465, root: { y: 5,  rot: 7,  x: 5,  sy: 0.97, sx: 1.02 }, head: { rot: -5 } },
+        { t: 1600, root: { y: 10, rot: -4, x: -3, sy: 0.92, sx: 1.06 } },
+        { t: 1800 }
       ]
     },
 
     // 3) 무릎 꿇으며 하늘로 양팔 벌리며 좌절하기
+    //    치비는 실제로 못 꿇으므로, 몸을 낮추고(y↓ sy↓) 다리를 벌려 주저앉는 인상으로.
     g3_despair: {
       loop: false,
       frames: [
         { t: 0 },
-        { t: 240, root: { y: -6 }, torso: { rot: -6 }, head: { rot: -8 }, armR_upper: { rot: -20 }, armL_upper: { rot: 20 } }, // 숨 들이켜는 예비
-        { t: 650, legR_upper: { rot: 68 }, legL_upper: { rot: 68 }, legR_lower: { rot: -78 }, legL_lower: { rot: -78 }, root: { y: 34 }, torso: { rot: 0 }, armR_upper: { rot: -95 }, armL_upper: { rot: 95 }, head: { rot: -6 } },
-        { t: 1050, root: { y: 36 }, legR_upper: { rot: 70 }, legL_upper: { rot: 70 }, legR_lower: { rot: -80 }, legL_lower: { rot: -80 }, armR_upper: { rot: -168 }, armL_upper: { rot: 168 }, head: { rot: -16 }, torso: { rot: -8 } },
-        { t: 1250, root: { y: 36, x: 2 }, head: { rot: -18 } },                                           // 절정에서 미세한 떨림
-        { t: 1470, root: { y: 36, x: -2 }, head: { rot: -13 } },
-        { t: 2350, root: { y: 36, x: 0 }, legR_upper: { rot: 70 }, legL_upper: { rot: 70 }, legR_lower: { rot: -80 }, legL_lower: { rot: -80 }, armR_upper: { rot: -168 }, armL_upper: { rot: 168 }, head: { rot: -15 }, torso: { rot: -8 } } // 길게 정지
+        { t: 200, root: { y: -6, sy: 1.06, sx: 0.95 }, armR_upper: { rot: -14 }, armL_upper: { rot: 14 }, head: { rot: -6 } }, // 숨 들이켜기
+        { t: 560, root: { y: 24, sy: 0.88, sx: 1.10 }, legR_upper: { rot: 34 }, legL_upper: { rot: 34 }, armR_upper: { rot: -55 }, armL_upper: { rot: 55 } },
+        { t: 880, root: { y: 27, sy: 0.90, sx: 1.08 }, legR_upper: { rot: 38 }, legL_upper: { rot: 38 }, armR_upper: { rot: -85 }, armL_upper: { rot: 85 }, head: { rot: -12 }, torso: { rot: -6 } },
+        { t: 1080, root: { y: 27, x: 2, sy: 0.90, sx: 1.08 }, head: { rot: -14 } },         // 부들부들
+        { t: 1280, root: { y: 27, x: -2, sy: 0.90, sx: 1.08 }, head: { rot: -10 } },
+        { t: 2050, root: { y: 27, x: 0, sy: 0.90, sx: 1.08 }, legR_upper: { rot: 38 }, legL_upper: { rot: 38 }, armR_upper: { rot: -85 }, armL_upper: { rot: 85 }, head: { rot: -12 }, torso: { rot: -6 } } // 길게 정지
       ]
     },
 
     // 4) 피겨 턴하고 발레 점프하기
+    //    플리에(눌림) → 회전 → 크게 눌렀다 튀어오름(늘어남) → 착지 스쿼시 → 반동
     g4_ballet: {
       loop: false,
       frames: [
         { t: 0 },
-        { t: 150, root: { y: 14 }, legR_upper: { rot: 10 }, legL_upper: { rot: 10 }, legR_lower: { rot: -20 }, legL_lower: { rot: -20 }, armR_upper: { rot: -40 }, armL_upper: { rot: 40 } }, // 플리에 예비
-        { t: 300, root: { flip: true, y: 4 }, armR_upper: { rot: -72 }, armL_upper: { rot: 72 } },
-        { t: 420, root: { flip: false, y: 4 }, armR_upper: { rot: -72 }, armL_upper: { rot: 72 } },
-        { t: 540, root: { flip: true, y: 4 }, armR_upper: { rot: -72 }, armL_upper: { rot: 72 } },        // 도는 인상
-        { t: 660, root: { flip: false, y: 16 }, legR_upper: { rot: 12 }, legL_upper: { rot: 12 }, legR_lower: { rot: -24 }, legL_lower: { rot: -24 }, armR_upper: { rot: -30 }, armL_upper: { rot: 30 } }, // 웅크림
-        { t: 860, root: { y: -66 }, legR_upper: { rot: -4 }, legL_upper: { rot: 4 }, legR_lower: { rot: -6 }, legL_lower: { rot: -6 }, armR_upper: { rot: -150 }, armL_upper: { rot: 150 } }, // 체공
-        { t: 1020, root: { y: -70 } },                                                                    // 정점
-        { t: 1200, root: { y: 16 }, legR_upper: { rot: 14 }, legL_upper: { rot: 14 }, legR_lower: { rot: -26 }, legL_lower: { rot: -26 }, armR_upper: { rot: -50 }, armL_upper: { rot: 50 } }, // 착지
-        { t: 1380, root: { y: 3 }, armR_upper: { rot: -20 }, armL_upper: { rot: 20 } },                   // 마무리 되돌림
-        { t: 1560 }
+        { t: 150, root: { y: 11, sy: 0.89, sx: 1.09 }, legR_upper: { rot: 7 }, legL_upper: { rot: 7 }, armR_upper: { rot: -28 }, armL_upper: { rot: 28 } },
+        { t: 320, root: { flip: true, y: 0, sy: 1.04, sx: 0.97 }, armR_upper: { rot: -45 }, armL_upper: { rot: 45 } },
+        { t: 440, root: { flip: false, y: 0, sy: 1.04, sx: 0.97 }, armR_upper: { rot: -45 }, armL_upper: { rot: 45 } },
+        { t: 560, root: { flip: true, y: 0, sy: 1.04, sx: 0.97 }, armR_upper: { rot: -45 }, armL_upper: { rot: 45 } },
+        { t: 700, root: { flip: false, y: 14, sy: 0.84, sx: 1.13 }, legR_upper: { rot: 9 }, legL_upper: { rot: 9 }, armR_upper: { rot: -20 }, armL_upper: { rot: 20 } }, // 웅크림
+        { t: 900, root: { y: -52, sy: 1.16, sx: 0.89 }, armR_upper: { rot: -72 }, armL_upper: { rot: 72 }, legR_upper: { rot: -4 }, legL_upper: { rot: 4 } },           // 체공
+        { t: 1040, root: { y: -56, sy: 1.12, sx: 0.92 } },                                  // 정점
+        { t: 1230, root: { y: 14, sy: 0.82, sx: 1.15 }, legR_upper: { rot: 10 }, legL_upper: { rot: 10 }, armR_upper: { rot: -26 }, armL_upper: { rot: 26 } },          // 착지
+        { t: 1400, root: { y: -6, sy: 1.07, sx: 0.96 }, armR_upper: { rot: -12 }, armL_upper: { rot: 12 } },                                                            // 반동
+        { t: 1560, root: { y: 2, sy: 0.98, sx: 1.01 } },
+        { t: 1700 }
       ]
     },
 
-    // 5) 자리비우기(사라지기) — 팔 스윙 + 몸통 바운스로 걸어 나가 사라짐
+    // 5) 자리비우기(사라지기) — 통통 튀는 걸음으로 화면 밖으로
     g5_leave: {
       loop: false,
       frames: [
         { t: 0 },
-        { t: 180, root: { x: 30, y: -2 }, legR_upper: { rot: 24 }, legL_upper: { rot: -24 }, armR_upper: { rot: -12 }, armL_upper: { rot: 12 } },
-        { t: 360, root: { x: 68, y: 0 },  legR_upper: { rot: -24 }, legL_upper: { rot: 24 }, armR_upper: { rot: 12 }, armL_upper: { rot: -12 } },
-        { t: 540, root: { x: 112, y: -2 }, legR_upper: { rot: 24 }, legL_upper: { rot: -24 }, armR_upper: { rot: -12 }, armL_upper: { rot: 12 } },
-        { t: 720, root: { x: 162, y: 0 }, legR_upper: { rot: -24 }, legL_upper: { rot: 24 }, armR_upper: { rot: 12 }, armL_upper: { rot: -12 } },
-        { t: 900, root: { x: 216, y: -2 }, legR_upper: { rot: 24 }, legL_upper: { rot: -24 } },
-        { t: 1050, root: { x: 272 } },
-        { t: 1160, root: { x: 320, vis: false } }
+        { t: 160, root: { x: 26, y: -6, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 18 }, legL_upper: { rot: -18 }, armR_upper: { rot: -10 }, armL_upper: { rot: 10 } },
+        { t: 320, root: { x: 58, y: 3, sy: 0.95, sx: 1.05 }, legR_upper: { rot: -18 }, legL_upper: { rot: 18 }, armR_upper: { rot: 10 }, armL_upper: { rot: -10 } },
+        { t: 480, root: { x: 96, y: -6, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 18 }, legL_upper: { rot: -18 }, armR_upper: { rot: -10 }, armL_upper: { rot: 10 } },
+        { t: 640, root: { x: 142, y: 3, sy: 0.95, sx: 1.05 }, legR_upper: { rot: -18 }, legL_upper: { rot: 18 }, armR_upper: { rot: 10 }, armL_upper: { rot: -10 } },
+        { t: 800, root: { x: 196, y: -6, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 18 }, legL_upper: { rot: -18 } },
+        { t: 960, root: { x: 254, y: 3 } },
+        { t: 1100, root: { x: 315, vis: false } }
       ]
     },
 
     // 6) 화면으로 다가와 얼굴 부비기 (복귀에도 재사용)
+    //    치비는 목이 없으니 부비기는 몸 전체를 좌우로 비비는 것으로.
     g6_nuzzle: {
       loop: false,
       frames: [
-        { t: 0, root: { x: 190 }, legR_upper: { rot: -24 }, legL_upper: { rot: 24 }, armR_upper: { rot: 12 }, armL_upper: { rot: -12 } },
-        { t: 200, root: { x: 130, y: -2 }, legR_upper: { rot: 24 }, legL_upper: { rot: -24 }, armR_upper: { rot: -12 }, armL_upper: { rot: 12 } },
-        { t: 400, root: { x: 70 }, legR_upper: { rot: -24 }, legL_upper: { rot: 24 }, armR_upper: { rot: 12 }, armL_upper: { rot: -12 } },
-        { t: 600, root: { x: 12 } },                                                                      // 도착
-        { t: 780, root: { x: 8 }, torso: { rot: 16 }, head: { rot: -12 }, armR_upper: { rot: 8 }, armL_upper: { rot: -8 } },
-        { t: 900, root: { x: 2 }, torso: { rot: 16 }, head: { rot: 12 } },
-        { t: 1020, root: { x: 8 }, torso: { rot: 16 }, head: { rot: -12 } },
-        { t: 1140, root: { x: 2 }, torso: { rot: 16 }, head: { rot: 12 } },
-        { t: 1270, root: { x: 6 }, torso: { rot: 12 }, head: { rot: -6 } },
-        { t: 1460, root: { x: 0 }, torso: { rot: 0 }, head: { rot: 0 } }                                  // 마무리
+        { t: 0, root: { x: 175 }, legR_upper: { rot: -18 }, legL_upper: { rot: 18 }, armR_upper: { rot: 10 }, armL_upper: { rot: -10 } },
+        { t: 180, root: { x: 120, y: -6, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 18 }, legL_upper: { rot: -18 }, armR_upper: { rot: -10 }, armL_upper: { rot: 10 } },
+        { t: 360, root: { x: 65, y: 3, sy: 0.95, sx: 1.05 }, legR_upper: { rot: -18 }, legL_upper: { rot: 18 } },
+        { t: 540, root: { x: 14, y: -4, sy: 1.03 } },
+        { t: 700, root: { x: 8, y: 4, sy: 0.94, sx: 1.06, rot: -7 }, torso: { rot: 9 }, head: { rot: -8 } },   // 부비기 1
+        { t: 830, root: { x: 1, y: 4, sy: 0.94, sx: 1.06, rot: 7 }, torso: { rot: 9 }, head: { rot: 8 } },
+        { t: 960, root: { x: 8, y: 4, sy: 0.94, sx: 1.06, rot: -7 }, torso: { rot: 9 }, head: { rot: -8 } },
+        { t: 1090, root: { x: 1, y: 4, sy: 0.94, sx: 1.06, rot: 7 }, torso: { rot: 9 }, head: { rot: 8 } },
+        { t: 1250, root: { x: 5, y: 2, rot: -3, sy: 0.98 }, torso: { rot: 5 }, head: { rot: -3 } },
+        { t: 1450, root: { x: 0 } }
       ]
     },
 
-    // 7) 가만히 분노하며 오오라를 내뿜기 (몸통 미세 진동 + 오오라 오버레이)
+    // 7) 가만히 분노하며 오오라를 내뿜기
+    //    몸을 잔뜩 웅크린 채 미세 진동 + 오오라가 두 번 크게 부푼다.
     g7_rage_aura: {
       loop: false,
       frames: [
-        { t: 0, head: { rot: 10 }, torso: { rot: 4 }, armR_upper: { rot: 8 }, armR_lower: { rot: 30 }, armL_upper: { rot: -8 }, armL_lower: { rot: -30 } },
-        { t: 180, root: { x: 1, aura: 0.5 }, head: { rot: 12 } },                                         // 긴장 고조
-        { t: 300, root: { x: -1.5, aura: 0.9 } },
-        { t: 420, root: { x: 1.5, aura: 0.7 } },
-        { t: 540, root: { x: -1.5, aura: 1.5 } },                                                         // 크게 부풀었다
-        { t: 680, root: { x: 1.5, aura: 0.8 } },                                                          // 줄어드는 강조
-        { t: 800, root: { x: -1.5, aura: 1.0 }, head: { rot: 13 } },
-        { t: 940, root: { x: 1.5, aura: 0.7 } },
-        { t: 1060, root: { x: -1.5, aura: 1.6 } },                                                        // 두 번째 강조
-        { t: 1200, root: { x: 1.5, aura: 0.9 } },
-        { t: 1340, root: { x: -1.5, aura: 1.1 } },
-        { t: 1500, root: { x: 1, aura: 0.7 } },
-        { t: 1700, root: { x: 0, aura: 0.5 }, head: { rot: 11 } },
-        { t: 1950, root: { x: 0, aura: 0 }, head: { rot: 10 }, torso: { rot: 4 } }
+        { t: 0, head: { rot: 8 }, torso: { rot: 3 }, armR_upper: { rot: 7 }, armL_upper: { rot: -7 }, armR_lower: { rot: 24 }, armL_lower: { rot: -24 }, root: { sy: 0.98, sx: 1.02 } },
+        { t: 160, root: { x: 1, aura: 0.5, sy: 0.96, sx: 1.04 }, head: { rot: 10 } },
+        { t: 280, root: { x: -1.5, aura: 0.9, sy: 0.96, sx: 1.04 } },
+        { t: 400, root: { x: 1.5, aura: 0.7, sy: 0.97, sx: 1.03 } },
+        { t: 520, root: { x: -1.5, aura: 1.5, sy: 0.94, sx: 1.06 } },                       // 크게 부풂
+        { t: 660, root: { x: 1.5, aura: 0.8, sy: 0.98, sx: 1.02 } },
+        { t: 790, root: { x: -1.5, aura: 1.0, sy: 0.96, sx: 1.04 }, head: { rot: 11 } },
+        { t: 920, root: { x: 1.5, aura: 0.7, sy: 0.98, sx: 1.02 } },
+        { t: 1050, root: { x: -1.5, aura: 1.6, sy: 0.93, sx: 1.07 } },                      // 두 번째 강조
+        { t: 1190, root: { x: 1.5, aura: 0.9, sy: 0.97, sx: 1.03 } },
+        { t: 1330, root: { x: -1.5, aura: 1.1, sy: 0.96, sx: 1.04 } },
+        { t: 1500, root: { x: 1, aura: 0.7, sy: 0.98, sx: 1.02 } },
+        { t: 1700, root: { x: 0, aura: 0.5 }, head: { rot: 9 } },
+        { t: 1900, root: { x: 0, aura: 0 }, head: { rot: 8 }, torso: { rot: 3 } }
       ]
     },
 
-    // 8) W 모양으로 팔을 들고 어깨 으쓱하기 (더블 으쓱 + 마무리)
+    // 8) 팔 들고 어깨 으쓱 (치비는 팔꿈치가 없어 곧게 든 팔 + 통통 튀는 두 번 으쓱)
     g8_w_shrug: {
       loop: false,
       frames: [
         { t: 0 },
-        { t: 250, armR_upper: { rot: -140 }, armR_lower: { rot: 85 }, armL_upper: { rot: 140 }, armL_lower: { rot: -85 } },
-        { t: 500, root: { y: -8 }, head: { rot: 5 }, armR_upper: { rot: -148 }, armR_lower: { rot: 85 }, armL_upper: { rot: 148 }, armL_lower: { rot: -85 } }, // 으쓱 1
-        { t: 680, root: { y: 0 }, head: { rot: 0 }, armR_upper: { rot: -140 }, armR_lower: { rot: 85 }, armL_upper: { rot: 140 }, armL_lower: { rot: -85 } },
-        { t: 860, root: { y: -8 }, head: { rot: 5 }, armR_upper: { rot: -148 }, armL_upper: { rot: 148 } }, // 으쓱 2
-        { t: 1040, root: { y: 0 }, head: { rot: 0 }, armR_upper: { rot: -140 }, armR_lower: { rot: 85 }, armL_upper: { rot: 140 }, armL_lower: { rot: -85 } },
-        { t: 1250, armR_upper: { rot: -140 }, armR_lower: { rot: 85 }, armL_upper: { rot: 140 }, armL_lower: { rot: -85 } }, // 짧게 유지
-        { t: 1500 }
+        { t: 130, root: { y: 5, sy: 0.94, sx: 1.05 } },                                     // 살짝 눌렀다가
+        { t: 300, root: { y: -2, sy: 1.03, sx: 0.98 }, armR_upper: { rot: -60 }, armL_upper: { rot: 60 }, armR_lower: { rot: 45 }, armL_lower: { rot: -45 } },
+        { t: 470, root: { y: -11, sy: 1.08, sx: 0.94 }, head: { rot: 4 }, armR_upper: { rot: -74 }, armL_upper: { rot: 74 }, armR_lower: { rot: 45 }, armL_lower: { rot: -45 } }, // 으쓱 1
+        { t: 630, root: { y: 3, sy: 0.95, sx: 1.04 }, head: { rot: 0 }, armR_upper: { rot: -60 }, armL_upper: { rot: 60 }, armR_lower: { rot: 45 }, armL_lower: { rot: -45 } },
+        { t: 790, root: { y: -11, sy: 1.08, sx: 0.94 }, head: { rot: 4 }, armR_upper: { rot: -74 }, armL_upper: { rot: 74 }, armR_lower: { rot: 45 }, armL_lower: { rot: -45 } }, // 으쓱 2
+        { t: 950, root: { y: 3, sy: 0.95, sx: 1.04 }, head: { rot: 0 }, armR_upper: { rot: -60 }, armL_upper: { rot: 60 }, armR_lower: { rot: 45 }, armL_lower: { rot: -45 } },
+        { t: 1150, root: { y: 0 }, armR_upper: { rot: -60 }, armL_upper: { rot: 60 }, armR_lower: { rot: 45 }, armL_lower: { rot: -45 } },
+        { t: 1400 }
       ]
     },
 
     // --- 자율 생활 2종 (전송/히스토리 없음, 로컬 반복) ---
 
-    // 멍때리기 — 숨쉬기 + 무게중심 이동 + 팔 미세 스윙
+    // 멍때리기 — 숨쉬기(스쿼시)로 표현. 가끔 무게중심을 옮긴다.
     idle: {
       loop: true,
       frames: [
         { t: 0 },
-        { t: 1200, root: { y: -2 }, torso: { rot: -1 }, head: { rot: 2 }, armR_upper: { rot: 3 }, armL_upper: { rot: -3 } },
-        { t: 2400, root: { y: 2 }, torso: { rot: 2 }, head: { rot: -1 } },
-        { t: 3200, root: { x: 3 }, head: { rot: 3 } },                                                    // 무게중심 이동
-        { t: 4000, root: { x: -3 }, head: { rot: -2 } },
-        { t: 4800, root: { x: 0, y: 0 }, torso: { rot: 0 }, head: { rot: 0 } }
+        { t: 900, root: { y: -3, sy: 1.035, sx: 0.98 }, head: { rot: 2 } },                 // 들숨
+        { t: 1800, root: { y: 2, sy: 0.97, sx: 1.02 }, head: { rot: 0 } },                  // 날숨
+        { t: 2700, root: { x: 3, y: -2, sy: 1.02, sx: 0.99 }, head: { rot: 3 } },
+        { t: 3600, root: { x: -3, y: 2, sy: 0.98, sx: 1.01 }, head: { rot: -2 } },
+        { t: 4500, root: { x: 0, y: 0 } }
       ]
     },
 
-    // 돌아다니기 — 좌우로 천천히 걸음 (팔 스윙 + 몸통 바운스, 되돌아와 매끄럽게 루프)
+    // 돌아다니기 — 통통 튀는 걸음. 되돌아와 매끄럽게 루프.
     wander: {
       loop: true,
       frames: [
         { t: 0, root: { x: 0 } },
-        { t: 300, root: { x: 12, y: -2 }, legR_upper: { rot: 20 }, legL_upper: { rot: -20 }, armR_upper: { rot: -10 }, armL_upper: { rot: 10 } },
-        { t: 600, root: { x: 26, y: 0 },  legR_upper: { rot: -20 }, legL_upper: { rot: 20 }, armR_upper: { rot: 10 }, armL_upper: { rot: -10 } },
-        { t: 900, root: { x: 40, y: -2 }, legR_upper: { rot: 20 }, legL_upper: { rot: -20 }, armR_upper: { rot: -10 }, armL_upper: { rot: 10 } },
-        { t: 1200, root: { x: 54, y: 0 }, legR_upper: { rot: -20 }, legL_upper: { rot: 20 }, armR_upper: { rot: 10 }, armL_upper: { rot: -10 } },
-        { t: 1500, root: { x: 62, flip: true } },
-        { t: 1800, root: { x: 50, y: -2, flip: true }, legR_upper: { rot: 20 }, legL_upper: { rot: -20 }, armR_upper: { rot: -10 }, armL_upper: { rot: 10 } },
-        { t: 2100, root: { x: 36, y: 0, flip: true }, legR_upper: { rot: -20 }, legL_upper: { rot: 20 }, armR_upper: { rot: 10 }, armL_upper: { rot: -10 } },
-        { t: 2400, root: { x: 20, y: -2, flip: true }, legR_upper: { rot: 20 }, legL_upper: { rot: -20 } },
-        { t: 2700, root: { x: 6, flip: true }, legR_upper: { rot: -20 }, legL_upper: { rot: 20 } },
-        { t: 3000, root: { x: 0, flip: false } }
+        { t: 250, root: { x: 10, y: -6, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 16 }, legL_upper: { rot: -16 }, armR_upper: { rot: -8 }, armL_upper: { rot: 8 } },
+        { t: 500, root: { x: 22, y: 3, sy: 0.95, sx: 1.05 }, legR_upper: { rot: -16 }, legL_upper: { rot: 16 }, armR_upper: { rot: 8 }, armL_upper: { rot: -8 } },
+        { t: 750, root: { x: 34, y: -6, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 16 }, legL_upper: { rot: -16 }, armR_upper: { rot: -8 }, armL_upper: { rot: 8 } },
+        { t: 1000, root: { x: 46, y: 3, sy: 0.95, sx: 1.05 }, legR_upper: { rot: -16 }, legL_upper: { rot: 16 }, armR_upper: { rot: 8 }, armL_upper: { rot: -8 } },
+        { t: 1250, root: { x: 55, y: 0, flip: true } },
+        { t: 1500, root: { x: 46, y: -6, flip: true, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 16 }, legL_upper: { rot: -16 }, armR_upper: { rot: -8 }, armL_upper: { rot: 8 } },
+        { t: 1750, root: { x: 34, y: 3, flip: true, sy: 0.95, sx: 1.05 }, legR_upper: { rot: -16 }, legL_upper: { rot: 16 }, armR_upper: { rot: 8 }, armL_upper: { rot: -8 } },
+        { t: 2000, root: { x: 22, y: -6, flip: true, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 16 }, legL_upper: { rot: -16 } },
+        { t: 2250, root: { x: 10, y: 3, flip: true, sy: 0.95, sx: 1.05 }, legR_upper: { rot: -16 }, legL_upper: { rot: 16 } },
+        { t: 2500, root: { x: 0, y: 0, flip: false } }
       ]
     },
 
-    // 복귀 보조 — 화면 밖에서 걸어 들어옴 (자리비운 뒤 다른 신호가 오면 앞에 붙인다)
+    // 복귀 보조 — 화면 밖에서 통통 튀며 걸어 들어옴
     walk_in: {
       loop: false,
       frames: [
-        { t: 0, root: { x: 210, vis: true }, legR_upper: { rot: -24 }, legL_upper: { rot: 24 }, armR_upper: { rot: 12 }, armL_upper: { rot: -12 } },
-        { t: 260, root: { x: 150, y: -2 }, legR_upper: { rot: 24 }, legL_upper: { rot: -24 }, armR_upper: { rot: -12 }, armL_upper: { rot: 12 } },
-        { t: 520, root: { x: 90 }, legR_upper: { rot: -24 }, legL_upper: { rot: 24 }, armR_upper: { rot: 12 }, armL_upper: { rot: -12 } },
-        { t: 780, root: { x: 40, y: -2 }, legR_upper: { rot: 24 }, legL_upper: { rot: -24 }, armR_upper: { rot: -12 }, armL_upper: { rot: 12 } },
-        { t: 1000, root: { x: 0 }, legR_upper: { rot: 0 }, legL_upper: { rot: 0 }, armR_upper: { rot: 0 }, armL_upper: { rot: 0 } }
+        { t: 0, root: { x: 190, vis: true }, legR_upper: { rot: -18 }, legL_upper: { rot: 18 }, armR_upper: { rot: 10 }, armL_upper: { rot: -10 } },
+        { t: 220, root: { x: 130, y: -6, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 18 }, legL_upper: { rot: -18 }, armR_upper: { rot: -10 }, armL_upper: { rot: 10 } },
+        { t: 440, root: { x: 75, y: 3, sy: 0.95, sx: 1.05 }, legR_upper: { rot: -18 }, legL_upper: { rot: 18 }, armR_upper: { rot: 10 }, armL_upper: { rot: -10 } },
+        { t: 660, root: { x: 30, y: -6, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 18 }, legL_upper: { rot: -18 } },
+        { t: 870, root: { x: 4, y: 3, sy: 0.96, sx: 1.04 } },
+        { t: 1000, root: { x: 0, y: 0 } }
       ]
     }
   };
