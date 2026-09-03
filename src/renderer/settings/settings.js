@@ -33,6 +33,13 @@
     initSizeSection();
     initAppSection();
 
+    // 공용 카탈로그는 네트워크에서 받아오므로, 캐시로 먼저 그리고 도착하면 다시 그린다.
+    if (cfg.firebase && RW.catalog) {
+      RW.catalog.load(cfg)
+        .then(() => rebuildGrids())
+        .catch((e) => console.warn('[settings] 카탈로그 로드 실패', e));
+    }
+
     // 리깅 도구에서 새 캐릭터를 저장하면 config 가 갱신 → 그리드 다시 그림
     host.onConfigChanged((next) => {
       cfg = next;
@@ -136,6 +143,19 @@
     }
   }
 
+  // 내가 만든 캐릭터 삭제. 선택 중이었다면 기본 프리셋으로 되돌린다.
+  async function deleteCharacter(c) {
+    if (!window.confirm(`"${c.name}" 캐릭터를 삭제할까요? 되돌릴 수 없어요.`)) return;
+    const next = (cfg.customCharacters || []).filter((x) => x.id !== c.id);
+    const patch = { customCharacters: next };
+    if (cfg.characterId === c.id) { patch.characterId = 'preset1'; myChar = 'preset1'; }
+    if (cfg.partnerCharacterId === c.id) { patch.partnerCharacterId = 'preset2'; partnerChar = 'preset2'; }
+    await host.setConfig(patch);
+    cfg = await host.getConfig();
+    rebuildGrids();
+    $('status').textContent = `"${c.name}" 을(를) 삭제했어요.`;
+  }
+
   function rebuildGrids() {
     buildGrid('myGrid', () => myChar, (id) => { myChar = id; });
     buildGrid('partnerGrid', () => partnerChar, (id) => { partnerChar = id; });
@@ -150,9 +170,28 @@
     for (const c of RW.characters.listAll(cfg)) {
       const tile = document.createElement('div');
       tile.className = 'tile';
-      const badge = c.custom ? '<span class="custom-badge">내 제작</span>' : '';
-      tile.innerHTML = `<div class="preview"></div>${badge}<div class="cap">${c.name}</div>`;
+      const badge = c.custom
+        ? '<span class="custom-badge">내 제작</span>'
+        : (c.catalog ? '<span class="custom-badge catalog">공용</span>' : '');
+      // 내가 만든 캐릭터만 편집·삭제할 수 있다(공용/프리셋은 불가).
+      const tools = c.custom
+        ? '<div class="tile-tools"><button class="tt edit" title="편집">✎</button>' +
+          '<button class="tt del" title="삭제">🗑</button></div>'
+        : '';
+      tile.innerHTML = `<div class="preview"></div>${badge}${tools}<div class="cap">${c.name}</div>`;
       renderPreview(tile.querySelector('.preview'), c.id);
+
+      if (c.custom) {
+        tile.querySelector('.edit').addEventListener('click', (e) => {
+          e.stopPropagation();
+          host.openRigger(c.id);
+        });
+        tile.querySelector('.del').addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteCharacter(c);
+        });
+      }
+
       tile.addEventListener('click', () => {
         setSel(c.id);
         for (const k of Object.keys(tiles)) tiles[k].classList.toggle('selected', k === c.id);

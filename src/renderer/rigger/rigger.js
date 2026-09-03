@@ -68,8 +68,41 @@
     syncBoxesToGuide();
   })();
 
+  // 편집 모드: ?edit=<id> 로 열리면 그 캐릭터를 불러온다.
+  const editId = new URLSearchParams(location.search).get('edit');
+  let editing = null;
+
+  function loadForEdit() {
+    const entry = (cfg.customCharacters || []).find((c) => c.id === editId);
+    if (!entry) return false;
+    editing = entry;
+    const b = entry.bundle || {};
+    if (b.proportions) proportions = Object.assign({}, RW.skeleton.BIPEDAL5_DEFAULT, b.proportions);
+    for (const slot of SLOTS) {
+      const sl = (b.slots || {})[slot];
+      const s = state[slot];
+      if (!sl) { s.image = null; continue; }
+      const f = sl.fit || {};
+      s.image = sl.image;
+      s.base = { x: f.x || 0, y: f.y || 0, w: f.w || 40, h: f.h || 40 };
+      s.rot = f.rot || 0; s.scale = 1; s.offx = 0; s.offy = 0;
+      if (sl.z != null) s.z = sl.z;
+    }
+    syncBoxesToGuide();
+    document.getElementById('charName').value = entry.name || '';
+    document.getElementById('showResult').checked = true;
+    document.getElementById('showSrc').checked = false;
+    dragTarget = 'piece';
+    document.getElementById('saveBtn').textContent = '수정 내용 저장';
+    // 편집 시엔 원본/자르기 단계는 접어 둔다(다시 자를 수도 있게 남겨는 둔다).
+    document.getElementById('srcBox').open = false;
+    document.getElementById('cutBox').open = false;
+    return true;
+  }
+
   async function main() {
     cfg = await host.getConfig();
+    if (editId) loadForEdit();
     buildProps();
     buildPanel();
     redraw();
@@ -88,6 +121,13 @@
     document.getElementById('showSrc').addEventListener('change', redraw);
     document.getElementById('showResult').addEventListener('change', redraw);
     setupDrag();
+
+    // 관리자에게만 "공용 카탈로그에 올리기" 옵션을 보여준다.
+    if (cfg.firebase && RW.catalog) {
+      RW.catalog.isAdmin(cfg).then((ok) => {
+        if (ok) document.getElementById('publishRow').hidden = false;
+      }).catch(() => {});
+    }
   }
 
   // ---- 절대 관절 좌표 ----
@@ -459,13 +499,33 @@
     for (const k of Object.keys(bundle.slots)) bytes += Math.floor(bundle.slots[k].image.length * 0.75);
     if (bytes > MAX_TOTAL) return setStatus('번들이 너무 큽니다. 원본 크기를 줄여 주세요.');
 
-    const id = 'custom_' + Date.now().toString(36);
+    // 편집 모드면 같은 id 를 유지하며 덮어쓰고, 아니면 새로 만든다.
+    const id = editing ? editing.id : 'custom_' + Date.now().toString(36);
     const entry = { id, name, swatch: '#9b7bff', bundle };
-    const nextCustoms = (cfg.customCharacters || []).concat([entry]);
+    const list = (cfg.customCharacters || []);
+    const nextCustoms = editing
+      ? list.map((c) => (c.id === id ? entry : c))
+      : list.concat([entry]);
 
     setStatus('저장 중…');
-    await host.setConfig({ customCharacters: nextCustoms, characterId: id, partnerCharacterId: id });
+    const patch = { customCharacters: nextCustoms };
+    if (!editing) { patch.characterId = id; patch.partnerCharacterId = id; }
+    await host.setConfig(patch);
     cfg = await host.getConfig();
+    editing = entry;
+
+    // 관리자: 공용 카탈로그에도 올리기(모든 사용자가 선택 가능해진다)
+    const pub = document.getElementById('publishCatalog');
+    if (pub && !pub.parentElement.hidden && pub.checked && RW.catalog) {
+      try {
+        await RW.catalog.publish(cfg, { name, swatch: '#2a9d5c', bundle });
+        setStatus('공용 카탈로그에 올렸어요. 모든 사용자가 쓸 수 있습니다.');
+      } catch (e) {
+        console.error(e);
+        setStatus('개인 캐릭터로는 저장됐지만 카탈로그 업로드는 실패했어요(관리자 권한 확인).');
+        return;
+      }
+    }
 
     if (cfg.firebase && cfg.roomId) {
       try {

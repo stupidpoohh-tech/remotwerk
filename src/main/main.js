@@ -255,16 +255,22 @@ function createSettings() {
   return w;
 }
 
-function createRigger() {
-  if (win.rigger && !win.rigger.isDestroyed()) { bringToFront(win.rigger); return win.rigger; }
+// editId 를 주면 그 캐릭터를 불러와 편집한다(없으면 새로 만들기).
+function createRigger(editId) {
+  // 편집 대상이 바뀌면 기존 창을 닫고 새로 연다(창 안에서 대상 교체보다 단순하고 안전).
+  if (win.rigger && !win.rigger.isDestroyed()) {
+    if (!editId) { bringToFront(win.rigger); return win.rigger; }
+    win.rigger.destroy();
+    win.rigger = null;
+  }
   const w = new BrowserWindow({
-    width: 900, height: 680,
-    title: 'Remotwerk — 캐릭터 만들기',
+    width: 940, height: 720,
+    title: editId ? 'Remotwerk — 캐릭터 편집' : 'Remotwerk — 캐릭터 만들기',
     resizable: true,
     center: true,
     webPreferences: baseWebPrefs()
   });
-  w.loadFile(path.join(RENDERER, 'rigger', 'rigger.html'));
+  w.loadFile(path.join(RENDERER, 'rigger', 'rigger.html'), editId ? { query: { edit: editId } } : undefined);
   win.rigger = w;
   bringToFront(w);
   w.once('ready-to-show', () => bringToFront(w));
@@ -404,7 +410,7 @@ function registerIpc() {
   ipcMain.on('ui:open-remote', () => createRemote());
   ipcMain.on('ui:open-history', () => createHistory());
   ipcMain.on('ui:open-settings', () => createSettings());
-  ipcMain.on('ui:open-rigger', () => createRigger());
+  ipcMain.on('ui:open-rigger', (_e, editId) => createRigger(editId || null));
   ipcMain.on('ui:open-viewer', () => createViewer());
   ipcMain.on('ui:hide-all', () => hideAll());
   ipcMain.on('ui:quit', () => { app.isQuiting = true; app.quit(); });

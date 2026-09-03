@@ -55,15 +55,27 @@
       return JSON.parse(new TextDecoder().decode(bytes));
     }
 
+    // 캐릭터 종류에 따라 전달 방식이 다르다.
+    //   개인(custom)  : 번들을 방 Storage 에 올리고 characterRef 로 가리킨다.
+    //   공용(catalog) : 서버에 이미 있으니 id 만 알려준다(업로드 없음).
+    //   프리셋(preset): 앱에 내장돼 있으니 id 만.
     async function writeMyCharacter(characterId) {
-      const bundle = findMyBundle(characterId);
-      let characterRef = null;
-      if (bundle) characterRef = await uploadBundle(bundle);
-      await mod.update(refs.me, { characterId, characterRef: characterRef || null });
+      const src = RW.characters ? RW.characters.sourceOf(characterId, cfg) : 'preset';
+      if (src === 'custom') {
+        const bundle = findMyBundle(characterId);
+        const characterRef = bundle ? await uploadBundle(bundle) : null;
+        await mod.update(refs.me, { characterId, characterSource: 'custom', characterRef: characterRef || null });
+      } else {
+        await mod.update(refs.me, { characterId, characterSource: src, characterRef: null });
+      }
     }
 
     async function resolvePartner(val) {
       if (!val) return null;
+      if (val.characterSource === 'catalog' && RW.catalog) {
+        const entry = await RW.catalog.get(cfg, val.characterId).catch(() => null);
+        if (entry && entry.bundle) return { kind: 'bundle', id: entry.id, bundle: entry.bundle };
+      }
       if (val.characterRef) {
         const bundle = await downloadBundle(val.characterRef).catch(() => null);
         if (bundle) return { kind: 'bundle', id: val.characterId || 'custom', bundle };

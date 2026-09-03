@@ -94,6 +94,23 @@ button {
 .tile.add:hover { background: #f2eeff; }
 .tile.add .cap { position: absolute; bottom: 0; font-size: 11px; color: #6a6a76; }
 
+/* 타일 편집/삭제 버튼 — 평소엔 숨기고 hover 시 표시 */
+.tile-tools {
+  position: absolute; top: 3px; right: 3px; z-index: 4;
+  display: none; gap: 3px;
+}
+.tile:hover .tile-tools { display: flex; }
+.tt {
+  border: none; border-radius: 6px; cursor: pointer;
+  background: rgba(255,255,255,.92); color: #333;
+  font-size: 11px; line-height: 1; padding: 3px 5px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.tt.del:hover { background: #ffe3e3; color: #c0392b; }
+.tt.edit:hover { background: #ece8ff; color: #6a4de0; }
+
+.custom-badge.catalog { background: #2a9d5c; }
+
 .custom-badge {
   position: absolute;
   top: 4px; left: 4px;
