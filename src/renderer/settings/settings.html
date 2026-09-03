@@ -24,6 +24,17 @@
 
     <div class="row">
       <button id="createInvite" class="primary">초대 코드 만들기</button>
+      <button id="diagnose">연결 진단</button>
+    </div>
+
+    <!-- 연결이 안 될 때 "무엇이" 안 되는지 단계별로 보여 준다.
+         (네트워크 문제인지, 데이터베이스 주소가 틀린 것인지는 증상이 같아서 구분이 안 된다) -->
+    <div id="diagBox" class="diag-box" hidden>
+      <ol id="diagSteps"></ol>
+      <p id="diagVerdict" class="diag-verdict"></p>
+      <div class="row" id="diagFixRow" hidden>
+        <button id="diagFix" class="primary">이 주소로 고치기</button>
+      </div>
     </div>
 
     <div id="inviteBox" class="invite-box" hidden>

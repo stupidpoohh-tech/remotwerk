@@ -388,10 +388,69 @@ for (const id of ART_IDS) {
   }
 }
 
-// --- 결과 -------------------------------------------------------------------
-if (fails.length) {
-  console.error(`\n✗ 실패 ${fails.length}건 / 통과 ${pass}건`);
-  for (const f of fails) console.error('  - ' + f);
-  process.exit(1);
+// --- 14. 연결 진단 (fb.js) ---------------------------------------------------
+//
+// 페어링이 막혔을 때 "네트워크를 확인하세요" 만 띄우면 사용자가 할 수 있는 일이 없다.
+// 주소가 틀린 것과 네트워크가 막힌 것은 증상이 같으므로, 진단이 이 둘을 실제로
+// 갈라내는지 가짜 fetch 로 확인한다.
+{
+  const sb2 = { console };
+  sb2.window = sb2; sb2.globalThis = sb2;
+  sb2.setTimeout = setTimeout; sb2.clearTimeout = clearTimeout;
+  sb2.AbortController = typeof AbortController !== 'undefined' ? AbortController : undefined;
+  vm.createContext(sb2);
+  vm.runInContext(fs.readFileSync(path.join(SHARED, 'fb.js'), 'utf8'), sb2, { filename: 'fb.js' });
+  const fb = sb2.RW.fb;
+
+  // 리전별 후보 주소를 실제로 만들어 내는가
+  const cands = fb.candidateURLs('proj-x', 'https://configured.example');
+  ok('진단: 설정된 주소를 가장 먼저 본다', cands[0] === 'https://configured.example', cands[0]);
+  ok('진단: 미국 기본 주소 후보', cands.indexOf('https://proj-x-default-rtdb.firebaseio.com') > 0);
+  ok('진단: 싱가포르 주소 후보',
+     cands.indexOf('https://proj-x-default-rtdb.asia-southeast1.firebasedatabase.app') > 0);
+  ok('진단: 후보에 중복이 없다', new Set(cands).size === cands.length);
+
+  const run = [];
+  const stub = (map) => { sb2.fetch = async (url) => {
+    run.push(url);
+    const key = Object.keys(map).find((k) => url.indexOf(k) >= 0);
+    if (!key) throw new Error('getaddrinfo ENOTFOUND');
+    const m = map[key];
+    return { status: m.status, text: async () => m.body || '' };
+  }; };
+
+  const results = [];
+  // (1) 권한 거부(401) 여도 "그 주소에 DB 가 있다" 로 읽어야 한다.
+  stub({ 'ok-db': { status: 401, body: '{"error":"Permission denied"}' } });
+  results.push(fb.probeDatabase('https://ok-db.firebasedatabase.app'));
+  // (2) 인스턴스 없음
+  stub({ 'gone': { status: 404, body: 'Firebase error. Database does not exist.' } });
+  results.push(fb.probeDatabase('https://gone.firebasedatabase.app'));
+  // (3) 아예 응답 없음
+  stub({});
+  results.push(fb.probeDatabase('https://nope.firebasedatabase.app'));
+  // (4) 설정 주소는 죽었지만 다른 리전에 살아 있는 경우를 찾아내는가
+  stub({ 'asia-southeast1': { status: 401, body: 'Permission denied' } });
+  const found = fb.findDatabaseURL('proj-x', 'https://dead.example');
+
+  Promise.all(results.concat([found])).then(([a, b, c, f]) => {
+    ok('진단: 401 은 DB 가 있는 것으로 본다', a.state === 'exists', a.state);
+    ok('진단: 404 는 DB 없음', b.state === 'missing', b.state);
+    ok('진단: 응답 없음은 unreachable', c.state === 'unreachable', c.state);
+    ok('진단: 다른 리전의 살아 있는 주소를 찾아낸다',
+       !!f && /asia-southeast1/.test(f.url), f ? f.url : '못 찾음');
+    ok('진단: 빈 주소는 찌르지 않는다',
+       run.every((u) => u.indexOf('undefined') < 0 && u.indexOf('null') < 0));
+    report();
+  }).catch((e) => { fails.push('진단 테스트 자체가 실패 — ' + e.message); report(); });
 }
-console.log(`✓ 전부 통과 (${pass}건)`);
+
+// --- 결과 -------------------------------------------------------------------
+function report() {
+  if (fails.length) {
+    console.error(`\n✗ 실패 ${fails.length}건 / 통과 ${pass}건`);
+    for (const f of fails) console.error('  - ' + f);
+    process.exit(1);
+  }
+  console.log(`✓ 전부 통과 (${pass}건)`);
+}

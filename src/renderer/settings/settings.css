@@ -174,6 +174,24 @@ button {
   .conn-status.bad { color: #ff8a7a; }
 }
 
+/* 연결 진단 — 어디까지 되고 어디서 막히는지 단계별로 */
+.diag-box {
+  margin: 10px 0 4px; padding: 10px 12px;
+  background: #f4f2fb; border: 1px solid #ddd8f0; border-radius: 8px;
+}
+.diag-box ol { margin: 0; padding-left: 18px; }
+.diag-box li { font-size: 11.5px; line-height: 1.6; }
+.diag-box li.bad { color: #c0392b; }
+.diag-verdict { font-size: 12px; line-height: 1.55; margin: 8px 0 0; }
+.diag-verdict.ok { color: #1f8b4c; }
+.diag-verdict.bad { color: #c0392b; }
+@media (prefers-color-scheme: dark) {
+  .diag-box { background: #241f33; border-color: #3a3350; }
+  .diag-box li.bad { color: #ff8a7a; }
+  .diag-verdict.ok { color: #4fd18b; }
+  .diag-verdict.bad { color: #ff8a7a; }
+}
+
 .uid-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .uid-label { font-size: 11px; opacity: 0.7; }
 #myUid {

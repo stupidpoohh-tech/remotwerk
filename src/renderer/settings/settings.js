@@ -26,6 +26,7 @@
     refreshPairStatus();
 
     $('createInvite').addEventListener('click', onCreateInvite);
+    $('diagnose').addEventListener('click', () => runDiagnosis());
     $('joinBtn').addEventListener('click', onJoin);
     $('copyCode').addEventListener('click', onCopyCode);
     $('save').addEventListener('click', save);
@@ -114,13 +115,98 @@
       el.className = 'conn-status bad';
       return;
     }
-    RW.fb.init(cfg.firebase).catch(() => {});
+    // 초기화 실패(익명 로그인 꺼짐 등)를 삼키면, 원인이 무엇이든 "네트워크를 확인하세요"
+    // 로만 보인다. 실패한 이유를 그대로 띄운다.
+    let initError = null;
+    RW.fb.init(cfg.firebase).catch((e) => {
+      initError = (e && e.message) || String(e);
+      el.textContent = initError;
+      el.className = 'conn-status bad';
+    });
     RW.fb.onConnected((connected) => {
+      if (!connected && initError) return;       // 더 구체적인 메시지를 덮어쓰지 않는다
       el.textContent = connected
         ? '서버 연결됨'
-        : '서버에 연결되지 않았어요 — 네트워크(방화벽·VPN·회사망)를 확인해 주세요.';
+        : '서버에 연결되지 않았어요 — 아래 "연결 진단" 을 눌러 원인을 확인해 주세요.';
       el.className = 'conn-status ' + (connected ? 'ok' : 'bad');
     });
+  }
+
+  // ---- 연결 진단 ----
+  //
+  // "서버에 연결되지 않았어요" 만으로는 사용자가 할 수 있는 일이 없다. 네트워크가 막힌 것과
+  // 데이터베이스 주소가 틀린 것은 증상이 똑같은데, 해야 할 일은 정반대다.
+  // 어디까지 되고 어디서 막히는지를 단계별로 보여 주고, 고칠 수 있는 것은 버튼으로 고친다.
+
+  const VERDICT = {
+    auth: '로그인 단계에서 막혔습니다. Firebase 콘솔 → Authentication → Sign-in method → ' +
+          '"익명(Anonymous)" 을 사용 설정해 주세요.',
+    'wrong-url': '데이터베이스는 살아 있는데 앱이 보던 주소가 달랐습니다. ' +
+          '아래 버튼을 누르면 올바른 주소로 바꿔 저장합니다.',
+    'no-database': '이 프로젝트에 실시간 데이터베이스(Realtime Database)가 없습니다. ' +
+          'Firebase 콘솔 → 빌드 → Realtime Database → "데이터베이스 만들기" 로 하나 만들어 주세요. ' +
+          '(Firestore 와는 다른 제품입니다. 이 앱은 Realtime Database 를 씁니다.)',
+    socket: '데이터베이스 주소까지는 닿았는데 실시간 연결만 막혔습니다. ' +
+          '회사망·VPN·방화벽이 WebSocket 을 막는 경우입니다. 다른 네트워크(휴대폰 핫스팟)로 ' +
+          '한 번만 시도해 보시면 확실해집니다.'
+  };
+
+  let diagRunning = false;
+
+  async function runDiagnosis() {
+    if (diagRunning) return;
+    if (!cfg.firebase) return setPairMsg('Firebase 설정이 필요해요.');
+    diagRunning = true;
+    const box = $('diagBox'), list = $('diagSteps'), verdict = $('diagVerdict');
+    box.hidden = false;
+    $('diagFixRow').hidden = true;
+    list.innerHTML = '<li>확인하는 중…</li>';
+    verdict.textContent = '';
+    verdict.className = 'diag-verdict';
+    $('diagnose').disabled = true;
+    try {
+      const r = await RW.fb.diagnose(cfg.firebase);
+      list.innerHTML = '';
+      for (const s of r.steps) {
+        const li = document.createElement('li');
+        li.className = s.ok ? 'ok' : 'bad';
+        li.textContent = (s.ok ? '✅ ' : '❌ ') + s.name + ' — ' + s.detail;
+        list.appendChild(li);
+      }
+      if (!r.cause) {
+        verdict.textContent = '서버까지 정상입니다. 초대 코드를 만들 수 있어요.';
+        verdict.className = 'diag-verdict ok';
+      } else {
+        verdict.textContent = VERDICT[r.cause] || '원인을 특정하지 못했습니다.';
+        verdict.className = 'diag-verdict bad';
+        if (r.cause === 'wrong-url' && r.working) {
+          $('diagFixRow').hidden = false;
+          $('diagFix').onclick = () => applyDatabaseURL(r.working);
+        }
+      }
+      return r;
+    } catch (e) {
+      list.innerHTML = '';
+      verdict.textContent = '진단 중 오류: ' + ((e && e.message) || e);
+      verdict.className = 'diag-verdict bad';
+      return null;
+    } finally {
+      $('diagnose').disabled = false;
+      diagRunning = false;
+    }
+  }
+
+  // 찾아낸 주소로 설정을 고치고 Firebase 를 다시 초기화한다.
+  async function applyDatabaseURL(url) {
+    const next = Object.assign({}, cfg.firebase, { databaseURL: url });
+    await host.setConfig({ firebase: next });
+    cfg = await host.getConfig();
+    $('firebase').value = JSON.stringify(cfg.firebase, null, 2);
+    RW.fb.reset();                       // 새 주소로 다시 연결한다
+    $('diagFixRow').hidden = true;
+    $('diagVerdict').textContent = '주소를 바꿨습니다. 다시 진단해 확인해 주세요.';
+    $('diagVerdict').className = 'diag-verdict ok';
+    initConnStatus();
   }
 
   // ---- 페어링 ----
@@ -152,6 +238,7 @@
       refreshPairStatus();
     } catch (e) {
       setPairMsg('실패: ' + (e && e.message ? e.message : e));
+      runDiagnosis();        // 왜 실패했는지까지 바로 보여 준다
     }
   }
 
@@ -171,6 +258,7 @@
       refreshPairStatus();
     } catch (e) {
       setPairMsg('실패: ' + (e && e.message ? e.message : e));
+      runDiagnosis();
     }
   }
 

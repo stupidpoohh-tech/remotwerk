@@ -102,8 +102,113 @@
     return () => { cancelled = true; if (off) off(); };
   }
 
+  // ---- 연결 진단 ----------------------------------------------------------
+  //
+  // "서버에 연결되지 않았어요" 한 줄로는 무엇이 문제인지 알 수 없다. 원인이 최소 네 가지다:
+  //   (1) SDK 를 못 받아옴  (2) 익명 로그인 실패  (3) 그 주소에 DB 가 없음
+  //   (4) DB 는 있는데 실시간 소켓(wss)만 막힘
+  // (3)과 (4)는 증상이 똑같지만 해야 할 일이 완전히 다르다. 그래서 **REST 로 먼저 찔러 본다.**
+  // REST 는 평범한 https 요청이라, 이게 되면 주소는 맞고 남은 문제는 소켓뿐이다.
+
+  const DB_PROBE_MS = 8000;
+
+  // 이 주소에 실제로 데이터베이스가 있는가.
+  //   exists  : 응답이 왔다(권한 거부여도 DB 는 있는 것이다)
+  //   missing : 주소는 살아 있는데 그런 DB 가 없다
+  //   unreachable : 응답 자체가 없다(주소가 틀렸거나 네트워크가 막힘)
+  async function probeDatabase(url) {
+    const base = String(url || '').replace(/\/+$/, '');
+    if (!base) return { state: 'unreachable', detail: 'databaseURL 이 비어 있음' };
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = setTimeout(() => ctrl && ctrl.abort(), DB_PROBE_MS);
+    try {
+      const res = await fetch(base + '/.json?shallow=true', ctrl ? { signal: ctrl.signal } : {});
+      const body = await res.text().catch(() => '');
+      // 404 + "does not exist" 는 프로젝트는 있는데 그 인스턴스가 없는 경우다.
+      if (res.status === 404 || /does not exist|not found/i.test(body)) {
+        return { state: 'missing', status: res.status, detail: body.slice(0, 200) };
+      }
+      // 401/403 은 **연결이 됐다는 증거**다. 규칙이 막았을 뿐 주소는 맞다.
+      return { state: 'exists', status: res.status, detail: body.slice(0, 200) };
+    } catch (e) {
+      return { state: 'unreachable', detail: (e && e.name === 'AbortError') ? '시간 초과' : String(e && e.message || e) };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // 설정된 주소가 죽어 있으면, 리전별 기본 주소를 차례로 찔러 살아 있는 것을 찾는다.
+  // (RTDB 를 미국 밖에 만들면 주소 형식 자체가 달라진다. 이 값이 틀리면 인증은 되는데
+  //  DB 만 영영 연결되지 않는다 — 지금 증상과 정확히 같다.)
+  function candidateURLs(projectId, configured) {
+    const pid = String(projectId || '').trim();
+    const list = [];
+    if (configured) list.push(configured);
+    if (pid) {
+      for (const u of [
+        `https://${pid}-default-rtdb.firebaseio.com`,
+        `https://${pid}-default-rtdb.asia-southeast1.firebasedatabase.app`,
+        `https://${pid}-default-rtdb.europe-west1.firebasedatabase.app`
+      ]) if (list.indexOf(u) < 0) list.push(u);
+    }
+    return list;
+  }
+
+  async function findDatabaseURL(projectId, configured) {
+    for (const url of candidateURLs(projectId, configured)) {
+      const r = await probeDatabase(url);
+      if (r.state === 'exists') return { url, probe: r };
+    }
+    return null;
+  }
+
+  // 순서대로 확인하고, 각 단계의 결과를 그대로 돌려준다.
+  // 화면은 이걸 사람이 읽을 문장으로 바꿔 보여 준다.
+  async function diagnose(firebaseConfig) {
+    const cfg = firebaseConfig || {};
+    const steps = [];
+    const push = (name, ok, detail) => steps.push({ name, ok, detail });
+
+    let fb = null;
+    try {
+      fb = await init(cfg);
+      push('Firebase SDK · 익명 로그인', true, '사용자 ID ' + fb.uid);
+    } catch (e) {
+      push('Firebase SDK · 익명 로그인', false, (e && e.message) || String(e));
+      return { steps, cause: 'auth', working: null };
+    }
+
+    const probe = await probeDatabase(cfg.databaseURL);
+    push('데이터베이스 주소 확인', probe.state === 'exists',
+         probe.state === 'exists' ? ('응답 ' + probe.status + ' — 이 주소에 DB 가 있습니다')
+       : probe.state === 'missing' ? ('응답 ' + probe.status + ' — 이 주소에 DB 가 없습니다')
+       : ('응답 없음 — ' + probe.detail));
+
+    if (probe.state !== 'exists') {
+      // 다른 리전에 있는지 찾아본다.
+      const found = await findDatabaseURL(cfg.projectId, null);
+      if (found) {
+        push('다른 리전에서 발견', true, found.url);
+        return { steps, cause: 'wrong-url', working: found.url };
+      }
+      push('다른 리전 탐색', false, '어느 리전에서도 찾지 못했습니다');
+      return { steps, cause: 'no-database', working: null };
+    }
+
+    // 주소는 살아 있다. 남은 것은 실시간 소켓뿐이다.
+    try {
+      await waitConnected(8000);
+      push('실시간 연결(wss)', true, '연결됨');
+      return { steps, cause: null, working: cfg.databaseURL };
+    } catch (e) {
+      push('실시간 연결(wss)', false, (e && e.message) || String(e));
+      return { steps, cause: 'socket', working: cfg.databaseURL };
+    }
+  }
+
   // 테스트/재초기화용
   function reset() { readyPromise = null; storagePromise = null; }
 
-  RW.fb = { init, storage, waitConnected, onConnected, reset };
+  RW.fb = { init, storage, waitConnected, onConnected, reset,
+            diagnose, probeDatabase, findDatabaseURL, candidateURLs };
 })(typeof window !== 'undefined' ? window : globalThis);
