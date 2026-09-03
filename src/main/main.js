@@ -438,6 +438,21 @@ function registerIpc() {
     } catch (e) { logError('openLogs', e); }
   });
 
+  // 오버레이 캐릭터 우클릭 메뉴 — 창을 다 닫아도 캐릭터가 남으므로,
+  // 캐릭터 자체에서 끄기/숨기기로 갈 수 있어야 한다.
+  ipcMain.on('overlay:context-menu', () => {
+    const menu = Menu.buildFromTemplate([
+      { label: '리모컨 열기', accelerator: 'CommandOrControl+Shift+R', click: () => createRemote() },
+      { label: '설정', accelerator: 'CommandOrControl+Shift+S', click: () => createSettings() },
+      { label: '히스토리', click: () => createHistory() },
+      { type: 'separator' },
+      { label: '캐릭터 숨기기 (다시 보기: Ctrl+Shift+H)', click: () => hideAll() },
+      { type: 'separator' },
+      { label: 'Remotwerk 종료', click: () => { app.isQuiting = true; app.quit(); } }
+    ]);
+    menu.popup({ window: win.overlay });
+  });
+
   ipcMain.on('overlay:set-interactive', (_e, interactive) => {
     if (!win.overlay || win.overlay.isDestroyed()) return;
     if (interactive) {

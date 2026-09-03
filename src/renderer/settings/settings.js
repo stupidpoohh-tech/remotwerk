@@ -32,6 +32,7 @@
 
     initSizeSection();
     initAppSection();
+    $('previewPlay').addEventListener('click', playPreviewSequence);
 
     // 공용 카탈로그는 네트워크에서 받아오므로, 캐시로 먼저 그리고 도착하면 다시 그린다.
     if (cfg.firebase && RW.catalog) {
@@ -57,7 +58,11 @@
     out.textContent = slider.value + '%';
 
     // 끄는 동안엔 숫자만 갱신하고, 놓을 때 저장한다(설정 저장 폭주 방지).
-    slider.addEventListener('input', () => { out.textContent = slider.value + '%'; });
+    slider.addEventListener('input', () => {
+      out.textContent = slider.value + '%';
+      cfg.overlayScale = Number(slider.value) / 100;
+      renderPreview2();                       // 미리보기도 같이 커지고 작아진다
+    });
     slider.addEventListener('change', async () => {
       await host.setConfig({ overlayScale: Number(slider.value) / 100 });
       cfg = await host.getConfig();
@@ -79,6 +84,22 @@
       e.target.checked = !!applied;   // OS 가 거부하면 되돌린다
     });
     $('openLogs').addEventListener('click', (e) => { e.preventDefault(); host.openLogs(); });
+
+    // 익명 로그인 uid — 콘솔에서 관리자로 등록할 때 필요하다.
+    const uidEl = $('myUid');
+    if (!cfg.firebase) {
+      uidEl.textContent = '(Firebase 설정 없음)';
+    } else {
+      RW.fb.init(cfg.firebase)
+        .then((fb) => { uidEl.textContent = fb.uid; })
+        .catch((e) => { uidEl.textContent = '로그인 실패 — ' + (e.message || e); });
+    }
+    $('copyUid').addEventListener('click', async () => {
+      const v = uidEl.textContent;
+      if (!v || v.startsWith('(') || v.startsWith('확인')) return;
+      try { await navigator.clipboard.writeText(v); $('status').textContent = '사용자 ID를 복사했어요.'; }
+      catch (_) { $('status').textContent = '복사 실패 — ID를 직접 선택해 복사해 주세요.'; }
+    });
   }
 
   // ---- 페어링 ----
@@ -157,8 +178,42 @@
   }
 
   function rebuildGrids() {
-    buildGrid('myGrid', () => myChar, (id) => { myChar = id; });
+    buildGrid('myGrid', () => myChar, (id) => { myChar = id; renderPreview2(); });
     buildGrid('partnerGrid', () => partnerChar, (id) => { partnerChar = id; });
+    renderPreview2();
+  }
+
+  // ---- 내 캐릭터가 상대 화면에서 어떻게 보일지 ----
+  // 실제 오버레이와 같은 배율·같은 엔진으로 그리고, 자율 동작(멍때리기)을 재생한다.
+  let previewCtrl = null;
+  function renderPreview2() {
+    const anchor = $('previewAnchor');
+    if (!anchor) return;
+    if (previewCtrl) previewCtrl.stop();
+    anchor.innerHTML = '';
+    const scale = Math.max(0.4, Math.min(2.5, Number(cfg.overlayScale) || 1));
+    anchor.style.transform = `scale(${scale})`;
+    previewCtrl = RW.engine.mount(anchor, RW.characters.rigFor(myChar, cfg));
+    previewCtrl.play('idle');
+    $('previewNow').textContent = '멍때리는 중… (상대 화면에서도 이 크기로 보입니다)';
+  }
+
+  // 능동 동작 8개를 차례로 재생해 실제로 어떻게 움직이는지 보여준다.
+  function playPreviewSequence() {
+    if (!previewCtrl) return;
+    const list = RW.gestures.ACTIVE.map((g) => g.id);
+    let i = 0;
+    const step = () => {
+      if (i >= list.length) {
+        $('previewNow').textContent = '테스트 끝 — 다시 멍때리는 중…';
+        previewCtrl.play('idle');
+        return;
+      }
+      const g = RW.gestures.get(list[i]);
+      $('previewNow').textContent = `${g.icon} ${g.name}`;
+      previewCtrl.play(list[i], { onDone: () => { i++; step(); } });
+    };
+    step();
   }
 
   // 캐릭터 타일 그리드(프리셋 + 커스텀) + (+) 업로드 타일

@@ -158,14 +158,32 @@
     }
   }
 
-  // ---- 드래그 이동 · 클릭으로 리모컨 열기 (+ 캐릭터 위에서만 클릭 받기) ----
-  const CLICK_SLOP = 5;   // 이 거리 이내로 움직였다 떼면 "클릭"으로 본다
+  // ---- 캐릭터 조작 ----
+  //   짧게 클릭      → 리모컨 열기
+  //   그냥 드래그    → 위치 이동
+  //   꾹 눌렀다 드래그 → 크기 조절(위로 크게 / 아래로 작게)
+  //   우클릭         → 메뉴(리모컨·설정·숨기기·종료)
+  const CLICK_SLOP = 5;      // 이 거리 이내로 움직였다 떼면 "클릭"
+  const HOLD_MS = 400;       // 이만큼 누르고 있으면 크기 조절 모드
+  const RESIZE_RANGE = 220;  // 이 픽셀만큼 끌면 배율이 약 2배/절반
 
   function setupDrag() {
     let hovering = false;
     let dragging = false;
     let moved = false;
+    let resizing = false;
+    let holdTimer = null;
+    let startScale = 1;
     let startX = 0, startY = 0, baseLeft = 0, baseTop = 0;
+
+    function cancelHold() { clearTimeout(holdTimer); holdTimer = null; }
+
+    // 우클릭 메뉴
+    charEl.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      host.setOverlayInteractive(true);
+      host.overlayContextMenu();
+    });
 
     function charRect() { return charEl.getBoundingClientRect(); }
     function inside(x, y) {
@@ -180,7 +198,18 @@
       if (dragging) {
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
+
+        if (resizing) {
+          // 위로 끌면 커지고 아래로 끌면 작아진다.
+          const k = 1 + (startY - e.clientY) / RESIZE_RANGE;
+          const next = Math.max(0.4, Math.min(2.5, startScale * k));
+          cfg.overlayScale = next;
+          applyScale();
+          return;
+        }
+
         if (Math.abs(dx) > CLICK_SLOP || Math.abs(dy) > CLICK_SLOP) {
+          if (!moved) cancelHold();      // 움직였으면 "꾹 누르기"는 취소 → 이동
           moved = true;
           charEl.classList.add('grabbing');
         }
@@ -198,19 +227,37 @@
     });
 
     charEl.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;              // 좌클릭만
       dragging = true;
       moved = false;
+      resizing = false;
       host.setOverlayInteractive(true);
       startX = e.clientX; startY = e.clientY;
       baseLeft = charEl.offsetLeft; baseTop = charEl.offsetTop;
+      startScale = charScale();
+
+      // 움직이지 않고 계속 누르고 있으면 크기 조절 모드로 전환
+      cancelHold();
+      holdTimer = setTimeout(() => {
+        if (!dragging || moved) return;
+        resizing = true;
+        charEl.classList.add('resizing');
+      }, HOLD_MS);
+
       e.preventDefault();
     });
 
     window.addEventListener('mouseup', () => {
       if (!dragging) return;
       dragging = false;
-      charEl.classList.remove('grabbing');
+      cancelHold();
+      charEl.classList.remove('grabbing', 'resizing');
 
+      if (resizing) {
+        resizing = false;
+        host.setConfig({ overlayScale: charScale() });
+        return;
+      }
       if (!moved) {
         // 끌지 않고 톡 눌렀다 뗀 것 → 리모컨 열기
         host.openRemote();

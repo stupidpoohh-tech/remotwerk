@@ -136,6 +136,44 @@ button {
 }
 .status { font-size: 12px; opacity: 0.7; }
 
+/* 내 캐릭터 미리보기 */
+.preview-panel {
+  margin-top: 12px;
+  border: 1px solid #e2e2ea;
+  border-radius: 12px;
+  padding: 10px;
+  background: #fafafd;
+}
+.preview-head {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; opacity: 0.75; margin-bottom: 8px;
+}
+#previewStage {
+  position: relative;
+  height: 230px;
+  border-radius: 10px;
+  overflow: hidden;
+  background:
+    linear-gradient(#e7e7ef 1px, transparent 1px) 0 0 / 20px 20px,
+    linear-gradient(90deg, #e7e7ef 1px, transparent 1px) 0 0 / 20px 20px,
+    #eef0f6;
+}
+#previewAnchor { position: absolute; left: 50%; top: 160px; transform-origin: 0 86px; }
+@media (prefers-color-scheme: dark) {
+  .preview-panel { background: #202028; border-color: #2e2e38; }
+  #previewStage { background: #24242c; }
+}
+
+/* 내 사용자 ID */
+.uid-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.uid-label { font-size: 11px; opacity: 0.7; }
+#myUid {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px; background: #eceaf6; padding: 3px 7px; border-radius: 6px;
+  user-select: all; word-break: break-all;
+}
+@media (prefers-color-scheme: dark) { #myUid { background: #2c2c38; } }
+
 /* 슬라이더 행 */
 .ctl-row { display: flex; align-items: center; gap: 10px; }
 .ctl-row input[type="range"] { flex: 1; }

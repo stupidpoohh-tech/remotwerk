@@ -35,5 +35,6 @@ contextBridge.exposeInMainWorld('rwHost', {
 
   // ---- 오버레이 전용: 캐릭터 위에서만 마우스 이벤트를 받도록 클릭 통과 토글 ----
   setOverlayInteractive: (interactive) =>
-    ipcRenderer.send('overlay:set-interactive', interactive)
+    ipcRenderer.send('overlay:set-interactive', interactive),
+  overlayContextMenu: () => ipcRenderer.send('overlay:context-menu')
 });

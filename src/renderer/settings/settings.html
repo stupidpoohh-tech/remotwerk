@@ -44,6 +44,15 @@
     <h2>내 캐릭터</h2>
     <p class="hint">내가 고른 캐릭터가 상대 화면 위에 상주합니다.</p>
     <div id="myGrid" class="grid"></div>
+
+    <div class="preview-panel">
+      <div class="preview-head">
+        <span>상대 화면에서 이렇게 보여요</span>
+        <button id="previewPlay" class="ghost small">▶ 동작 테스트</button>
+      </div>
+      <div id="previewStage"><div id="previewAnchor"></div></div>
+      <p id="previewNow" class="hint small">멍때리는 중…</p>
+    </div>
   </section>
 
   <section>
@@ -79,6 +88,14 @@
       <span id="appVersion">버전 확인 중…</span>
       · <a href="#" id="openLogs">로그 폴더 열기</a>
     </p>
+
+    <div class="uid-row">
+      <span class="uid-label">내 사용자 ID</span>
+      <code id="myUid">확인 중…</code>
+      <button id="copyUid" class="ghost small">복사</button>
+    </div>
+    <p class="hint small">익명 로그인이라 콘솔에서는 누가 누군지 알 수 없어요.
+      공용 카탈로그 관리자로 등록하려면 이 ID를 Firebase 콘솔의 <b>admins</b> 아래에 넣으세요.</p>
   </section>
 
   <div class="actions">
