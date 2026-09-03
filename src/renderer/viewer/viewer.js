@@ -1,7 +1,7 @@
 'use strict';
 /* 동작 뷰어(디버그).
  *  - 캐릭터(프리셋/커스텀)를 골라 동작을 즉시 재생해 확인한다.
- *  - 능동 8 + 자율 2 + 복귀 보조(walk_in)를 버튼으로 제공. 반복 재생 옵션 포함.
+ *  - 능동 신호 + 자율 생활을 버튼으로 제공. 반복 재생 옵션 포함.
  */
 
 (function () {
@@ -57,7 +57,7 @@
     const active = document.getElementById('activeBtns');
     const ambient = document.getElementById('ambientBtns');
     RW.gestures.ACTIVE.forEach((g) => active.appendChild(makeBtn(g)));
-    RW.gestures.AMBIENT.concat([RW.gestures.WALK_IN]).forEach((g) => ambient.appendChild(makeBtn(g)));
+    RW.gestures.AMBIENT.forEach((g) => ambient.appendChild(makeBtn(g)));
   }
 
   function makeBtn(g) {

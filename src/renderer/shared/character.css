@@ -1,0 +1,60 @@
+/* 캐릭터 렌더 공통 스타일 — 캐릭터를 그리는 모든 창이 이 파일을 함께 쓴다.
+   (오버레이 · 리모컨 · 설정 미리보기 · 리깅 도구 · 동작 뷰어) */
+
+.rw-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform, opacity; }
+.rw-bone { position: absolute; }
+.rw-part { position: absolute; image-rendering: pixelated; }
+
+/* ---- 이펙트 레이어 ----
+   골격과 무관해서 신호를 구분짓는 가장 확실한 수단. 세기는 엔진이 opacity 로 조절하고,
+   떠오르는 움직임은 여기 CSS 애니메이션이 담당한다(키프레임과 독립적이라 항상 부드럽다). */
+.rw-fx {
+  position: absolute;
+  left: -46px; top: -150px;
+  width: 92px; height: 120px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 20;
+  transition: opacity .12s linear;
+}
+.rw-fx span {
+  position: absolute;
+  bottom: 0;
+  font-size: 20px;
+  line-height: 1;
+  opacity: 0;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .18));
+}
+.rw-fx span:nth-child(1) { left: 6%;  animation-delay: 0s; }
+.rw-fx span:nth-child(2) { left: 42%; animation-delay: .28s; font-size: 25px; }
+.rw-fx span:nth-child(3) { left: 74%; animation-delay: .55s; font-size: 17px; }
+
+/* 하트 — 위로 살랑살랑 떠오른다 */
+.rw-fx-heart span { animation: rw-float-up 1.5s ease-out infinite; }
+@keyframes rw-float-up {
+  0%   { transform: translateY(18px) scale(.5); opacity: 0; }
+  25%  { opacity: 1; }
+  100% { transform: translateY(-72px) scale(1.05); opacity: 0; }
+}
+
+/* 반짝 — 제자리에서 팡 터진다(하트보다 빠르고 짧다) */
+.rw-fx-sparkle span { animation: rw-pop 0.75s ease-out infinite; }
+@keyframes rw-pop {
+  0%   { transform: translateY(0) scale(.3) rotate(-20deg); opacity: 0; }
+  35%  { transform: translateY(-22px) scale(1.15) rotate(8deg); opacity: 1; }
+  100% { transform: translateY(-40px) scale(.6) rotate(20deg); opacity: 0; }
+}
+
+/* 땀방울 — 머리 옆에서 아래로 툭 떨어진다(유일하게 아래로 향한다) */
+.rw-fx-droop { top: -120px; height: 90px; }
+.rw-fx-droop span { animation: rw-drip 1.5s ease-in infinite; font-size: 16px; }
+@keyframes rw-drip {
+  0%   { transform: translateY(-6px) scale(.6); opacity: 0; }
+  30%  { opacity: .95; }
+  100% { transform: translateY(38px) scale(.9); opacity: 0; }
+}
+
+/* 움직임 최소화를 선호하는 사용자 설정 존중 */
+@media (prefers-reduced-motion: reduce) {
+  .rw-fx span { animation-duration: 3s; }
+}

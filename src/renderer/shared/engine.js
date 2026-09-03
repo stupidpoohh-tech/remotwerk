@@ -12,13 +12,13 @@
 
   const BONE_PROPS = ['rot', 'x', 'y', 'vis'];
   // sx/sy = 스쿼시&스트레치. 치비 체형은 관절 회전보다 몸 전체의 눌림/늘어남이 더 잘 읽힌다.
-  const ROOT_PROPS = ['x', 'y', 'rot', 'vis', 'flip', 'aura', 'sx', 'sy'];
+  const ROOT_PROPS = ['x', 'y', 'rot', 'vis', 'flip', 'fx', 'sx', 'sy'];
 
   function neutral(prop) {
     if (prop === 'vis') return true;
     if (prop === 'flip') return false;
     if (prop === 'sx' || prop === 'sy') return 1;   // 스케일 기본값은 1
-    return 0; // rot, x, y, aura
+    return 0; // rot, x, y, fx(이펙트 강도)
   }
   function isStepProp(prop) { return prop === 'vis' || prop === 'flip'; }
 
@@ -99,9 +99,18 @@
     const groundY = (skeleton.box && skeleton.box.groundY != null) ? skeleton.box.groundY : 0;
     stage.style.transformOrigin = `0px ${groundY}px`;
 
-    const auraEl = document.createElement('div');
-    auraEl.className = 'rw-aura';
-    stage.appendChild(auraEl);
+    // 이펙트 레이어 — 골격과 무관해서 신호를 구분짓는 가장 확실한 수단이다.
+    // 종류는 애니메이션 메타(anim.fx)가 정하고, 세기는 root.fx 트랙이 보간한다.
+    const fxEl = document.createElement('div');
+    fxEl.className = 'rw-fx';
+    for (let i = 0; i < 3; i++) fxEl.appendChild(document.createElement('span'));
+    stage.appendChild(fxEl);
+    const FX_GLYPH = { heart: '\u{1F495}', sparkle: '\u2728', droop: '\u{1F4A6}' };
+    function setFxType(type) {
+      fxEl.className = 'rw-fx' + (type ? ' rw-fx-' + type : '');
+      const ch = FX_GLYPH[type] || '';
+      for (const sp of fxEl.children) sp.textContent = ch;
+    }
 
     const elByName = {};
     for (const bone of skeleton.bones) {
@@ -155,9 +164,8 @@
       stage.style.transform =
         `translate(${r.x || 0}px, ${r.y || 0}px) rotate(${r.rot || 0}deg) scale(${sx}, ${sy})`;
       stage.style.opacity = r.vis === false ? '0' : '1';
-      const aura = r.aura || 0;
-      auraEl.style.opacity = aura > 0 ? String(Math.min(1, aura)) : '0';
-      auraEl.style.transform = `scale(${1 + aura * 0.5})`;
+      const fx = r.fx || 0;
+      fxEl.style.opacity = fx > 0 ? String(Math.min(1, fx)) : '0';
 
       for (const bone of skeleton.bones) {
         if (bone.name === 'root') continue;
@@ -175,6 +183,7 @@
     }
 
     // 뉴트럴 포즈
+    setFxType(null);
     applyPose({ root: { vis: true }, bones: {} });
 
     // ---- 재생 ----
@@ -188,6 +197,7 @@
     }
 
     function playOne(anim, onDone) {
+      setFxType(anim.fx || null);
       const built = buildTracks(anim);
       const start = performance.now();
       cancelled = false;

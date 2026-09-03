@@ -1,56 +1,94 @@
 'use strict';
 /* 리모컨 로직.
- *  - 능동 동작 8개를 원형으로 배치. 버튼을 누르면 신호를 발사하고 "전달됨" 토스트만 띄운다.
- *  - 읽음/확인 표시는 만들지 않는다(무압박 원칙).
+ *  - 내 캐릭터를 미리보기로 띄운다. 버튼을 누르면 신호를 보내고, 그 동작을 여기서
+ *    바로 연기해 준다 → "내가 뭘 보냈는지"가 눈에 보인다.
+ *  - 읽음/확인 표시는 만들지 않는다(무압박 원칙). 보여주는 건 내 쪽 피드백뿐이다.
  */
 
 (function () {
   const RW = window.RW;
   const host = window.rwHost;
 
-  const radial = document.getElementById('radial');
+  const anchor = document.getElementById('charAnchor');
+  const caption = document.getElementById('caption');
   const toast = document.getElementById('toast');
 
+  let cfg = null;
   let transport = null;
+  let ctrl = null;
   let toastTimer = null;
-
-  const CENTER = 150;   // 라디얼 중심
-  const RADIUS = 100;   // 버튼 배치 반경
+  let idleTimer = null;
 
   async function main() {
-    const cfg = await host.getConfig();
+    cfg = await host.getConfig();
     transport = RW.transport.createTransport(cfg);
     transport.ready.catch((e) => console.error('[remote] transport', e));
 
-    layoutButtons();
+    buildButtons();
+    buildCharacter();
+
+    // 공용 카탈로그 캐릭터를 쓰는 경우, 도착하면 다시 그린다.
+    if (cfg.firebase && RW.catalog && !RW.catalog.isLoaded()) {
+      RW.catalog.load(cfg).then(() => buildCharacter()).catch(() => {});
+    }
+
+    host.onConfigChanged((next) => {
+      const changed = next.characterId !== cfg.characterId;
+      cfg = next;
+      if (changed) buildCharacter();
+    });
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') host.closeSelf();
+      // 1·2·3 키로도 보낼 수 있게
+      const idx = ['1', '2', '3'].indexOf(e.key);
+      if (idx >= 0 && RW.gestures.ACTIVE[idx]) fire(RW.gestures.ACTIVE[idx]);
     });
   }
 
-  function layoutButtons() {
-    const list = RW.gestures.ACTIVE;
-    list.forEach((g, i) => {
-      const angle = (-90 + i * (360 / list.length)) * (Math.PI / 180); // 12시부터 시계방향
-      const x = CENTER + RADIUS * Math.cos(angle);
-      const y = CENTER + RADIUS * Math.sin(angle);
+  // 내 캐릭터(상대 화면에 뜨는 그 캐릭터)를 그린다.
+  function buildCharacter() {
+    if (ctrl) ctrl.stop();
+    anchor.innerHTML = '';
+    ctrl = RW.engine.mount(anchor, RW.characters.rigFor(cfg.characterId || 'preset1', cfg));
+    backToIdle();
+  }
 
-      const btn = document.createElement('button');
-      btn.className = 'btn';
-      btn.style.left = x + 'px';
-      btn.style.top = y + 'px';
-      btn.textContent = g.icon;
-      btn.title = g.name;              // 학습용 툴팁(라벨은 표시하지 않음)
-      btn.setAttribute('aria-label', g.name);
-      btn.addEventListener('click', () => fire(g));
-      radial.appendChild(btn);
+  function backToIdle() {
+    clearTimeout(idleTimer);
+    if (ctrl) ctrl.play('idle');
+  }
+
+  function buildButtons() {
+    const box = document.getElementById('buttons');
+    box.innerHTML = '';
+    RW.gestures.ACTIVE.forEach((g, i) => {
+      const b = document.createElement('button');
+      b.className = 'btn';
+      b.dataset.gid = g.id;
+      b.title = `${g.name} — ${g.hint} (단축키 ${i + 1})`;
+      b.innerHTML = `<span class="ic">${g.icon}</span><span class="nm">${g.name}</span>`;
+      b.addEventListener('click', () => fire(g));
+      box.appendChild(b);
     });
   }
 
   async function fire(g) {
+    // 미리보기에서 즉시 연기 — 전송 성공을 기다리지 않고 바로 반응한다.
+    caption.textContent = `${g.icon} ${g.name} 보냄`;
+    document.querySelectorAll('.btn').forEach((b) => b.classList.toggle('sent', b.dataset.gid === g.id));
+    if (ctrl) {
+      ctrl.play(g.id, {
+        onDone: () => {
+          backToIdle();
+          caption.textContent = '보낼 신호를 고르세요';
+          document.querySelectorAll('.btn.sent').forEach((b) => b.classList.remove('sent'));
+        }
+      });
+    }
+
     try {
-      await transport.send(g.gestureId);
+      await transport.send(g.id);
       showToast('전달됨');
     } catch (e) {
       console.error('[remote] send 실패', e);
@@ -62,7 +100,7 @@
     toast.textContent = msg;
     toast.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.classList.remove('show'), 1100);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 1200);
   }
 
   main();

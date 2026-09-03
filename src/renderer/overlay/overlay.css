@@ -20,10 +20,34 @@ html, body {
 }
 #char.grabbable { cursor: grab; pointer-events: auto; }
 #char.grabbing { cursor: grabbing; pointer-events: auto; }
-/* 꾹 눌러 크기 조절 중 — 위아래 커서로 알려준다 */
-#char.resizing { cursor: ns-resize; pointer-events: auto; }
+#char.resizing { cursor: nwse-resize; pointer-events: auto; }
+
+/* 크기 조절 핸들 — 마우스를 올렸을 때만 보인다.
+   예전의 "꾹 누르기"는 눌러 보기 전엔 알 수 없어 발견이 불가능했다. */
+#sizeHandle {
+  position: absolute;
+  right: 4px; bottom: 26px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: rgba(138, 99, 255, 0.95);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  cursor: nwse-resize;
+  display: none;
+  z-index: 30;
+}
+#sizeHandle::after {
+  content: "⤢";
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 11px; line-height: 1;
+}
+#char.grabbable #sizeHandle,
+#char.resizing #sizeHandle { display: block; }
+
+/* 크기 조절 중 현재 배율 표시 */
 #char.resizing::after {
-  content: "크기 조절";
+  content: "크기 조절 중";
   position: absolute; left: 50%; top: -18px; transform: translateX(-50%);
   background: rgba(30,30,40,.9); color: #fff;
   font: 11px system-ui, sans-serif; padding: 2px 7px; border-radius: 9px;
@@ -37,32 +61,3 @@ html, body {
   top: 120px;
 }
 
-.rw-stage {
-  position: absolute;
-  left: 0;
-  top: 0;
-  transform-origin: 0 0;
-  will-change: transform, opacity;
-}
-
-.rw-bone { position: absolute; }
-.rw-part {
-  image-rendering: pixelated;
-  position: absolute;
-  box-sizing: border-box;
-}
-
-/* 분노 오오라 레이어 */
-.rw-aura {
-  position: absolute;
-  left: -55px;
-  top: -140px;
-  width: 110px;
-  height: 190px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 90, 60, 0.55) 0%, rgba(255, 120, 40, 0.25) 45%, rgba(255, 120, 40, 0) 72%);
-  opacity: 0;
-  transform-origin: 50% 60%;
-  z-index: 0;
-  pointer-events: none;
-}

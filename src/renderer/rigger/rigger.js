@@ -482,7 +482,7 @@
   function preview() {
     if (!ctrl) return;
     document.getElementById('showResult').checked = true;
-    const seq = ['g2_twerk', 'g4_ballet', 'g3_despair', 'g8_w_shrug', 'g7_rage_aura', 'g6_nuzzle', 'g1_slump_roll'];
+    const seq = RW.gestures.ACTIVE.map((g) => g.id);   // 현재 신호 세트를 그대로 재생
     render();
     setTimeout(() => ctrl.play(seq, { onDone: () => render() }), 50);
   }

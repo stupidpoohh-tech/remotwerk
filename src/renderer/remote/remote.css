@@ -1,4 +1,6 @@
-/* 리모컨 — 원형 8버튼 라디얼. 아이콘 위주, 라벨 없음. */
+/* 리모컨 — 내 캐릭터 미리보기 + 신호 3개.
+   라디얼 8버튼을 버리고, 캐릭터를 크게 보여주고 버튼은 아래 가로로 뒀다.
+   "내가 뭘 보냈는지" 캐릭터가 그 자리에서 바로 연기해 준다. */
 html, body {
   margin: 0;
   width: 100%;
@@ -9,60 +11,80 @@ html, body {
   user-select: none;
 }
 
-#radial {
+#card {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 300px;
-  height: 300px;
+  left: 50%; top: 50%;
   transform: translate(-50%, -50%);
+  width: 268px;
+  padding: 12px 12px 14px;
+  box-sizing: border-box;
+  background: rgba(252, 252, 255, 0.97);
+  border-radius: 20px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.28);
+  text-align: center;
+}
+@media (prefers-color-scheme: dark) {
+  #card { background: rgba(32, 32, 40, 0.97); color: #ececf1; }
+  #stage { background: #26262f !important; }
+  .btn { background: #2e2e3a !important; color: #ececf1 !important; border-color: #3a3a48 !important; }
 }
 
-#center {
+/* 미리보기 무대 */
+#stage {
+  position: relative;
+  height: 168px;
+  border-radius: 14px;
+  overflow: hidden;
+  background:
+    linear-gradient(#e9e9f2 1px, transparent 1px) 0 0 / 18px 18px,
+    linear-gradient(90deg, #e9e9f2 1px, transparent 1px) 0 0 / 18px 18px,
+    #f1f2f8;
+}
+/* 골반 원점 위치 + 리모컨 안에서는 좀 작게 */
+#charAnchor {
   position: absolute;
   left: 50%;
-  top: 50%;
-  width: 70px;
-  height: 70px;
-  margin: -35px 0 0 -35px;
-  border-radius: 50%;
-  background: rgba(30, 30, 40, 0.9);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  top: 128px;
+  transform: scale(0.62);
+  transform-origin: 0 86px;
 }
 
-.btn {
-  position: absolute;
-  width: 58px;
-  height: 58px;
-  margin: -29px 0 0 -29px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
-  font-size: 26px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: transform 0.08s ease, background 0.12s ease;
+#caption {
+  font-size: 12px;
+  opacity: 0.7;
+  margin: 9px 0 10px;
+  min-height: 16px;
 }
-.btn:hover { background: #fff; transform: scale(1.12); }
-.btn:active { transform: scale(0.94); }
+
+/* 신호 버튼 3개 */
+#buttons { display: flex; gap: 8px; }
+.btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 9px 4px 8px;
+  border: 1px solid #e2e2ea;
+  border-radius: 13px;
+  background: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform .08s ease, border-color .12s ease, background .12s ease;
+}
+.btn .ic { font-size: 25px; line-height: 1; }
+.btn .nm { font-size: 11px; font-weight: 600; }
+.btn:hover { border-color: #8a63ff; transform: translateY(-2px); }
+.btn:active { transform: scale(0.95); }
+.btn.sent { border-color: #8a63ff; background: #f2eeff; }
 
 #toast {
   position: absolute;
-  left: 50%;
-  bottom: 8px;
+  left: 50%; bottom: -30px;
   transform: translateX(-50%);
-  background: rgba(20, 20, 25, 0.9);
+  background: rgba(20, 20, 25, 0.92);
   color: #fff;
-  padding: 6px 12px;
+  padding: 5px 12px;
   border-radius: 14px;
   font-size: 12px;
   opacity: 0;

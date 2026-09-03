@@ -2,8 +2,8 @@
 /* 오버레이 로직.
  *  - 상대 캐릭터를 상주시키고, 신호가 오면 라이브 재생한다.
  *  - 신호가 없을 땐 자율 생활(멍때리기/돌아다니기)을 로컬에서 반복한다.
- *  - 자리비우기(사라짐) 후 다른 신호가 오면 걸어 들어오며 복귀한다.
- *  - 캐릭터 위에서만 클릭을 받아 드래그로 위치를 옮긴다(그 외 영역은 클릭 통과).
+ *  - 캐릭터 위에서만 클릭을 받는다(그 외 영역은 클릭 통과).
+ *    클릭=리모컨 / 드래그=이동 / 모서리 핸들·휠=크기 / 우클릭=메뉴.
  *  - 집중 모드면 라이브 재생하지 않는다(히스토리는 별도).
  */
 
@@ -18,9 +18,8 @@
   let transport = null;
   let ctrl = null;              // 엔진 컨트롤러
 
-  // 상태: 'ambient' | 'gesture' | 'away'
+  // 상태: 'ambient' | 'gesture'
   let state = 'ambient';
-  let away = false;
   let ambientTimer = null;
 
   // ---- 초기화 ----
@@ -69,7 +68,7 @@
     if (ctrl) ctrl.stop();
     anchorEl.innerHTML = '';
     ctrl = RW.engine.mount(anchorEl, { skeleton, rig });
-    if (state !== 'away') startAmbient();
+    startAmbient();
   }
 
   // ---- 위치 · 크기 ----
@@ -95,7 +94,6 @@
 
   // ---- 자율 생활 ----
   function startAmbient() {
-    if (state === 'away') return;
     state = 'ambient';
     scheduleAmbient(true);
   }
@@ -123,22 +121,7 @@
   function playGesture(gid) {
     clearTimeout(ambientTimer);
     state = 'gesture';
-
-    const isLeave = gid === 'g5_leave';
-    const seq = (away && !isLeave) ? ['walk_in', gid] : [gid];
-
-    ctrl.play(seq, {
-      onDone: () => {
-        if (isLeave) {
-          away = true;
-          state = 'away';           // 사라진 채 대기 (복귀는 다음 신호가 트리거)
-          return;
-        }
-        away = false;
-        startAmbient();
-      }
-    });
-    if (!isLeave) away = false;
+    ctrl.play(gid, { onDone: startAmbient });
   }
 
   // ---- 설정 변경 반영 ----
@@ -159,24 +142,51 @@
   }
 
   // ---- 캐릭터 조작 ----
-  //   짧게 클릭      → 리모컨 열기
-  //   그냥 드래그    → 위치 이동
-  //   꾹 눌렀다 드래그 → 크기 조절(위로 크게 / 아래로 작게)
-  //   우클릭         → 메뉴(리모컨·설정·숨기기·종료)
+  //   짧게 클릭        → 리모컨 열기
+  //   드래그           → 위치 이동
+  //   모서리 핸들 드래그 → 크기 조절   (마우스를 올리면 나타난다)
+  //   휠 스크롤        → 크기 조절   (더 빠른 길)
+  //   우클릭           → 메뉴(리모컨·설정·숨기기·종료)
+  //
+  // 예전엔 "꾹 누르면 크기 조절"이었는데, 눌러 보기 전에는 알 수 없어서 발견이 불가능했다.
+  // 보이는 핸들과 휠로 바꿨다.
+  let wheelSaveTimer = null;
   const CLICK_SLOP = 5;      // 이 거리 이내로 움직였다 떼면 "클릭"
-  const HOLD_MS = 400;       // 이만큼 누르고 있으면 크기 조절 모드
-  const RESIZE_RANGE = 220;  // 이 픽셀만큼 끌면 배율이 약 2배/절반
+  const RESIZE_RANGE = 160;  // 핸들을 이만큼 끌면 배율이 약 2배/절반
 
   function setupDrag() {
     let hovering = false;
     let dragging = false;
     let moved = false;
     let resizing = false;
-    let holdTimer = null;
     let startScale = 1;
     let startX = 0, startY = 0, baseLeft = 0, baseTop = 0;
 
-    function cancelHold() { clearTimeout(holdTimer); holdTimer = null; }
+    // 크기 조절 핸들 — hover 시에만 보인다.
+    const handle = document.createElement('div');
+    handle.id = 'sizeHandle';
+    handle.title = '드래그해서 크기 조절 (휠로도 가능)';
+    charEl.appendChild(handle);
+
+    handle.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      dragging = true; resizing = true; moved = true;
+      host.setOverlayInteractive(true);
+      startX = e.clientX; startY = e.clientY;
+      startScale = charScale();
+      charEl.classList.add('resizing');
+    });
+
+    // 휠로도 크기 조절
+    charEl.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const next = Math.max(0.4, Math.min(2.5, charScale() * (e.deltaY < 0 ? 1.08 : 1 / 1.08)));
+      cfg.overlayScale = next;
+      applyScale();
+      clearTimeout(wheelSaveTimer);
+      wheelSaveTimer = setTimeout(() => host.setConfig({ overlayScale: charScale() }), 400);
+    }, { passive: false });
 
     // 우클릭 메뉴
     charEl.addEventListener('contextmenu', (e) => {
@@ -200,16 +210,14 @@
         const dy = e.clientY - startY;
 
         if (resizing) {
-          // 위로 끌면 커지고 아래로 끌면 작아진다.
-          const k = 1 + (startY - e.clientY) / RESIZE_RANGE;
-          const next = Math.max(0.4, Math.min(2.5, startScale * k));
-          cfg.overlayScale = next;
+          // 핸들을 아래/오른쪽으로 끌면 커진다(창 크기 조절과 같은 감각).
+          const k = 1 + ((e.clientY - startY) + (e.clientX - startX)) / (RESIZE_RANGE * 2);
+          cfg.overlayScale = Math.max(0.4, Math.min(2.5, startScale * k));
           applyScale();
           return;
         }
 
         if (Math.abs(dx) > CLICK_SLOP || Math.abs(dy) > CLICK_SLOP) {
-          if (!moved) cancelHold();      // 움직였으면 "꾹 누르기"는 취소 → 이동
           moved = true;
           charEl.classList.add('grabbing');
         }
@@ -235,22 +243,12 @@
       startX = e.clientX; startY = e.clientY;
       baseLeft = charEl.offsetLeft; baseTop = charEl.offsetTop;
       startScale = charScale();
-
-      // 움직이지 않고 계속 누르고 있으면 크기 조절 모드로 전환
-      cancelHold();
-      holdTimer = setTimeout(() => {
-        if (!dragging || moved) return;
-        resizing = true;
-        charEl.classList.add('resizing');
-      }, HOLD_MS);
-
       e.preventDefault();
     });
 
     window.addEventListener('mouseup', () => {
       if (!dragging) return;
       dragging = false;
-      cancelHold();
       charEl.classList.remove('grabbing', 'resizing');
 
       if (resizing) {

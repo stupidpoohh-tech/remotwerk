@@ -122,13 +122,3 @@ button.primary:disabled { opacity: 0.5; cursor: default; }
 .panel-actions { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
 .status { font-size: 12px; opacity: 0.75; min-height: 15px; }
 
-/* 스테이지 위 파트 히트/렌더 공통(엔진이 인라인 스타일 부여) */
-.rw-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
-.rw-bone { position: absolute; }
-.rw-part {
-  image-rendering: pixelated; position: absolute; }
-.rw-aura {
-  position: absolute; left: -55px; top: -140px; width: 110px; height: 190px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,90,60,.55) 0%, rgba(255,120,40,.25) 45%, rgba(255,120,40,0) 72%);
-  opacity: 0; transform-origin: 50% 60%; z-index: 0; pointer-events: none;
-}

@@ -186,5 +186,3 @@ button {
 .appinfo a { color: #8a63ff; text-decoration: none; }
 .appinfo a:hover { text-decoration: underline; }
 
-/* 캐릭터 미리보기 — 픽셀아트 보존 */
-.rw-part { image-rendering: pixelated; }

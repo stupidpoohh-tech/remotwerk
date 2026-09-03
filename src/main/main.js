@@ -171,7 +171,7 @@ function createRemote() {
   }
 
   const w = new BrowserWindow({
-    width: 300, height: 300,
+    width: 300, height: 360,
     transparent: true,
     frame: false,
     resizable: false,
@@ -392,6 +392,12 @@ function refreshTrayMenu() {
 // IPC
 // ---------------------------------------------------------------------------
 
+// 우클릭 메뉴의 크기 프리셋 — 슬라이더/핸들을 못 찾는 사람을 위한 가장 쉬운 길.
+function setOverlayScale(scale) {
+  const next = config.save({ overlayScale: scale });
+  broadcastConfig(next);
+}
+
 function broadcastConfig(cfg) {
   for (const w of BrowserWindow.getAllWindows()) {
     if (!w.isDestroyed()) w.webContents.send('config:changed', cfg);
@@ -446,6 +452,15 @@ function registerIpc() {
       { label: '설정', accelerator: 'CommandOrControl+Shift+S', click: () => createSettings() },
       { label: '히스토리', click: () => createHistory() },
       { type: 'separator' },
+      {
+        label: '캐릭터 크기',
+        submenu: [
+          { label: '작게 (70%)', click: () => setOverlayScale(0.7) },
+          { label: '보통 (100%)', click: () => setOverlayScale(1) },
+          { label: '크게 (140%)', click: () => setOverlayScale(1.4) },
+          { label: '아주 크게 (200%)', click: () => setOverlayScale(2) }
+        ]
+      },
       { label: '캐릭터 숨기기 (다시 보기: Ctrl+Shift+H)', click: () => hideAll() },
       { type: 'separator' },
       { label: 'Remotwerk 종료', click: () => { app.isQuiting = true; app.quit(); } }
