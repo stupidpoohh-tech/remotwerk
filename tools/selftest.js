@@ -234,6 +234,38 @@ for (const id of ART_IDS) {
   }
 }
 
+// --- 12. 렌더러 CSP 가 Firebase 가 실제로 쓰는 주소를 전부 허용하는가 -----------
+//
+// v0.6.x 에서 초대 코드 만들기가 "방을 만드는 중…" 에서 멈춘 원인이 여기였다.
+// 싱가포르 지역 DB 의 실시간 연결은 wss://*.firebasedatabase.app 인데 CSP 에는
+// wss://*.firebaseio.com 만 있었다. RTDB 의 쓰기는 서버가 응답할 때까지 끝나지 않으므로,
+// 연결이 막히면 오류도 없이 영영 대기한다 — 화면상으로는 그냥 멈춘 것처럼 보인다.
+{
+  const RENDERER = path.join(__dirname, '..', 'src', 'renderer');
+  const NEEDED = [
+    "https://*.firebaseio.com",          // 구형 DB REST/롱폴링
+    "https://*.firebasedatabase.app",    // 지역 DB REST/롱폴링
+    "wss://*.firebaseio.com",            // 구형 DB 실시간
+    "wss://*.firebasedatabase.app",      // 지역 DB 실시간 ← 이게 빠져 있었다
+    "https://*.googleapis.com"           // 익명 인증 · Storage
+  ];
+  const pages = fs.readdirSync(RENDERER, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && d.name !== 'shared' && d.name !== 'assets')
+    .map((d) => path.join(RENDERER, d.name))
+    .flatMap((dir) => fs.readdirSync(dir).filter((f) => f.endsWith('.html')).map((f) => path.join(dir, f)));
+  ok('렌더러 화면을 찾았다', pages.length >= 5, String(pages.length));
+  for (const p of pages) {
+    const html = fs.readFileSync(p, 'utf8');
+    const name = path.basename(path.dirname(p));
+    const m = html.match(/connect-src([^;"]*)/);
+    // Firebase 를 쓰지 않는 화면은 connect-src 가 없어도 된다.
+    if (!m) { ok(`${name}: CSP 없음(허용)`, true); continue; }
+    for (const host of NEEDED) {
+      ok(`${name}: CSP 에 ${host}`, m[1].includes(host));
+    }
+  }
+}
+
 // --- 결과 -------------------------------------------------------------------
 if (fails.length) {
   console.error(`\n✗ 실패 ${fails.length}건 / 통과 ${pass}건`);

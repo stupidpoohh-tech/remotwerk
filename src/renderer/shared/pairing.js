@@ -36,28 +36,47 @@
   }
   function isValidCode(raw) { return normalize(raw).length === CODE_LEN; }
 
+  // RTDB 쓰기는 서버가 응답할 때까지 끝나지 않는다. 연결이 끊겨 있으면 오류도 없이
+  // 영영 대기하므로(그래서 "방을 만드는 중…" 에서 멈췄다), 시작 전에 연결부터 확인하고
+  // 각 단계에도 상한을 둔다.
+  const STEP_TIMEOUT_MS = 15000;
+  function withTimeout(promise, what) {
+    return new Promise((resolve, reject) => {
+      const t = setTimeout(() => {
+        const err = new Error(`${what} 이(가) 응답하지 않아요. 서버 연결을 확인해 주세요.`);
+        err.rwTimeout = true;      // 아래에서 다른 메시지로 덮어쓰지 않게 표시
+        reject(err);
+      }, STEP_TIMEOUT_MS);
+      promise.then(
+        (v) => { clearTimeout(t); resolve(v); },
+        (e) => { clearTimeout(t); reject(e); }
+      );
+    });
+  }
+
   // 새 방을 만들고 초대 코드를 발급한다(초대하는 쪽).
   async function createRoomAndInvite(cfg) {
     const fb = await RW.fb.init(cfg.firebase);
+    await RW.fb.waitConnected(10000);
     const { db, dbMod, uid } = fb;
 
     // 추측 불가능한 방 id
     const roomId = dbMod.push(dbMod.ref(db, 'rooms')).key;
 
     // 좌석 a 를 내 uid 로 선점(규칙: 비어 있을 때 본인 uid 로만 1회)
-    await dbMod.set(dbMod.ref(db, `rooms/${roomId}/a`), uid);
+    await withTimeout(dbMod.set(dbMod.ref(db, `rooms/${roomId}/a`), uid), '방 만들기');
 
     // 좌석에 앉았으니 멤버 정보 기록
-    await dbMod.set(dbMod.ref(db, `rooms/${roomId}/members/${uid}`), {
-      characterId: cfg.characterId || 'preset1',
+    await withTimeout(dbMod.set(dbMod.ref(db, `rooms/${roomId}/members/${uid}`), {
+      characterId: cfg.characterId || 'char_seal',
       joinedAt: dbMod.serverTimestamp()
-    });
+    }), '멤버 등록');
 
     const code = genCode();
     const expiresAt = Date.now() + INVITE_TTL_MS;
-    await dbMod.set(dbMod.ref(db, `invites/${normalize(code)}`), {
+    await withTimeout(dbMod.set(dbMod.ref(db, `invites/${normalize(code)}`), {
       roomId, createdBy: uid, expiresAt
-    });
+    }), '초대 코드 발급');
 
     return { code, roomId, expiresAt, uid };
   }
@@ -68,12 +87,14 @@
     if (code.length !== CODE_LEN) throw new Error('코드 형식이 올바르지 않아요.');
 
     const fb = await RW.fb.init(cfg.firebase);
+    await RW.fb.waitConnected(10000);
     const { db, dbMod, uid } = fb;
 
     let snap;
     try {
-      snap = await dbMod.get(dbMod.ref(db, `invites/${code}`));
-    } catch (_) {
+      snap = await withTimeout(dbMod.get(dbMod.ref(db, `invites/${code}`)), '코드 확인');
+    } catch (e) {
+      if (e && e.rwTimeout) throw e;      // 연결 문제를 '잘못된 코드'로 오해하게 두지 않는다
       throw new Error('코드를 확인할 수 없어요. (만료되었거나 잘못된 코드)');
     }
     if (!snap.exists()) throw new Error('코드를 찾을 수 없어요. (만료되었거나 이미 사용된 코드)');
@@ -85,8 +106,9 @@
 
     // 좌석 b 선점 — 이미 차 있으면 보안 규칙이 거부한다(정원 2명).
     try {
-      await dbMod.set(dbMod.ref(db, `rooms/${roomId}/b`), uid);
+      await withTimeout(dbMod.set(dbMod.ref(db, `rooms/${roomId}/b`), uid), '방 참여');
     } catch (e) {
+      if (e && e.rwTimeout) throw e;      // 연결 문제를 '정원 초과'로 오해하게 두지 않는다
       // 내가 이미 그 좌석에 앉아 있는 경우(재시도)엔 성공으로 본다.
       const seat = await dbMod.get(dbMod.ref(db, `rooms/${roomId}/b`)).catch(() => null);
       if (!(seat && seat.exists() && seat.val() === uid)) {
@@ -95,10 +117,10 @@
     }
 
     // 좌석에 앉았으니 멤버 정보 기록
-    await dbMod.set(dbMod.ref(db, `rooms/${roomId}/members/${uid}`), {
-      characterId: cfg.characterId || 'preset2',
+    await withTimeout(dbMod.set(dbMod.ref(db, `rooms/${roomId}/members/${uid}`), {
+      characterId: cfg.characterId || 'char_ribbon',
       joinedAt: dbMod.serverTimestamp()
-    });
+    }), '멤버 등록');
 
     // 1회용: 사용한 초대장은 지운다(규칙상 그 방의 멤버가 삭제 가능)
     await dbMod.remove(dbMod.ref(db, `invites/${code}`)).catch(() => {});

@@ -36,7 +36,7 @@
     try {
       applyCharDef(await transport.getPartnerCharacter());
     } catch (_) {
-      applyCharDef({ kind: 'local', id: cfg.partnerCharacterId || 'preset2' });
+      applyCharDef({ kind: 'local', id: cfg.partnerCharacterId || 'char_ribbon' });
     }
     // 자율 생활은 buildFromRig() 안에서 시작된다.
 
@@ -181,7 +181,7 @@
       const customsChanged = JSON.stringify(next.customCharacters || []) !== prevCustoms;
       if ((next.partnerCharacterId && next.partnerCharacterId !== prevPartner) || customsChanged) {
         lastCharSig = null; // 번들 편집 등으로 같은 id라도 강제 재빌드
-        applyCharDef({ kind: 'local', id: next.partnerCharacterId || 'preset2' });
+        applyCharDef({ kind: 'local', id: next.partnerCharacterId || 'char_ribbon' });
       }
     }
   }

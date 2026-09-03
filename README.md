@@ -144,6 +144,28 @@ tools/
 - **이펙트 레이어**(하트·반짝·땀방울)는 골격과 무관해 신호를 구분짓는 가장 확실한
   수단이다. 종류는 애니메이션 메타가 정하고 세기는 트랙이 보간한다.
 
+## 렌더러 CSP — 여기 빠지면 앱이 조용히 멈춘다
+
+각 화면의 `<meta http-equiv="Content-Security-Policy">` 에 Firebase 가 실제로 쓰는 주소가
+전부 들어 있어야 한다.
+
+| 용도 | 주소 |
+|---|---|
+| 구형 DB REST/롱폴링 | `https://*.firebaseio.com` |
+| 지역 DB REST/롱폴링 | `https://*.firebasedatabase.app` |
+| 구형 DB 실시간 | `wss://*.firebaseio.com` |
+| **지역 DB 실시간** | **`wss://*.firebasedatabase.app`** |
+| 익명 인증 · Storage | `https://*.googleapis.com` |
+
+> v0.6.x 에서 초대 코드 만들기가 "방을 만드는 중…" 에서 멈춘 원인이 마지막 줄이었다.
+> 이 DB 는 싱가포르 지역 인스턴스라 실시간 연결이 `wss://*.firebasedatabase.app` 인데
+> CSP 에는 `wss://*.firebaseio.com` 만 있었다. **RTDB 의 쓰기는 서버가 응답할 때까지
+> 끝나지 않으므로**, 연결이 막히면 오류도 없이 영영 대기한다 — 화면에는 그냥 멈춘 것처럼
+> 보인다. `npm test` 가 이제 모든 화면의 CSP 를 검사한다.
+>
+> 같은 이유로 페어링은 쓰기 전에 `.info/connected` 로 연결을 먼저 확인하고, 각 단계에
+> 15초 상한을 둔다. 설정창에는 서버 연결 상태를 항상 표시한다.
+
 ## 보안 모델 · Firebase 데이터 모델
 
 **접근 권한은 "코드를 아는가"가 아니라 "이 uid 가 그 방의 멤버인가"로 판단한다.**

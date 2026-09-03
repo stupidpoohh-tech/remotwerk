@@ -15,11 +15,11 @@
 
   let cfg = null;
   let ctrl = null;
-  let charId = 'preset1';
+  let charId = 'char_seal';
 
   async function main() {
     cfg = await host.getConfig();
-    charId = cfg.characterId || 'preset1';
+    charId = cfg.characterId || 'char_seal';
 
     buildCharSelect();
     buildButtons();

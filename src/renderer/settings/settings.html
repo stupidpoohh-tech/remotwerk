@@ -7,7 +7,7 @@
              script-src 'self' https://www.gstatic.com;
              style-src 'self' 'unsafe-inline';
              img-src 'self' data:;
-             connect-src 'self' https://*.firebaseio.com https://*.firebasedatabase.app https://*.googleapis.com wss://*.firebaseio.com;" />
+             connect-src 'self' https://*.firebaseio.com https://*.firebasedatabase.app https://*.googleapis.com wss://*.firebaseio.com wss://*.firebasedatabase.app;" />
   <link rel="stylesheet" href="../shared/character.css" />
   <link rel="stylesheet" href="settings.css" />
 </head>
@@ -20,6 +20,7 @@
       코드는 <b>1회용</b>이며 24시간 뒤 만료돼요. 한 번 연결되면 코드 없이도 계속 이어집니다.</p>
 
     <div id="pairStatus" class="pair-status">확인 중…</div>
+    <div id="connStatus" class="conn-status">서버 연결 확인 중…</div>
 
     <div class="row">
       <button id="createInvite" class="primary">초대 코드 만들기</button>

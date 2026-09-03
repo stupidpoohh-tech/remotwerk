@@ -12,13 +12,13 @@
 
   const $ = (id) => document.getElementById(id);
   let cfg = null;
-  let myChar = 'preset1';
-  let partnerChar = 'preset2';
+  let myChar = 'char_seal';
+  let partnerChar = 'char_ribbon';
 
   async function main() {
     cfg = await host.getConfig();
-    myChar = cfg.characterId || 'preset1';
-    partnerChar = cfg.partnerCharacterId || 'preset2';
+    myChar = cfg.characterId || 'char_seal';
+    partnerChar = cfg.partnerCharacterId || 'char_ribbon';
 
     $('firebase').value = cfg.firebase ? JSON.stringify(cfg.firebase, null, 2) : '';
 
@@ -32,6 +32,7 @@
 
     initSizeSection();
     initAppSection();
+    initConnStatus();
     $('previewPlay').addEventListener('click', playPreviewSequence);
 
     // 공용 카탈로그는 네트워크에서 받아오므로, 캐시로 먼저 그리고 도착하면 다시 그린다.
@@ -102,6 +103,26 @@
     });
   }
 
+  // ---- 서버 연결 상태 ----
+  // RTDB 쓰기는 연결이 없으면 오류 없이 영영 대기한다. 그래서 "지금 연결돼 있는지"를
+  // 눈에 보이게 띄워 둔다(초대 코드가 안 만들어질 때 원인을 바로 알 수 있게).
+  function initConnStatus() {
+    const el = $('connStatus');
+    if (!el) return;
+    if (!cfg.firebase) {
+      el.textContent = 'Firebase 설정이 없어 서버에 연결하지 않습니다.';
+      el.className = 'conn-status bad';
+      return;
+    }
+    RW.fb.init(cfg.firebase).catch(() => {});
+    RW.fb.onConnected((connected) => {
+      el.textContent = connected
+        ? '서버 연결됨'
+        : '서버에 연결되지 않았어요 — 네트워크(방화벽·VPN·회사망)를 확인해 주세요.';
+      el.className = 'conn-status ' + (connected ? 'ok' : 'bad');
+    });
+  }
+
   // ---- 페어링 ----
   function setPairMsg(msg) { $('pairMsg').textContent = msg || ''; }
 
@@ -169,8 +190,8 @@
     if (!window.confirm(`"${c.name}" 캐릭터를 삭제할까요? 되돌릴 수 없어요.`)) return;
     const next = (cfg.customCharacters || []).filter((x) => x.id !== c.id);
     const patch = { customCharacters: next };
-    if (cfg.characterId === c.id) { patch.characterId = 'preset1'; myChar = 'preset1'; }
-    if (cfg.partnerCharacterId === c.id) { patch.partnerCharacterId = 'preset2'; partnerChar = 'preset2'; }
+    if (cfg.characterId === c.id) { patch.characterId = 'char_seal'; myChar = 'char_seal'; }
+    if (cfg.partnerCharacterId === c.id) { patch.partnerCharacterId = 'char_ribbon'; partnerChar = 'char_ribbon'; }
     await host.setConfig(patch);
     cfg = await host.getConfig();
     rebuildGrids();

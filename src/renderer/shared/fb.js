@@ -56,8 +56,54 @@
     return storagePromise;
   }
 
+  // 실시간 DB 서버와 실제로 연결됐는지 기다린다.
+  //
+  // 왜 필요한가: RTDB 의 set()/get() 은 **서버가 응답할 때까지 끝나지 않는다.** 연결이
+  // 안 되면 오류도 안 나고 그냥 영영 대기한다. 그래서 페어링이 "방을 만드는 중…" 에서
+  // 멈춘 채 아무 말도 못 하는 상태가 됐다(원인은 CSP 가 지역 DB 의 wss 를 막은 것).
+  // 쓰기 전에 여기서 먼저 연결을 확인하면, 안 될 때 곧바로 이유를 말해 줄 수 있다.
+  async function waitConnected(ms) {
+    const fb = await readyPromise;
+    if (!fb) throw new Error('fb.init() 이 먼저 호출되어야 합니다.');
+    const { db, dbMod } = fb;
+    const ref = dbMod.ref(db, '.info/connected');
+    return new Promise((resolve, reject) => {
+      let done = false;
+      const finish = (fn, arg) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        if (off) off();
+        fn(arg);
+      };
+      const timer = setTimeout(() => finish(reject, new Error(
+        '서버에 연결하지 못했어요. 네트워크(방화벽·VPN·회사망)를 확인해 주세요.'
+      )), ms || 10000);
+      let off = null;
+      off = dbMod.onValue(ref, (snap) => {
+        if (snap.val() === true) finish(resolve, true);
+      }, (e) => finish(reject, e));
+    });
+  }
+
+  // 연결 상태를 계속 지켜본다(설정창 표시용). 해제 함수를 돌려준다.
+  function onConnected(cb) {
+    let off = null;
+    let cancelled = false;
+    (async () => {
+      try {
+        const fb = await readyPromise;
+        if (!fb || cancelled) return;
+        off = fb.dbMod.onValue(fb.dbMod.ref(fb.db, '.info/connected'),
+          (snap) => cb(snap.val() === true),
+          () => cb(false));
+      } catch (_) { cb(false); }
+    })();
+    return () => { cancelled = true; if (off) off(); };
+  }
+
   // 테스트/재초기화용
   function reset() { readyPromise = null; storagePromise = null; }
 
-  RW.fb = { init, storage, reset };
+  RW.fb = { init, storage, waitConnected, onConnected, reset };
 })(typeof window !== 'undefined' ? window : globalThis);
