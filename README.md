@@ -116,13 +116,18 @@ src/
       skeleton.js   # 이족 골격(상세 bipedal + 5조각 bipedal5)
       gestures.js   # 신호 메타데이터(id·이름·아이콘) — 능동 4 + 자율 2
       animations.js # 골격별 키프레임 시퀀스(신호 4 + 자율 2)
-      engine.js     # 골격 기반 재생 엔진(트랙 보간, animSource 리매핑, fit 렌더)
-      presets.js    # 프리셋 캐릭터 로더
+      engine.js     # 골격 기반 재생 엔진(트랙 보간, animSource 리매핑, fit 렌더, 미리보기 배치)
+      presets.js    # 제공 캐릭터 로더(그림 프리셋 2 + 색 프리셋 3)
+      preset-art.js # 제공 캐릭터 5조각 아트(data URI) — 자동 생성
       characters.js # 프리셋+공용 카탈로그+개인 통합 해석기(번들→리그)
       catalog.js    # 공용 캐릭터 카탈로그(관리자 전용 쓰기)
       character.css # 캐릭터 렌더 공통 스타일 + 이펙트 레이어
       transport.js  # 신호 송수신/히스토리 + 커스텀 캐릭터 공유(Firebase Storage)
   assets/presets/   # 프리셋 에셋 포맷(rig.json) + 포맷 문서
+art/presets/        # 제공 캐릭터 원본 그림(앱에는 안 들어간다 → preset-art.js 로 변환)
+tools/
+  cut-preset-art.py # 원본 그림 → 5조각 아트 생성기
+  selftest.js       # 렌더러 공유 모듈 회귀 테스트(npm test)
 ```
 
 ## 애니메이션 엔진
@@ -214,6 +219,29 @@ rooms/{roomId}/characters/{uid}/bundle.json   # 쓰기는 본인 uid 폴더만
 설정에서 Firebase를 비워 두면 `BroadcastChannel` 기반 **로컬 루프백**으로 동작한다.
 리모컨에서 보낸 신호가 '상대'로서 내 오버레이에 되돌아와 재생되고 히스토리에 쌓인다.
 아트·안무·상호작용을 실제 Firebase 없이 끝에서 끝까지 확인하기 위한 모드다.
+
+## 제공 캐릭터
+
+앱에 두 캐릭터가 들어 있다. **🦭 물개**와 **🎀 리본**이며, 앞모습·뒷모습 모두 5조각으로
+잘라 내장했다(🍑 트월킹에서 등을 보인다).
+
+- 아트는 `preset-art.js` 에 **data URI** 로 들어 있다. 렌더러가 `file://` 로 열리고 CSP 가
+  `img-src 'self' data:` 라, 파일 경로 이미지는 창마다 상대경로가 달라지고 CSP 에도 걸릴 수
+  있기 때문이다.
+- 상대에게는 **캐릭터 id 만** 보낸다. 양쪽 앱에 같은 그림이 들어 있으니 업로드·다운로드가
+  아예 없다(개인 제작 캐릭터만 Storage 를 거친다).
+- 조각은 회전 없는 사각형으로 잘랐다 → **그림에 그려진 大자 포즈가 곧 기본 자세**이고,
+  애니메이션이 어깨·골반 회전으로 그 위에 얹힌다.
+- 다시 만들려면 `art/presets/` 의 원본을 고치고 `python3 tools/cut-preset-art.py` 를 돌린다.
+  자르기 상자·관절 위치는 그 스크립트 맨 위 `CHARS` 에 좌표로 적혀 있다.
+
+색 도형 프리셋 3종(`preset1~3`)은 아트가 없던 시절의 플레이스홀더인데, 지우면 그걸 고른
+사용자의 캐릭터가 사라지므로 목록 뒤에 남겨 두었다.
+
+> **캐릭터 상자와 배치**: 캐릭터마다 몸통·다리 길이가 달라서, 화면 배치를 CSS 고정값으로
+> 두면 어떤 캐릭터는 발이, 어떤 캐릭터는 머리가 잘렸다. 이제 `skeleton.contentBox()` 가
+> 실제로 그려지는 조각들을 덮는 상자를 계산하고, `engine.fitAnchor()` 가 그 상자로
+> 발을 바닥선에 맞춘다. 오버레이의 드래그 히트박스도 같은 상자를 쓴다.
 
 ## 커스텀 캐릭터 — 리깅·업로드 도구 (Prompt B)
 

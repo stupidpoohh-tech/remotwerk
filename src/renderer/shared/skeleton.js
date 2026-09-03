@@ -109,5 +109,68 @@
     return SKELETONS[id] || SKELETONS.bipedal;
   }
 
-  RW.skeleton = { SKELETONS, getSkeleton, buildBipedal5, BIPEDAL5_DEFAULT };
+  // 각 본의 절대 관절 좌표(골반 원점 기준).
+  function absPivots(sk) {
+    const byName = {};
+    sk.bones.forEach((b) => (byName[b.name] = b));
+    const abs = {};
+    function pivot(name) {
+      if (abs[name]) return abs[name];
+      const b = byName[name];
+      if (!b || !b.parent) return (abs[name] = { x: 0, y: 0 });
+      const p = pivot(b.parent);
+      return (abs[name] = { x: p.x + b.pivotOffset[0], y: p.y + b.pivotOffset[1] });
+    }
+    sk.bones.forEach((b) => pivot(b.name));
+    return abs;
+  }
+
+  // 실제로 그려지는 조각들을 모두 덮는 상자를 계산한다(골반이 원점).
+  //
+  // 왜 필요한가: 오버레이는 이 상자를 드래그 히트박스(#char)로 쓰고, 미리보기 화면들은
+  // 여기서 배율을 정한다. 골격에 박아 둔 상자는 "대략" 값이라, 팔이 넓게 벌어진
+  // 캐릭터는 히트박스 밖으로 삐져나가 클릭이 빗나갔다(색 프리셋은 발이 26px 튀어나와 있었다).
+  const BOX_PAD = 8;
+  function contentBox(sk, rig) {
+    const abs = absPivots(sk);
+    const slots = rig && rig.slots;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+
+    for (const bone of sk.bones) {
+      if (!bone.part) continue;
+      const style = slots ? slots[bone.part.slot] : null;
+      // 리그가 주어졌는데 그 슬롯이 비어 있으면 화면에 안 그려진다 → 상자에서도 뺀다.
+      if (slots && !(style && (style.image || style.color))) continue;
+      const box = (style && style.fit) ? style.fit : bone.part;
+      const P = abs[bone.name] || { x: 0, y: 0 };
+      const th = ((box.rot || 0) + (bone.neutral || 0)) * Math.PI / 180;
+      const c = Math.cos(th), s = Math.sin(th);
+      for (const [lx, ly] of [[box.x, box.y], [box.x + box.w, box.y],
+                              [box.x, box.y + box.h], [box.x + box.w, box.y + box.h]]) {
+        const x = P.x + lx * c - ly * s;
+        const y = P.y + lx * s + ly * c;
+        if (x < x0) x0 = x; if (x > x1) x1 = x;
+        if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+    }
+    if (!isFinite(x0)) return Object.assign({}, sk.box);   // 그릴 게 하나도 없으면 원래 상자
+
+    const groundY = (sk.box && sk.box.groundY != null) ? sk.box.groundY : 0;
+    // 발밑 기준선은 상자 안에 있어야 한다(미리보기 배치가 이걸 전제로 계산한다).
+    y1 = Math.max(y1, groundY);
+    return {
+      w: Math.round(x1 - x0) + BOX_PAD * 2,
+      h: Math.round(y1 - y0) + BOX_PAD * 2,
+      originX: Math.round(-x0) + BOX_PAD,
+      originY: Math.round(-y0) + BOX_PAD,
+      groundY
+    };
+  }
+
+  // 골격 + 리그 → 실제 상자를 반영한 골격 사본. 원본(공유 객체)은 건드리지 않는다.
+  function withContentBox(sk, rig) {
+    return Object.assign({}, sk, { box: contentBox(sk, rig) });
+  }
+
+  RW.skeleton = { SKELETONS, getSkeleton, buildBipedal5, BIPEDAL5_DEFAULT, absPivots, contentBox, withContentBox };
 })(typeof window !== 'undefined' ? window : globalThis);

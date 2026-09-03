@@ -48,7 +48,10 @@
   function buildChar() {
     if (ctrl) ctrl.stop();
     anchor.innerHTML = '';
-    ctrl = RW.engine.mount(anchor, RW.characters.rigFor(charId, cfg));
+    const spec = RW.characters.rigFor(charId, cfg);
+    // 무대 300px — 발을 250px 에 두고 머리까지 들어오게 맞춘다.
+    RW.engine.fitAnchor(anchor, spec.skeleton, { feetY: 250, height: 240, maxScale: 1 });
+    ctrl = RW.engine.mount(anchor, spec);
     clearPlaying();
     nowPlaying.textContent = '현재: —';
   }

@@ -27,10 +27,10 @@ function defaults() {
     // 마지막으로 발급/입력한 초대 코드 — 표시용일 뿐 접근 권한과 무관(1회용·24시간 만료).
     pairCode: null,
     // 내가 고른 캐릭터(상대 화면에 상주할 캐릭터)
-    characterId: 'preset1',
+    characterId: 'char_seal',
     // 상대가 고른 캐릭터(내 화면에 상주). 실서비스에선 Firebase members에서 읽지만
     // 로컬/데모 모드를 위해 캐시해 둔다.
-    partnerCharacterId: 'preset2',
+    partnerCharacterId: 'char_ribbon',
     // 집중 모드: 켜면 들어오는 신호를 라이브 재생하지 않고 히스토리로만 쌓는다.
     focusMode: false,
     // 오버레이 캐릭터 위치(드래그로 이동, 화면 비율 0..1로 저장)

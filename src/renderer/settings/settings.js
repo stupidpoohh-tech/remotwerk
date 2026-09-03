@@ -192,11 +192,9 @@
     if (previewCtrl) previewCtrl.stop();
     anchor.innerHTML = '';
     const scale = Math.max(0.4, Math.min(2.5, Number(cfg.overlayScale) || 1));
-    anchor.style.transform = `scale(${scale})`;
     const spec = RW.characters.rigFor(myChar, cfg);
-    // 발을 바닥선(240px)에 맞춘다. 리그마다 다리 길이가 달라 고정 top 을 쓰면 발이 잘렸다.
-    const groundY = (spec.skeleton.box && spec.skeleton.box.groundY != null) ? spec.skeleton.box.groundY : 86;
-    anchor.style.top = (240 - groundY * scale).toFixed(1) + 'px';
+    // 실제 오버레이와 같은 배율로 두되, 발은 바닥선(240px)에 맞춘다.
+    RW.engine.fitAnchor(anchor, spec.skeleton, { feetY: 240, scale });
     previewCtrl = RW.engine.mount(anchor, spec);
     previewCtrl.play('idle');
     $('previewNow').textContent = '멍때리는 중… (상대 화면에서도 이 크기로 보입니다)';
@@ -270,21 +268,15 @@
   }
 
   // 미니 프리뷰 — 뉴트럴 포즈로 캐릭터를 그린다(축소). 프리셋/커스텀 공통.
+  // 타일은 120px 높이이고 위 26px 은 이름표라, 캐릭터는 그 아래에 들어와야 한다.
   function renderPreview(container, charId) {
-    const wrap = document.createElement('div');
-    wrap.style.position = 'absolute';
-    wrap.style.left = '50%';
-    wrap.style.top = '8px';
-    wrap.style.transform = 'scale(0.42)';
-    wrap.style.transformOrigin = 'top center';
     const anchor = document.createElement('div');
     anchor.style.position = 'absolute';
-    anchor.style.left = '0';
-    anchor.style.top = '120px';
-    wrap.appendChild(anchor);
-    container.appendChild(wrap);
-    const { skeleton, rig } = RW.characters.rigFor(charId, cfg);
-    RW.engine.mount(anchor, { skeleton, rig });
+    anchor.style.left = '50%';
+    container.appendChild(anchor);
+    const spec = RW.characters.rigFor(charId, cfg);
+    RW.engine.fitAnchor(anchor, spec.skeleton, { feetY: 114, height: 86, maxScale: 0.6 });
+    RW.engine.mount(anchor, spec);
   }
 
   async function save() {

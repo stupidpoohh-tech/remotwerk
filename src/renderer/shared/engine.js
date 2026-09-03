@@ -277,5 +277,31 @@
     }
   }
 
-  RW.engine = { mount, buildTracks, poseAt };
+  // 미리보기 배치 — 앵커(캐릭터 원점=골반)를 무대 안에 앉힌다.
+  //
+  // 캐릭터마다 다리 길이(groundY)와 전체 높이(box.h)가 달라서, CSS 로 top/배율을
+  // 박아 두면 어떤 캐릭터는 발이 잘리고 어떤 캐릭터는 머리가 잘렸다. 그래서 발이
+  // 바닥선(feetY)에 닿도록 top 을 계산하고, 배율은 머리 끝까지 들어오게 정한다.
+  //
+  //   opts.feetY   바닥선(무대 좌표, 필수)
+  //   opts.height  캐릭터가 쓸 수 있는 세로 공간. 주면 배율을 여기서 계산한다.
+  //   opts.scale   배율을 직접 지정(사용자 크기 설정처럼 배율이 이미 정해진 경우)
+  //   opts.maxScale 계산된 배율의 상한(작은 캐릭터를 과하게 키우지 않게)
+  function fitAnchor(el, skeleton, opts) {
+    opts = opts || {};
+    const box = (skeleton && skeleton.box) || {};
+    const groundY = box.groundY != null ? box.groundY : 86;
+    const totalH = Math.max(1, box.h != null ? box.h : 210);
+    let scale = opts.scale;
+    if (scale == null) {
+      scale = (opts.height != null ? opts.height : opts.feetY) / totalH;
+      if (opts.maxScale != null) scale = Math.min(opts.maxScale, scale);
+    }
+    el.style.transformOrigin = '0 0';
+    el.style.transform = `scale(${Number(scale.toFixed(4))})`;
+    el.style.top = Number((opts.feetY - groundY * scale).toFixed(1)) + 'px';
+    return scale;
+  }
+
+  RW.engine = { mount, buildTracks, poseAt, fitAnchor };
 })(typeof window !== 'undefined' ? window : globalThis);

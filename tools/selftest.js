@@ -18,7 +18,8 @@ sandbox.window = sandbox;
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 
-for (const f of ['skeleton.js', 'gestures.js', 'animations.js', 'engine.js', 'presets.js', 'characters.js']) {
+for (const f of ['skeleton.js', 'gestures.js', 'animations.js', 'engine.js',
+                 'preset-art.js', 'presets.js', 'characters.js']) {
   vm.runInContext(fs.readFileSync(path.join(SHARED, f), 'utf8'), sandbox, { filename: f });
 }
 const RW = sandbox.RW;
@@ -30,6 +31,7 @@ function ok(name, cond, detail) {
   fails.push(name + (detail ? ' — ' + detail : ''));
 }
 function near(a, b, eps) { return Math.abs(a - b) <= (eps == null ? 1e-9 : eps); }
+const SLOT5 = ['torso', 'armL', 'armR', 'legL', 'legR'];
 
 // --- 1. 제스처 ↔ 애니메이션 대응 -------------------------------------------
 const allGestures = RW.gestures.ACTIVE.concat(RW.gestures.AMBIENT);
@@ -132,19 +134,68 @@ for (const rot of [-90, -28, 0, 14, 137]) {
   ok(`fit 역회전 왕복 (rot=${rot})`, near(bx, box.cx, 1e-9) && near(by, box.cy, 1e-9), `${bx}, ${by}`);
 }
 
-// --- 8. 리모컨 미리보기 배치 (remote.js fitAnchor 과 같은 수식) ---------------
-// 발이 무대 안(FEET_Y)에 놓이고 머리가 잘리지 않아야 한다. 예전엔 CSS 로 박아 둔
-// top/scale 때문에 다리 긴 캐릭터의 발이 잘렸다.
-const FEET_Y = 104, TOP_MARGIN = 6, MAX_SCALE = 0.62, STAGE_H = 132;
-for (const legLen of [40, 92, 180]) {
-  for (const torsoLen of [60, 122, 200]) {
-    const box = RW.skeleton.buildBipedal5({ legLen, torsoLen }).box;
-    const scale = Math.min(MAX_SCALE, (FEET_Y - TOP_MARGIN) / box.h);
-    const top = FEET_Y - box.groundY * scale;
-    const headTop = top - (box.h - box.groundY) * scale;
-    const tag = `legLen=${legLen}, torsoLen=${torsoLen}`;
-    ok(`미리보기: 발이 무대 안 (${tag})`, top + box.groundY * scale <= STAGE_H);
-    ok(`미리보기: 머리가 잘리지 않음 (${tag})`, headTop >= 0, String(headTop));
+// --- 8. 미리보기 배치 (engine.fitAnchor) --------------------------------------
+// 발이 바닥선에 놓이고 머리가 잘리지 않아야 한다. 예전엔 CSS 로 박아 둔 top/배율
+// 때문에 다리 긴 캐릭터의 발이, 짧은 캐릭터의 머리가 잘렸다.
+// (DOM 없이 검증하려고 style 만 있는 가짜 엘리먼트를 넘긴다.)
+function placed(skeleton, opts) {
+  const el = { style: {} };
+  const scale = RW.engine.fitAnchor(el, skeleton, opts);
+  const top = parseFloat(el.style.top);
+  const box = skeleton.box;
+  return { scale, top, feet: top + box.groundY * scale, head: top - (box.h - box.groundY) * scale };
+}
+const STAGES = [
+  { name: '리모컨', feetY: 104, height: 98, maxScale: 0.62, stageH: 132 },
+  { name: '캐릭터 타일', feetY: 114, height: 86, maxScale: 0.6, stageH: 120 },
+  { name: '동작 뷰어', feetY: 250, height: 240, maxScale: 1, stageH: 300 }
+];
+for (const st of STAGES) {
+  for (const legLen of [27, 40, 92, 180]) {
+    for (const torsoLen of [60, 122, 200]) {
+      const sk = RW.skeleton.buildBipedal5({ legLen, torsoLen });
+      const p = placed(sk, st);
+      const tag = `${st.name}: legLen=${legLen}, torsoLen=${torsoLen}`;
+      ok(`${tag} — 발이 바닥선에`, near(p.feet, st.feetY, 0.2), String(p.feet));
+      ok(`${tag} — 발이 무대 안`, p.feet <= st.stageH);
+      ok(`${tag} — 머리가 잘리지 않음`, p.head >= -0.2, String(p.head));
+    }
+  }
+}
+// 배율을 직접 준 경우(설정창 미리보기)는 그 배율을 그대로 쓰되 발만 맞춘다.
+{
+  const sk = RW.skeleton.buildBipedal5({ legLen: 92 });
+  const p = placed(sk, { feetY: 240, scale: 2.5 });
+  ok('설정 미리보기: 지정 배율을 그대로 쓴다', p.scale === 2.5);
+  ok('설정 미리보기: 발은 바닥선에', near(p.feet, 240, 0.2), String(p.feet));
+}
+
+// --- 9. 제공 캐릭터(그림 프리셋) ---------------------------------------------
+const ART_IDS = ['char_seal', 'char_ribbon'];
+const presetIds = RW.presets.PRESETS.map((p) => p.id);
+ok('제공 캐릭터가 목록 맨 앞에', presetIds[0] === ART_IDS[0] && presetIds[1] === ART_IDS[1], presetIds.join(','));
+ok('색 프리셋도 남아 있다', ['preset1', 'preset2', 'preset3'].every((id) => presetIds.includes(id)));
+for (const id of ART_IDS) {
+  const spec = RW.presets.rigFor(id);
+  ok(`${id}: 5조각이 모두 있다`, SLOT5.every((s) => spec.rig.slots[s] && spec.rig.slots[s].image));
+  ok(`${id}: 뒷모습 5조각이 모두 있다`, SLOT5.every((s) => spec.rig.slotsBack[s] && spec.rig.slotsBack[s].image));
+  ok(`${id}: 5조각 골격을 쓴다`, spec.skeleton.id === 'bipedal5');
+  ok(`${id}: groundY = 다리 길이`, spec.skeleton.box.groundY === spec.skeleton.proportions.legLen);
+  for (const s of SLOT5) {
+    const sl = spec.rig.slots[s];
+    ok(`${id}.${s}: PNG data URI`, /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(sl.image));
+    ok(`${id}.${s}: fit 크기가 양수`, sl.fit.w > 0 && sl.fit.h > 0);
+    ok(`${id}.${s}: 뒷모습도 PNG data URI`, /^data:image\/png;base64,/.test(spec.rig.slotsBack[s].image));
+  }
+  // 두 캐릭터가 같은 키로 보여야 한다(한쪽만 커 보이면 어색하다).
+  ok(`${id}: 전체 높이 200~240`, spec.skeleton.box.h >= 200 && spec.skeleton.box.h <= 240, String(spec.skeleton.box.h));
+}
+// 기본 설정이 가리키는 캐릭터가 실제로 존재해야 한다.
+{
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'main', 'config.js'), 'utf8');
+  for (const key of ['characterId', 'partnerCharacterId']) {
+    const m = src.match(new RegExp(key + ":\\s*'([^']+)'"));
+    ok(`config 기본 ${key} 가 실존하는 캐릭터`, !!m && presetIds.includes(m[1]), m && m[1]);
   }
 }
 

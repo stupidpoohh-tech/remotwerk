@@ -32,7 +32,8 @@ select { padding: 6px 8px; border: 1px solid #d7d7e0; border-radius: 8px; font-s
   overflow: hidden;
   margin-bottom: 8px;
 }
-#charAnchor { position: absolute; left: 50%; top: 205px; }
+/* top/transform 은 viewer.js 가 리그에 맞춰 계산해 넣는다 */
+#charAnchor { position: absolute; left: 50%; }
 
 #nowPlaying { font-size: 12px; opacity: 0.7; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
 

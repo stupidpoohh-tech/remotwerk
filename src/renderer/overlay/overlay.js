@@ -64,27 +64,48 @@
     buildFromRig(rigInput);
   }
 
+  // 캐릭터 상자 — 리그마다 다르다(몸통·다리 길이가 제각각).
+  // 드래그 히트박스(#char)와 골반 위치, 발밑 기준점을 전부 이 값으로 맞춘다.
+  // 예전엔 120×210 에 골반 (60,120) 으로 고정돼 있어서, 다른 체형을 올리면
+  // 캐릭터가 히트박스 밖으로 삐져나가 클릭·드래그가 빗나갔다.
+  const DEFAULT_BOX = { w: 120, h: 210, originX: 60, originY: 120, groundY: 86 };
+  let charBox = DEFAULT_BOX;
+
   function buildFromRig({ skeleton, rig }) {
     if (ctrl) ctrl.stop();
     anchorEl.innerHTML = '';
+    const b = (skeleton && skeleton.box) || {};
+    charBox = {
+      w: b.w != null ? b.w : DEFAULT_BOX.w,
+      h: b.h != null ? b.h : DEFAULT_BOX.h,
+      originX: b.originX != null ? b.originX : DEFAULT_BOX.originX,
+      originY: b.originY != null ? b.originY : DEFAULT_BOX.originY,
+      groundY: b.groundY != null ? b.groundY : DEFAULT_BOX.groundY
+    };
+    charEl.style.width = charBox.w + 'px';
+    charEl.style.height = charBox.h + 'px';
+    anchorEl.style.left = charBox.originX + 'px';
+    anchorEl.style.top = charBox.originY + 'px';
+    positionChar();
     ctrl = RW.engine.mount(anchorEl, { skeleton, rig });
     startAmbient();
   }
 
   // ---- 위치 · 크기 ----
+  // overlayPos 는 "골반이 놓일 화면 비율" 이다(예전 저장값과 그대로 호환된다).
   function positionChar() {
     const pos = (cfg && cfg.overlayPos) || { x: 0.82, y: 0.72 };
     // roamX/Y = 자율 생활로 돌아다닌 누적 오프셋(저장하지 않는다).
-    charEl.style.left = `calc(${clamp01(pos.x) * 100}% - 60px + ${Math.round(roamX)}px)`;
-    charEl.style.top = `calc(${clamp01(pos.y) * 100}% - 120px + ${Math.round(roamY)}px)`;
+    charEl.style.left = `calc(${clamp01(pos.x) * 100}% - ${charBox.originX}px + ${Math.round(roamX)}px)`;
+    charEl.style.top = `calc(${clamp01(pos.y) * 100}% - ${charBox.originY}px + ${Math.round(roamY)}px)`;
     applyScale();
   }
 
-  // 크기 배율. 발밑(#char 기준 60,206)을 기준으로 키워 바닥에 선 채로 커지게 한다.
+  // 크기 배율. 발밑을 기준으로 키워 바닥에 선 채로 커지게 한다.
   // #char 자체에 transform 을 걸면 getBoundingClientRect 도 같이 커져 드래그 히트박스가 맞는다.
   function applyScale() {
     const s = charScale();
-    charEl.style.transformOrigin = '60px 206px';
+    charEl.style.transformOrigin = `${charBox.originX}px ${charBox.originY + charBox.groundY}px`;
     charEl.style.transform = `scale(${s})`;
   }
   function charScale() {
