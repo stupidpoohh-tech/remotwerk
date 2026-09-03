@@ -69,7 +69,8 @@
       {
         "provider": "github",
         "owner": "stupidpoohh-tech",
-        "repo": "remotwerk"
+        "repo": "remotwerk",
+        "releaseType": "release"
       }
     ]
   }
