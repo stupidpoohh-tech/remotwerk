@@ -22,9 +22,20 @@
   }
   function isStepProp(prop) { return prop === 'vis' || prop === 'flip' || prop === 'back'; }
 
-  // 애니메이션 → 트랙({t,v} 목록) 으로 변환. 희소 프레임을 허용한다.
-  // 트랙은 애니메이션 자체의 본 키로 만든다(골격에 종속되지 않음). 어떤 골격이든
-  // 자신이 필요한 트랙만 animSource 로 골라 쓴다 → 5조각 리그가 동일 시퀀스를 근사 재생.
+  // 이징 — 구간이 끝나는 키프레임의 ease 값이 그 구간에 적용된다.
+  //
+  // 선형만 쓰면 점프 정점과 착지에서 속도가 뚝 꺾인다(가속·감속이 없다). 기본값을
+  // easeInOut 으로 두고, 일부러 일정한 속도가 필요한 곳(걷기의 전진 등)만 linear 로 뺀다.
+  const EASES = {
+    linear: (k) => k,
+    in: (k) => k * k,                                   // 천천히 시작
+    out: (k) => 1 - (1 - k) * (1 - k),                  // 빠르게 시작해 감속(착지·안정)
+    inOut: (k) => (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2),
+    // 반동 — 목표를 살짝 지나쳤다 돌아온다. 준비→주요 동작 전환에 쓴다.
+    back: (k) => 1 + 2.2 * Math.pow(k - 1, 3) + 1.2 * Math.pow(k - 1, 2)
+  };
+  function easeFn(name) { return EASES[name] || EASES.inOut; }
+
   function buildTracks(anim) {
     const tracks = { root: {}, bones: {} };
     let duration = 0;
@@ -32,16 +43,17 @@
     const frames = anim.frames.slice().sort((a, b) => a.t - b.t);
     for (const fr of frames) {
       duration = Math.max(duration, fr.t);
+      const e = fr.ease;                     // 이 키프레임으로 들어오는 구간의 이징
       if (fr.root) {
         for (const p of ROOT_PROPS) {
-          if (p in fr.root) push(tracks.root, p, fr.t, fr.root[p]);
+          if (p in fr.root) push(tracks.root, p, fr.t, fr.root[p], e);
         }
       }
       for (const key of Object.keys(fr)) {
-        if (key === 't' || key === 'root') continue;
+        if (key === 't' || key === 'root' || key === 'ease') continue;
         const b = (tracks.bones[key] = tracks.bones[key] || {});
         for (const p of BONE_PROPS) {
-          if (p in fr[key]) push(b, p, fr.t, fr[key][p]);
+          if (p in fr[key]) push(b, p, fr.t, fr[key][p], e);
         }
       }
     }
@@ -51,14 +63,46 @@
     for (const bn of Object.keys(tracks.bones)) {
       for (const p of Object.keys(tracks.bones[bn])) ensureStart(tracks.bones[bn][p], p);
     }
-    return { tracks, duration };
+    // 루프 클립은 끝에서 처음으로 이어져야 한다. 마지막 키가 duration 보다 앞에 있으면
+    // 그 값이 끝까지 유지되다가 0 으로 툭 돌아간다(wander 의 다리가 ±17° 에서 0 으로 튀었다).
+    // duration 지점에 t=0 값과 같은 키를 넣어 한 바퀴가 닫히게 한다.
+    if (anim.loop && duration > 0) {
+      for (const p of Object.keys(tracks.root)) closeLoop(tracks.root[p]);
+      for (const bn of Object.keys(tracks.bones)) {
+        for (const p of Object.keys(tracks.bones[bn])) closeLoop(tracks.bones[bn][p]);
+      }
+    }
+    // 일회 클립의 안정(settle) 구간 — 마지막에 접합 자세로 되돌린다.
+    //
+    // 희소 키프레임은 마지막 값이 그대로 유지된다. 그래서 지쳤어가 끝나도 몸이 웅크린
+    // 채 멈춰 있다가, 다음 동작이 시작되는 순간 홱 펴졌다. Animation Bible 4절의
+    // "모든 클립은 접합 자세로 끝난다"를 데이터가 아니라 여기서 보장한다.
+    const settle = anim.settle || 0;
+    if (!anim.loop && settle > 0) {
+      const end = duration + settle;
+      for (const p of Object.keys(tracks.root)) settleTo(tracks.root[p], p, end);
+      for (const bn of Object.keys(tracks.bones)) {
+        for (const p of Object.keys(tracks.bones[bn])) settleTo(tracks.bones[bn][p], p, end);
+      }
+      duration = end;
+    }
+    return { tracks, duration, loop: !!anim.loop };
 
-    function push(obj, prop, t, v) {
-      (obj[prop] = obj[prop] || []).push({ t, v });
+    function push(obj, prop, t, v, e) {
+      (obj[prop] = obj[prop] || []).push({ t, v, e });
     }
     function ensureStart(arr, prop) {
       arr.sort((a, b) => a.t - b.t);
       if (arr.length === 0 || arr[0].t > 0) arr.unshift({ t: 0, v: neutral(prop) });
+    }
+    function closeLoop(arr) {
+      const last = arr[arr.length - 1];
+      if (last.t < duration) arr.push({ t: duration, v: arr[0].v, e: last.e });
+    }
+    function settleTo(arr, prop, end) {
+      const n = neutral(prop);
+      const last = arr[arr.length - 1];
+      if (last.v !== n) arr.push({ t: end, v: n, e: 'out' });
     }
   }
 
@@ -71,7 +115,7 @@
       if (time >= a.t && time <= b.t) {
         if (isStepProp(prop)) return a.v;
         const k = (time - a.t) / (b.t - a.t || 1);
-        return a.v + (b.v - a.v) * k;
+        return a.v + (b.v - a.v) * easeFn(b.e)(k);
       }
     }
     return arr[arr.length - 1].v;
@@ -86,6 +130,28 @@
       for (const p of BONE_PROPS) pose.bones[bn][p] = sample(t.bones[bn][p], p, time);
     }
     return pose;
+  }
+
+  // 두 포즈 사이를 섞는다(k=0 → a, k=1 → b). 새 동작을 **현재 자세에서** 시작하기 위한 것.
+  // 계단 속성(vis/flip/back)은 중간값이 없으므로 절반을 넘으면 바뀐다.
+  function blendPose(a, b, k) {
+    const out = { root: {}, bones: {} };
+    for (const p of ROOT_PROPS) {
+      const va = a.root[p], vb = b.root[p];
+      out.root[p] = isStepProp(p) ? (k < 0.5 ? va : vb)
+        : (va == null ? vb : va + (vb - va) * k);
+    }
+    const names = new Set(Object.keys(a.bones).concat(Object.keys(b.bones)));
+    for (const bn of names) {
+      const ba = a.bones[bn] || {}, bb = b.bones[bn] || {};
+      out.bones[bn] = {};
+      for (const p of BONE_PROPS) {
+        const va = ba[p] == null ? neutral(p) : ba[p];
+        const vb = bb[p] == null ? neutral(p) : bb[p];
+        out.bones[bn][p] = isStepProp(p) ? (k < 0.5 ? va : vb) : va + (vb - va) * k;
+      }
+    }
+    return out;
   }
 
   // ---- DOM 빌드 ----
@@ -136,6 +202,14 @@
         const part = document.createElement('div');
         part.className = 'rw-part rw-slot-' + P.slot;
         part.style.position = 'absolute';
+        // 그림 자체에도 z 를 준다.
+        //
+        // 본 엘리먼트는 부모 본 **안에** 들어 있다. 그래서 본에 준 z-index 는 부모가 만든
+        // 쌓임 맥락 안에서만 의미가 있고, 부모의 그림(.rw-part)은 z-index 가 없어서
+        // 자식 본들이 무조건 그 위에 그려졌다. 5조각 리그는 팔다리가 전부 몸통의
+        // 자식이라, "팔다리를 몸통 뒤로" 라고 지정해도 실제로는 앞에 그려지고 있었다.
+        // 부모의 그림에도 같은 z 를 주면 자식 본들과 같은 맥락에서 순서가 정해진다.
+        if (z != null) part.style.zIndex = String(z);
         part.style.left = box.x + 'px';
         part.style.top = box.y + 'px';
         part.style.width = box.w + 'px';
@@ -208,9 +282,12 @@
 
     // 뉴트럴 포즈
     setFxType(null);
-    applyPose({ root: { vis: true }, bones: {} });
+    const NEUTRAL_POSE = poseAt(buildTracks({ frames: [{ t: 0 }] }), 0);
+    let curPose = NEUTRAL_POSE;
+    applyPose(curPose);
 
     // ---- 재생 ----
+    // 모든 재생은 **경과 시간**으로 진행한다(주사율이 60Hz 든 120Hz 든 길이가 같다).
     let raf = null;
     let cancelled = false;
 
@@ -220,18 +297,34 @@
       raf = null;
     }
 
-    function playOne(anim, onDone) {
+    // 새 동작은 **지금 자세에서** 이어 시작한다.
+    // 예전에는 무조건 클립의 t=0(뉴트럴)로 튀어서, 지쳤어가 끝나며 웅크린 자세였다가
+    // 멍때리기가 시작되는 순간 몸이 홱 펴졌다.
+    const DEFAULT_BLEND_MS = 180;
+
+    function playOne(anim, onDone, blendMs) {
       setFxType(anim.fx || null);
       const built = buildTracks(anim);
+      const from = curPose;
+      const blend = Math.max(0, blendMs == null ? DEFAULT_BLEND_MS : blendMs);
       const start = performance.now();
       cancelled = false;
 
       function tick(now) {
         if (cancelled) return;
-        let t = now - start;
-        if (anim.loop && built.duration > 0) t = t % built.duration;
-        applyPose(poseAt(built, Math.min(t, anim.loop ? t : built.duration)));
-        if (!anim.loop && t >= built.duration) {
+        const elapsed = now - start;
+        let t = elapsed;
+        if (anim.loop && built.duration > 0) t = elapsed % built.duration;
+        else t = Math.min(elapsed, built.duration);
+
+        let pose = poseAt(built, t);
+        if (blend > 0 && elapsed < blend) {
+          pose = blendPose(from, pose, elapsed / blend);
+        }
+        curPose = pose;
+        applyPose(pose);
+
+        if (!anim.loop && elapsed >= built.duration) {
           raf = null;
           if (onDone) onDone();
           return;
@@ -242,10 +335,13 @@
     }
 
     // 단일/시퀀스 재생. ids: 문자열 또는 배열.
+    //   options.blend  : 이어받기 시간(ms). 0 이면 즉시 전환.
+    //   options.onDone : 마지막 클립이 끝나면 호출(루프면 호출되지 않는다).
     function play(ids, options) {
       options = options || {};
       stop();
       const list = Array.isArray(ids) ? ids.slice() : [ids];
+      let first = true;
       const step = () => {
         if (cancelled) return;
         const id = list.shift();
@@ -255,14 +351,18 @@
         // 시퀀스 중간 항목이 loop 이면 무한이므로 마지막에만 허용
         const isLast = list.length === 0;
         const runAnim = anim.loop && !isLast ? Object.assign({}, anim, { loop: false }) : anim;
-        playOne(runAnim, isLast ? (options.onDone || null) : step);
-        if (!isLast && runAnim.loop) { /* 방어적: 위에서 loop 해제됨 */ }
+        // 시퀀스 안에서는 이미 이어진 자세라 추가 블렌딩이 필요 없다.
+        playOne(runAnim, isLast ? (options.onDone || null) : step, first ? options.blend : 0);
+        first = false;
       };
       cancelled = false;
       step();
     }
 
-    return { stage, applyPose, play, stop, elByName };
+    // 지금 자세(다른 재생기로 넘겨줄 때 쓴다)
+    function getPose() { return curPose; }
+
+    return { stage, applyPose, play, stop, getPose, elByName };
   }
 
   function applySlotStyle(el, slot, part) {
@@ -307,5 +407,5 @@
     return scale;
   }
 
-  RW.engine = { mount, buildTracks, poseAt, fitAnchor };
+  RW.engine = { mount, buildTracks, poseAt, blendPose, fitAnchor, EASES };
 })(typeof window !== 'undefined' ? window : globalThis);

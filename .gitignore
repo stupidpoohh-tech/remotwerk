@@ -8,3 +8,4 @@ Thumbs.db
 src/renderer/shared/firebase.local.json
 tools/anim-check/frames/
 tools/anim-check/sheets/
+tools/anim-check/filmstrip/

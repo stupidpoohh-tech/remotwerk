@@ -19,7 +19,8 @@ sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 
 for (const f of ['skeleton.js', 'gestures.js', 'animations.js', 'engine.js',
-                 'preset-art.js', 'presets.js', 'characters.js']) {
+                 'preset-art.js', 'presets.js', 'characters.js',
+                 'clip-art.js', 'clips.js']) {
   vm.runInContext(fs.readFileSync(path.join(SHARED, f), 'utf8'), sandbox, { filename: f });
 }
 const RW = sandbox.RW;
@@ -59,7 +60,7 @@ for (const g of allGestures) {
     ok(`${g.id}: t 는 오름차순`, fr.t > lastT || lastT === -1, `t=${fr.t}`);
     lastT = fr.t;
     for (const key of Object.keys(fr)) {
-      if (key === 't') continue;
+      if (key === 't' || key === 'ease') continue;      // ease 는 구간 이징 지정
       if (key === 'root') {
         for (const p of Object.keys(fr.root)) {
           ok(`${g.id}: root 속성 '${p}' 은 알려진 것`, ROOT_PROPS.includes(p));
@@ -74,12 +75,77 @@ for (const g of allGestures) {
   }
 }
 
+// --- 2.5 클립 접합 규칙 (Animation Bible 4절) --------------------------------
+// 루프는 끝→처음이 이어져야 하고, 일회 클립은 접합 자세(idle 0번)로 끝나야 한다.
+// 이게 깨지면 동작이 끝나거나 반복될 때마다 몸이 홱 튄다.
+{
+  const flat = (p) => {
+    const o = {};
+    for (const k in p.root) o['root.' + k] = p.root[k];
+    for (const b in p.bones) for (const k in p.bones[b]) o[b + '.' + k] = p.bones[b][k];
+    return o;
+  };
+  // 트랙이 한쪽에만 있으면 없는 쪽은 뉴트럴 값으로 본다.
+  // (건너뛰면 "팔이 20° 든 채로 끝났는데 차이 0" 같은 잘못된 통과가 나온다.)
+  const neutralOf = (key) => {
+    const p = key.split('.').pop();
+    return (p === 'sx' || p === 'sy') ? 1 : 0;
+  };
+  const maxGap = (a, b) => {
+    const A = flat(a), B = flat(b);
+    let worst = 0, key = null;
+    for (const k of new Set(Object.keys(A).concat(Object.keys(B)))) {
+      let x = A[k], y = B[k];
+      if ((typeof x !== 'number' && x !== undefined) || (typeof y !== 'number' && y !== undefined)) {
+        if (x !== y && x !== undefined && y !== undefined) { worst = Math.max(worst, 99); key = k; }
+        continue;
+      }
+      if (x === undefined) x = neutralOf(k);
+      if (y === undefined) y = neutralOf(k);
+      const d = Math.abs(x - y);
+      if (d > worst) { worst = d; key = k; }
+    }
+    return { worst, key };
+  };
+  const idle0 = RW.engine.poseAt(RW.engine.buildTracks(RW.animations.get('idle')), 0);
+  for (const g of allGestures) {
+    const anim = RW.animations.get(g.id);
+    const b = RW.engine.buildTracks(anim);
+    if (anim.loop) {
+      const r = maxGap(RW.engine.poseAt(b, b.duration), RW.engine.poseAt(b, 0));
+      ok(`${g.id}: 루프 경계가 이어진다`, r.worst < 0.5, `${r.key} 차이 ${r.worst}`);
+    } else {
+      const r = maxGap(RW.engine.poseAt(b, b.duration), idle0);
+      ok(`${g.id}: 접합 자세로 끝난다`, r.worst < 0.5, `${r.key} 차이 ${r.worst}`);
+    }
+  }
+}
+
 // --- 3. 트랙 보간 ------------------------------------------------------------
 const built = RW.engine.buildTracks({
   frames: [{ t: 0 }, { t: 100, root: { y: -10, back: true } }, { t: 200, root: { y: 0, back: false } }]
 });
 ok('duration = 마지막 프레임', built.duration === 200, String(built.duration));
-ok('수치 트랙은 선형 보간', near(RW.engine.poseAt(built, 50).root.y, -5));
+ok('중간점은 정확히 절반', near(RW.engine.poseAt(built, 50).root.y, -5));
+// 이징 — 기본은 easeInOut(가속·감속), ease:'linear' 로 뺄 수 있다.
+{
+  const eased = RW.engine.buildTracks({ frames: [{ t: 0 }, { t: 100, root: { y: -10 } }] });
+  const lin = RW.engine.buildTracks({ frames: [{ t: 0 }, { t: 100, ease: 'linear', root: { y: -10 } }] });
+  ok('기본 이징은 선형이 아니다', Math.abs(RW.engine.poseAt(eased, 25).root.y + 2.5) > 0.3,
+     String(RW.engine.poseAt(eased, 25).root.y));
+  ok("ease:'linear' 는 선형", near(RW.engine.poseAt(lin, 25).root.y, -2.5, 1e-9));
+  ok('이징은 양 끝값을 바꾸지 않는다',
+     near(RW.engine.poseAt(eased, 0).root.y, 0) && near(RW.engine.poseAt(eased, 100).root.y, -10));
+}
+// 포즈 블렌딩 — 새 동작을 현재 자세에서 이어받는다.
+{
+  const a = { root: { y: 10, sx: 1, flip: false }, bones: { head: { rot: 20 } } };
+  const b = { root: { y: 0, sx: 1, flip: true }, bones: { head: { rot: 0 } } };
+  const m = RW.engine.blendPose(a, b, 0.5);
+  ok('블렌딩: 수치는 중간값', near(m.root.y, 5) && near(m.bones.head.rot, 10));
+  ok('블렌딩: 계단 속성은 절반에서 전환', m.root.flip === true);
+  ok('블렌딩 k=0 은 원래 자세', near(RW.engine.blendPose(a, b, 0).root.y, 10));
+}
 ok('back 은 계단 보간(중간에 아직 false)', RW.engine.poseAt(built, 50).root.back === false);
 ok('back 은 계단 보간(100 이후 true)', RW.engine.poseAt(built, 150).root.back === true);
 ok('sx/sy 뉴트럴은 1', RW.engine.poseAt(built, 50).root.sx === 1 && RW.engine.poseAt(built, 50).root.sy === 1);
@@ -263,6 +329,50 @@ for (const id of ART_IDS) {
     for (const host of NEEDED) {
       ok(`${name}: CSP 에 ${host}`, m[1].includes(host));
     }
+  }
+}
+
+// --- 13. 스프라이트 클립 규격 (Animation Bible 2·4·8절) -----------------------
+{
+  const CHAR = 'char_seal';
+  const meta = RW.clips.forCharacter(CHAR);
+  ok('물개 클립 등록부가 있다', !!meta);
+  if (meta) {
+    ok('캔버스 512×512', meta.canvas.w === 512 && meta.canvas.h === 512, JSON.stringify(meta.canvas));
+    ok('기준점 (256,470)', meta.anchor.x === 256 && meta.anchor.y === 470, JSON.stringify(meta.anchor));
+    ok('표시 배율이 있다', meta.displayScale > 0.2 && meta.displayScale < 3, String(meta.displayScale));
+
+    // 동작 id 는 그대로 유지되어야 한다(네트워크·히스토리 호환).
+    for (const g of RW.player ? [] : []) { /* player 는 DOM 필요, 여기선 계획만 본다 */ }
+    for (const g of ['idle', 'wander', 'g_heart', 'g_cheer', 'g_droop', 'g_twerk']) {
+      ok(`클립 계획 있음: ${g}`, RW.clips.planFor(CHAR, g) !== null);
+    }
+    ok('클립 없는 캐릭터는 계획이 없다(리그로 폴백)',
+       RW.clips.planFor('char_ribbon', 'idle') === null);
+
+    const idle0 = meta.clips.idle.frames[0].image;
+    for (const id of Object.keys(meta.clips)) {
+      const c = meta.clips[id];
+      ok(`${id}: 프레임이 있다`, c.frames.length > 0);
+      for (const f of c.frames) {
+        ok(`${id}: 유지 시간 > 0`, f.dur > 0);
+        ok(`${id}: 그림 영역(bbox) 기록됨`, Array.isArray(f.bbox) && f.bbox.length === 4);
+        // 접지 프레임은 발바닥이 기준선에 있어야 한다(Animation Bible 9절 2번)
+        if (f.ground && f.bbox) {
+          ok(`${id}: 접지 프레임의 발바닥이 기준선`, Math.abs(f.bbox[3] - meta.anchor.y) <= 1,
+             `bottom=${f.bbox[3]}`);
+        }
+      }
+      // 접합 규칙: 일회 클립은 접합 자세로 끝난다(뒤돌기 계열은 예외)
+      if (!c.loop && !/^turn_/.test(id)) {
+        ok(`${id}: 접합 자세로 끝난다`, c.frames[c.frames.length - 1].image === idle0,
+           c.frames[c.frames.length - 1].image);
+        ok(`${id}: 접합 자세로 시작한다`, c.frames[0].image === idle0);
+      }
+    }
+    // 걷기는 제자리걸음이고 보폭이 적혀 있어야 한다(이동은 코드가 한다)
+    ok('걷기에 보폭(stepAdvance)이 있다', meta.clips.walk.stepAdvance > 0,
+       String(meta.clips.walk.stepAdvance));
   }
 }
 

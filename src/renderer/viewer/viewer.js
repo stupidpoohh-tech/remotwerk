@@ -46,12 +46,12 @@
   }
 
   function buildChar() {
-    if (ctrl) ctrl.stop();
+    if (ctrl && ctrl.destroy) ctrl.destroy();
     anchor.innerHTML = '';
     const spec = RW.characters.rigFor(charId, cfg);
+    ctrl = RW.player.create(anchor, charId, spec);
     // 무대 300px — 발을 250px 에 두고 머리까지 들어오게 맞춘다.
-    RW.engine.fitAnchor(anchor, spec.skeleton, { feetY: 250, height: 240, maxScale: 1 });
-    ctrl = RW.engine.mount(anchor, spec);
+    RW.engine.fitAnchor(anchor, { box: ctrl.box }, { feetY: 250, height: 240, maxScale: 1 });
     clearPlaying();
     nowPlaying.textContent = '현재: —';
   }

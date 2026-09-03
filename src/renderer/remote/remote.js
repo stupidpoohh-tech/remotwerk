@@ -53,11 +53,13 @@
 
   // 내 캐릭터(상대 화면에 뜨는 그 캐릭터)를 그린다.
   function buildCharacter() {
-    if (ctrl) ctrl.stop();
+    if (ctrl && ctrl.destroy) ctrl.destroy();
     anchor.innerHTML = '';
-    const spec = RW.characters.rigFor(cfg.characterId || 'char_seal', cfg);
-    ctrl = RW.engine.mount(anchor, spec);
-    RW.engine.fitAnchor(anchor, spec.skeleton, { feetY: FEET_Y, height: AVAIL_H, maxScale: MAX_SCALE });
+    const id = cfg.characterId || 'char_seal';
+    const spec = RW.characters.rigFor(id, cfg);
+    // 스프라이트 클립이 있으면 클립으로, 없으면 리그로 자동 폴백.
+    ctrl = RW.player.create(anchor, id, spec);
+    RW.engine.fitAnchor(anchor, { box: ctrl.box }, { feetY: FEET_Y, height: AVAIL_H, maxScale: MAX_SCALE });
     backToIdle();
   }
 

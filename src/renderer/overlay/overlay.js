@@ -16,11 +16,8 @@
 
   let cfg = null;
   let transport = null;
-  let ctrl = null;              // 엔진 컨트롤러
-
-  // 상태: 'ambient' | 'gesture'
-  let state = 'ambient';
-  let ambientTimer = null;
+  let ctrl = null;              // 재생기(스프라이트 또는 리그)
+  let actor = null;             // 상태 제어 + 이동
 
   // ---- 초기화 ----
   async function main() {
@@ -61,7 +58,8 @@
     const rigInput = def.kind === 'bundle'
       ? RW.characters.bundleToRig(def.bundle)
       : RW.characters.rigFor(def.id, cfg);
-    buildFromRig(rigInput);
+    // 번들(사용자 업로드)은 클립이 없으므로 항상 리그로 간다.
+    buildFromRig(rigInput, def.kind === 'bundle' ? null : def.id);
   }
 
   // 캐릭터 상자 — 리그마다 다르다(몸통·다리 길이가 제각각).
@@ -71,10 +69,14 @@
   const DEFAULT_BOX = { w: 120, h: 210, originX: 60, originY: 120, groundY: 86 };
   let charBox = DEFAULT_BOX;
 
-  function buildFromRig({ skeleton, rig }) {
-    if (ctrl) ctrl.stop();
+  function buildFromRig(spec, charId) {
+    const { skeleton } = spec;
+    if (actor) actor.stop();
+    if (ctrl && ctrl.destroy) ctrl.destroy();
     anchorEl.innerHTML = '';
-    const b = (skeleton && skeleton.box) || {};
+    // 스프라이트 클립이 있으면 클립으로, 없으면 기존 5조각 리그로 자동 폴백된다.
+    ctrl = RW.player.create(anchorEl, charId, spec);
+    const b = ctrl.box || (skeleton && skeleton.box) || {};
     charBox = {
       w: b.w != null ? b.w : DEFAULT_BOX.w,
       h: b.h != null ? b.h : DEFAULT_BOX.h,
@@ -87,8 +89,14 @@
     anchorEl.style.left = charBox.originX + 'px';
     anchorEl.style.top = charBox.originY + 'px';
     positionChar();
-    ctrl = RW.engine.mount(anchorEl, { skeleton, rig });
-    startAmbient();
+
+    // 상태 제어와 이동은 배우가 맡는다. 여기(화면)는 좌표를 받아 놓기만 한다.
+    actor = RW.actor.create({
+      player: ctrl,
+      isPaused: () => !!(cfg && cfg.focusMode),
+      onMove(ox, oy) { roamX = ox; roamY = oy; positionChar(); }
+    });
+    actor.start();
   }
 
   // ---- 위치 · 크기 ----
@@ -114,45 +122,13 @@
   }
   function clamp01(v) { return Math.max(0, Math.min(1, v)); }
 
-  // ---- 자율 생활 ----
-  function startAmbient() {
-    state = 'ambient';
-    scheduleAmbient(true);
-  }
-  function scheduleAmbient(now) {
-    clearTimeout(ambientTimer);
-    const play = () => {
-      if (state !== 'ambient') return;
-      // 돌아다니는 쪽에 무게를 둔다(가만히 있으면 심심하다).
-      const walking = Math.random() < 0.65;
-      ctrl.play(walking ? 'wander' : 'idle');
-      // 걸었으면 실제 자리도 조금 옮겨, 시간이 지나면 여기저기 가 있게 한다.
-      if (walking) roam();
-      ambientTimer = setTimeout(play, walking ? 3400 + Math.random() * 3000
-                                             : 3000 + Math.random() * 5000);
-    };
-    if (now) play();
-    else ambientTimer = setTimeout(play, 1500 + Math.random() * 3000);
-  }
-
-  // ---- 배회(roam) ----
-  // wander 는 제자리에서 걷다 돌아오는 루프라, 그것만으로는 "늘 같은 자리"에 있다.
-  // 걸을 때마다 기준 위치를 조금씩 옮겨서 시간이 지나면 화면 여기저기로 이동하게 한다.
-  // 사용자가 잡아둔 집 위치(config.overlayPos)는 건드리지 않는다 — 껐다 켜면 제자리로.
+  // ---- 자율 생활 · 배회 ----
+  // 상태 전환(대기↔걷기)과 좌표 이동은 actor.js 가 담당한다.
+  // 여기서는 actor 가 알려 준 오프셋을 화면 위치에 반영만 한다.
+  //
+  // 예전에는 wander 클립이 스스로 좌우로 왕복하고 roam() 이 기준 위치를 순간이동시켜,
+  // 두 이동이 겹쳐 있었다. 지금은 클립이 제자리걸음이고 좌표는 한 곳에서만 바뀐다.
   let roamX = 0, roamY = 0;
-  function roam() {
-    const s = charScale();
-    roamX += (Math.random() * 2 - 1) * 130;
-    roamY += (Math.random() * 2 - 1) * 40;
-    // 화면 밖으로 나가지 않게 집 위치 기준으로 제한
-    const pos = (cfg && cfg.overlayPos) || { x: 0.82, y: 0.72 };
-    const homeX = clamp01(pos.x) * window.innerWidth;
-    const homeY = clamp01(pos.y) * window.innerHeight;
-    const margin = 70 * s;
-    roamX = Math.max(margin - homeX, Math.min(window.innerWidth - margin - homeX, roamX));
-    roamY = Math.max(margin - homeY, Math.min(window.innerHeight - margin - homeY, roamY));
-    positionChar();
-  }
 
   // ---- 신호 처리 ----
   function onSignal(sig) {
@@ -164,9 +140,7 @@
   }
 
   function playGesture(gid) {
-    clearTimeout(ambientTimer);
-    state = 'gesture';
-    ctrl.play(gid, { onDone: startAmbient });
+    if (actor) actor.playGesture(gid);
   }
 
   // ---- 설정 변경 반영 ----
@@ -310,6 +284,7 @@
       const x = (charEl.offsetLeft + 60) / window.innerWidth;
       const y = (charEl.offsetTop + 120) / window.innerHeight;
       roamX = 0; roamY = 0;
+      if (actor) actor.resetPosition();
       host.setConfig({ overlayPos: { x: clamp01(x), y: clamp01(y) } });
     });
   }

@@ -1,0 +1,91 @@
+<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="../../src/renderer/shared/character.css" />
+<style>
+  html,body{margin:0;background:#fff}
+  #stage{position:relative;width:640px;height:460px;overflow:hidden;background:#f7f7fb}
+  #char{position:absolute}
+  .rw-anchor{position:absolute}
+  #ground{position:absolute;left:0;right:0;top:380px;border-top:1px dashed #f0a}
+</style>
+<div id="stage"><div id="ground"></div><div id="char"><div class="rw-anchor"></div></div></div>
+<script src="../../src/renderer/shared/skeleton.js"></script>
+<script src="../../src/renderer/shared/gestures.js"></script>
+<script src="../../src/renderer/shared/animations.js"></script>
+<script src="../../src/renderer/shared/engine.js"></script>
+<script src="../../src/renderer/shared/preset-art.js"></script>
+<script src="../../src/renderer/shared/presets.js"></script>
+<script src="../../src/renderer/shared/characters.js"></script>
+<script src="../../src/renderer/shared/clip-art.js"></script>
+<script src="../../src/renderer/shared/clips.js"></script>
+<script src="../../src/renderer/shared/player.js"></script>
+<script src="../../src/renderer/shared/actor.js"></script>
+<script>
+/* 시간축 검사용 하네스.
+   실제 재생기(player)와 배우(actor)를 그대로 돌리고, 화면에 나타난 상태를
+   일정 간격으로 기록한다. 정지 포즈가 아니라 **움직임**을 재는 것이 목적이다. */
+(function () {
+  const HOME_X = 320, HOME_Y = 380;      // 바닥선
+  let player = null, actor = null, offset = { x: 0, y: 0 };
+  const charEl = document.getElementById('char');
+  const anchorEl = charEl.querySelector('.rw-anchor');
+
+  window.SETUP = function (charId, useSprite) {
+    if (actor) actor.stop();
+    if (player && player.destroy) player.destroy();
+    anchorEl.innerHTML = '';
+    const spec = RW.characters.rigFor(charId, { customCharacters: [] });
+    player = useSprite === false
+      ? RW.player.createRig(anchorEl, spec)
+      : RW.player.create(anchorEl, charId, spec);
+    const b = player.box;
+    charEl.style.width = b.w + 'px';
+    charEl.style.height = b.h + 'px';
+    anchorEl.style.left = b.originX + 'px';
+    anchorEl.style.top = b.originY + 'px';
+    place();
+    window.__player = player;
+    return { kind: player.kind, box: b, stepAdvance: player.stepAdvance() };
+  };
+
+  function place() {
+    const b = player.box;
+    charEl.style.left = (HOME_X - b.originX + offset.x) + 'px';
+    charEl.style.top = (HOME_Y - b.originY - b.groundY + offset.y) + 'px';
+  }
+
+  window.START_ACTOR = function (opts) {
+    actor = RW.actor.create(Object.assign({
+      player: player,
+      onMove(x, y) { offset = { x, y }; place(); }
+    }, opts || {}));
+    actor.start();
+  };
+  window.PLAY = function (gid) {
+    if (actor) actor.playGesture(gid);
+    else player.play(gid, {});
+  };
+  window.STATE = function () { return actor ? actor.state : 'n/a'; };
+
+  // 지금 화면에 보이는 상태.
+  //   frame  : 스프라이트면 파일명, 리그면 스테이지 transform(자세 식별용)
+  //   box    : 실제로 그려진 **그림**의 화면 좌표(재생기가 계산해 준다)
+  window.SAMPLE = function () {
+    const s = { t: performance.now() };
+    const sp = document.querySelector('.rw-sprite');
+    if (sp) {
+      const m = sp.style.backgroundImage.match(/([^/"]+\/[^/"]+\.png)/);
+      s.frame = m ? m[1] : '';
+    } else {
+      const st = anchorEl.querySelector('.rw-stage');
+      s.frame = st ? st.style.transform : '';
+    }
+    const r = player.contentRect();
+    s.box = [Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom)];
+    s.cx = Math.round((r.left + r.right) / 2);
+    s.bottom = Math.round(r.bottom);
+    s.offX = Math.round(offset.x * 10) / 10;
+    s.state = actor ? actor.state : '';
+    return s;
+  };
+})();
+</script>

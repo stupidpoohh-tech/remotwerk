@@ -30,14 +30,15 @@
     //    "신나"보다 훨씬 작게 뛰고, 대신 몸 기울임(애교)이 들어간다.
     g_heart: {
       loop: false,
+      settle: 260,   // 접합 자세로 되돌아가며 끝난다(Animation Bible 4절)
       fx: 'heart',
       frames: [
         { t: 0 },
         { t: 180, root: { y: 6, sy: 0.93, sx: 1.06 } },                                    // 예비로 살짝 눌림
-        { t: 380, root: { y: -16, sy: 1.08, sx: 0.95, rot: -6, fx: 0.7 }, armR_upper: { rot: -38 }, armL_upper: { rot: 38 }, head: { rot: -5 } },
-        { t: 600, root: { y: 5, sy: 0.94, sx: 1.05, rot: 4 }, armR_upper: { rot: -20 }, armL_upper: { rot: 20 } },
-        { t: 800, root: { y: -13, sy: 1.07, sx: 0.96, rot: 6, fx: 1 }, armR_upper: { rot: -38 }, armL_upper: { rot: 38 }, head: { rot: 5 } },
-        { t: 1020, root: { y: 4, sy: 0.95, sx: 1.04, rot: -4 } },
+        { t: 380, ease: 'out', root: { y: -16, sy: 1.08, sx: 0.95, rot: -6, fx: 0.7 }, armR_upper: { rot: -38 }, armL_upper: { rot: 38 }, head: { rot: -5 } },
+        { t: 600, ease: 'in', root: { y: 5, sy: 0.94, sx: 1.05, rot: 4 }, armR_upper: { rot: -20 }, armL_upper: { rot: 20 } },
+        { t: 800, ease: 'out', root: { y: -13, sy: 1.07, sx: 0.96, rot: 6, fx: 1 }, armR_upper: { rot: -38 }, armL_upper: { rot: 38 }, head: { rot: 5 } },
+        { t: 1020, ease: 'in', root: { y: 4, sy: 0.95, sx: 1.04, rot: -4 } },
         { t: 1260, root: { y: 0, rot: -6, fx: 0.9 }, head: { rot: -6 }, armR_upper: { rot: -24 }, armL_upper: { rot: 24 } }, // 살랑
         { t: 1520, root: { rot: 6, fx: 0.7 }, head: { rot: 6 }, armR_upper: { rot: -24 }, armL_upper: { rot: 24 } },
         { t: 1760, root: { rot: -3, fx: 0.4 }, head: { rot: -3 } },
@@ -48,16 +49,17 @@
     // ✨ 신나 — 크게 세 번 연속 점프. 셋 중 가장 빠르고 진폭이 크다.
     g_cheer: {
       loop: false,
+      settle: 300,   // 접합 자세로 되돌아가며 끝난다(Animation Bible 4절)
       fx: 'sparkle',
       frames: [
         { t: 0 },
         { t: 120, root: { y: 13, sy: 0.84, sx: 1.13 }, legR_upper: { rot: 8 }, legL_upper: { rot: 8 } }, // 잔뜩 웅크림
-        { t: 300, root: { y: -46, sy: 1.16, sx: 0.90, fx: 0.9 }, armR_upper: { rot: -72 }, armL_upper: { rot: 72 }, legR_upper: { rot: -5 }, legL_upper: { rot: 5 } },
-        { t: 450, root: { y: 11, sy: 0.87, sx: 1.11 }, armR_upper: { rot: -30 }, armL_upper: { rot: 30 } },
-        { t: 620, root: { y: -52, sy: 1.18, sx: 0.89, fx: 1.2 }, armR_upper: { rot: -80 }, armL_upper: { rot: 80 }, legR_upper: { rot: -5 }, legL_upper: { rot: 5 } },
-        { t: 770, root: { y: 11, sy: 0.87, sx: 1.11 }, armR_upper: { rot: -30 }, armL_upper: { rot: 30 } },
-        { t: 930, root: { y: -44, sy: 1.15, sx: 0.91, fx: 1 }, armR_upper: { rot: -72 }, armL_upper: { rot: 72 } },
-        { t: 1090, root: { y: 13, sy: 0.84, sx: 1.13 }, armR_upper: { rot: -20 }, armL_upper: { rot: 20 } },
+        { t: 300, ease: 'out', root: { y: -46, sy: 1.16, sx: 0.90, fx: 0.9 }, armR_upper: { rot: -72 }, armL_upper: { rot: 72 }, legR_upper: { rot: -5 }, legL_upper: { rot: 5 } },
+        { t: 450, ease: 'in', root: { y: 11, sy: 0.87, sx: 1.11 }, armR_upper: { rot: -30 }, armL_upper: { rot: 30 } },
+        { t: 620, ease: 'out', root: { y: -52, sy: 1.18, sx: 0.89, fx: 1.2 }, armR_upper: { rot: -80 }, armL_upper: { rot: 80 }, legR_upper: { rot: -5 }, legL_upper: { rot: 5 } },
+        { t: 770, ease: 'in', root: { y: 11, sy: 0.87, sx: 1.11 }, armR_upper: { rot: -30 }, armL_upper: { rot: 30 } },
+        { t: 930, ease: 'out', root: { y: -44, sy: 1.15, sx: 0.91, fx: 1 }, armR_upper: { rot: -72 }, armL_upper: { rot: 72 } },
+        { t: 1090, ease: 'in', root: { y: 13, sy: 0.84, sx: 1.13 }, armR_upper: { rot: -20 }, armL_upper: { rot: 20 } },
         { t: 1270, root: { y: -9, sy: 1.06, sx: 0.97, fx: 0.5 } },                        // 마무리 반동
         { t: 1450, root: { y: 2, sy: 0.98, fx: 0.2 } },
         { t: 1620, root: { y: 0, fx: 0 } }
@@ -67,6 +69,7 @@
     // 🫠 지쳤어 — 푹 눌린 채 좌우로 축 흔들. 셋 중 가장 느리고 아래로 향한다.
     g_droop: {
       loop: false,
+      settle: 420,   // 접합 자세로 되돌아가며 끝난다(Animation Bible 4절)
       fx: 'droop',
       frames: [
         { t: 0 },
@@ -85,6 +88,7 @@
     //    뒷모습 이미지를 등록해 두면 그때 등이 보이고, 없으면 앞모습 그대로 흔든다.
     g_twerk: {
       loop: false,
+      settle: 260,   // 접합 자세로 되돌아가며 끝난다(Animation Bible 4절)
       frames: [
         { t: 0 },
         { t: 180, root: { y: 7, sy: 0.93, sx: 1.06 } },                                   // 준비로 살짝 눌림
@@ -123,23 +127,35 @@
       ]
     },
 
+    // 🚶 걷기 — **제자리걸음**이다. 화면을 가로지르는 이동은 코드(actor)가 한다.
+    //
+    // 예전에는 클립이 root.x 로 0→108→0 을 왕복하면서, 동시에 overlay 의 roam() 이
+    // 기준 위치를 순간이동시켰다. 두 이동이 겹쳐 "제자리에서 걷다가 텔레포트"가 됐다.
+    // 이제 그림은 걸음만, 좌표는 코드만 담당한다(Animation Bible 5절).
+    //
+    // 한 바퀴 = 2걸음(1280ms). 각 걸음은 160ms 짜리 4프레임.
+    // stepAdvance = 한 걸음이 나아가는 논리픽셀. actor 가 이 값으로 속도를 정한다.
     wander: {
       loop: true,
+      stepAdvance: 26,
+      steps: 2,
+      // 각 발이 바닥에 닿아 있는 구간(ms). 접지 검사와 이동 속도 계산에 쓴다.
+      ground: [
+        { from: 0,   to: 640,  feet: ['L'] },
+        { from: 640, to: 1280, feet: ['R'] }
+      ],
       frames: [
-        { t: 0, root: { x: 0 } },
-        { t: 260, root: { x: 14, y: -6, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 17 }, legL_upper: { rot: -17 }, armR_upper: { rot: -9 }, armL_upper: { rot: 9 } },
-        { t: 520, root: { x: 30, y: 3, sy: 0.95, sx: 1.05 }, legR_upper: { rot: -17 }, legL_upper: { rot: 17 }, armR_upper: { rot: 9 }, armL_upper: { rot: -9 } },
-        { t: 780, root: { x: 48, y: -6, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 17 }, legL_upper: { rot: -17 }, armR_upper: { rot: -9 }, armL_upper: { rot: 9 } },
-        { t: 1040, root: { x: 68, y: 3, sy: 0.95, sx: 1.05 }, legR_upper: { rot: -17 }, legL_upper: { rot: 17 }, armR_upper: { rot: 9 }, armL_upper: { rot: -9 } },
-        { t: 1300, root: { x: 88, y: -6, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 17 }, legL_upper: { rot: -17 } },
-        { t: 1560, root: { x: 104, y: 2 } },
-        { t: 1800, root: { x: 108, y: 0, flip: true } },
-        { t: 2060, root: { x: 92, y: -6, flip: true, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 17 }, legL_upper: { rot: -17 }, armR_upper: { rot: -9 }, armL_upper: { rot: 9 } },
-        { t: 2320, root: { x: 72, y: 3, flip: true, sy: 0.95, sx: 1.05 }, legR_upper: { rot: -17 }, legL_upper: { rot: 17 }, armR_upper: { rot: 9 }, armL_upper: { rot: -9 } },
-        { t: 2580, root: { x: 52, y: -6, flip: true, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 17 }, legL_upper: { rot: -17 } },
-        { t: 2840, root: { x: 32, y: 3, flip: true, sy: 0.95, sx: 1.05 }, legR_upper: { rot: -17 }, legL_upper: { rot: 17 } },
-        { t: 3100, root: { x: 14, y: -6, flip: true, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 17 }, legL_upper: { rot: -17 } },
-        { t: 3360, root: { x: 0, y: 0, flip: false } }
+        // ── 왼발 걸음
+        { t: 0,    root: { y: 2, sy: 0.98, sx: 1.02 }, legL_upper: { rot: -14 }, legR_upper: { rot: 14 }, armL_upper: { rot: 11 }, armR_upper: { rot: -11 } },  // 왼발 닿는 순간
+        { t: 160,  ease: 'out', root: { y: -5, sy: 1.04, sx: 0.97, rot: -1.5 }, legL_upper: { rot: -6 }, legR_upper: { rot: 8 }, armL_upper: { rot: 6 }, armR_upper: { rot: -6 }, head: { rot: 1 } },
+        { t: 320,  ease: 'in',  root: { y: 1, sy: 0.99, sx: 1.01 }, legL_upper: { rot: 3 }, legR_upper: { rot: -3 }, armL_upper: { rot: -2 }, armR_upper: { rot: 2 } },
+        { t: 480,  root: { y: 0, sy: 1, sx: 1 }, legL_upper: { rot: 9 }, legR_upper: { rot: -9 }, armL_upper: { rot: -7 }, armR_upper: { rot: 7 } },
+        // ── 오른발 걸음(좌우 반대)
+        { t: 640,  root: { y: 2, sy: 0.98, sx: 1.02 }, legL_upper: { rot: 14 }, legR_upper: { rot: -14 }, armL_upper: { rot: -11 }, armR_upper: { rot: 11 } },
+        { t: 800,  ease: 'out', root: { y: -5, sy: 1.04, sx: 0.97, rot: 1.5 }, legL_upper: { rot: 8 }, legR_upper: { rot: -6 }, armL_upper: { rot: -6 }, armR_upper: { rot: 6 }, head: { rot: -1 } },
+        { t: 960,  ease: 'in',  root: { y: 1, sy: 0.99, sx: 1.01 }, legL_upper: { rot: -3 }, legR_upper: { rot: 3 }, armL_upper: { rot: 2 }, armR_upper: { rot: -2 } },
+        { t: 1120, root: { y: 0, sy: 1, sx: 1 }, legL_upper: { rot: -9 }, legR_upper: { rot: 9 }, armL_upper: { rot: 7 }, armR_upper: { rot: -7 } },
+        { t: 1280, root: { y: 2, sy: 0.98, sx: 1.02 }, legL_upper: { rot: -14 }, legR_upper: { rot: 14 }, armL_upper: { rot: 11 }, armR_upper: { rot: -11 } }  // = t0 (루프 닫힘)
       ]
     }
   };

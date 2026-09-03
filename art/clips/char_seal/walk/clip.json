@@ -1,0 +1,80 @@
+{
+  "id": "walk",
+  "character": "char_seal",
+  "canvas": {
+    "w": 512,
+    "h": 512
+  },
+  "anchor": {
+    "x": 256,
+    "y": 470
+  },
+  "displayScale": 0.7059,
+  "charHeight": 340,
+  "loop": true,
+  "loopFrom": 0,
+  "cancelFrom": 0,
+  "frames": [
+    {
+      "file": "frame-00.png",
+      "dur": 160,
+      "ground": [
+        "L"
+      ]
+    },
+    {
+      "file": "frame-01.png",
+      "dur": 160,
+      "ground": [
+        "L",
+        "R"
+      ]
+    },
+    {
+      "file": "frame-02.png",
+      "dur": 160,
+      "ground": [
+        "L"
+      ]
+    },
+    {
+      "file": "frame-03.png",
+      "dur": 160,
+      "ground": [
+        "L"
+      ]
+    },
+    {
+      "file": "frame-04.png",
+      "dur": 160,
+      "ground": [
+        "R"
+      ]
+    },
+    {
+      "file": "frame-05.png",
+      "dur": 160,
+      "ground": [
+        "L",
+        "R"
+      ]
+    },
+    {
+      "file": "frame-06.png",
+      "dur": 160,
+      "ground": [
+        "R"
+      ]
+    },
+    {
+      "file": "frame-07.png",
+      "dur": 160,
+      "ground": [
+        "R"
+      ]
+    }
+  ],
+  "placeholder": true,
+  "note": "임시 에셋 — 원본 5조각을 자세만 잡아 구운 것. 새로 그린 연기 자세가 아니다. docs/art-orders.md 참고.",
+  "stepAdvance": 26
+}

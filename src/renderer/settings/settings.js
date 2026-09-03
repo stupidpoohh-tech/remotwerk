@@ -210,13 +210,13 @@
   function renderPreview2() {
     const anchor = $('previewAnchor');
     if (!anchor) return;
-    if (previewCtrl) previewCtrl.stop();
+    if (previewCtrl && previewCtrl.destroy) previewCtrl.destroy();
     anchor.innerHTML = '';
     const scale = Math.max(0.4, Math.min(2.5, Number(cfg.overlayScale) || 1));
     const spec = RW.characters.rigFor(myChar, cfg);
+    previewCtrl = RW.player.create(anchor, myChar, spec);
     // 실제 오버레이와 같은 배율로 두되, 발은 바닥선(240px)에 맞춘다.
-    RW.engine.fitAnchor(anchor, spec.skeleton, { feetY: 240, scale });
-    previewCtrl = RW.engine.mount(anchor, spec);
+    RW.engine.fitAnchor(anchor, { box: previewCtrl.box }, { feetY: 240, scale });
     previewCtrl.play('idle');
     $('previewNow').textContent = '멍때리는 중… (상대 화면에서도 이 크기로 보입니다)';
   }
@@ -296,8 +296,9 @@
     anchor.style.left = '50%';
     container.appendChild(anchor);
     const spec = RW.characters.rigFor(charId, cfg);
-    RW.engine.fitAnchor(anchor, spec.skeleton, { feetY: 114, height: 86, maxScale: 0.6 });
-    RW.engine.mount(anchor, spec);
+    const p = RW.player.create(anchor, charId, spec);
+    RW.engine.fitAnchor(anchor, { box: p.box }, { feetY: 114, height: 86, maxScale: 0.6 });
+    p.play('idle', {});
   }
 
   async function save() {
