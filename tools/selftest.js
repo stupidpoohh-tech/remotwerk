@@ -373,6 +373,18 @@ for (const id of ART_IDS) {
     // 걷기는 제자리걸음이고 보폭이 적혀 있어야 한다(이동은 코드가 한다)
     ok('걷기에 보폭(stepAdvance)이 있다', meta.clips.walk.stepAdvance > 0,
        String(meta.clips.walk.stepAdvance));
+
+    // 이펙트는 스프라이트와 리그가 **같아야** 한다.
+    // (스프라이트 재생기에 이펙트 레이어를 빼먹어서, 같은 신호인데 리그로 보면 하트가
+    //  뜨고 스프라이트로 보면 안 뜨는 상태였다. 곁눈질 가독성이 재생 방식에 따라
+    //  달라지면 안 된다.)
+    for (const g of ['g_heart', 'g_cheer', 'g_droop', 'g_twerk']) {
+      const anim = RW.animations.get(g);
+      const clip = RW.clips.get(CHAR, g);
+      if (!clip) continue;                      // g_twerk 는 조합이라 단일 클립이 없다
+      ok(`${g}: 이펙트가 리그와 같다`, (clip.fx || null) === (anim.fx || null),
+         `스프라이트=${clip.fx || '없음'} 리그=${anim.fx || '없음'}`);
+    }
   }
 }
 

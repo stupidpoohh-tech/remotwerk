@@ -88,6 +88,24 @@
       };
     })();
 
+    // 이펙트 레이어 — 리그 경로(engine.js)와 **같은 것**이어야 한다.
+    // 하트·반짝·땀방울은 신호를 구분짓는 가장 확실한 수단이라, 스프라이트로 재생한다고
+    // 사라지면 곁눈질 가독성이 리그보다 나빠진다.
+    // 위치 기준점이 다르다: 리그는 골격 원점, 스프라이트는 발밑이라 머리 위로 올려 준다.
+    const fxEl = document.createElement('div');
+    fxEl.className = 'rw-fx';
+    for (let i = 0; i < 3; i++) fxEl.appendChild(document.createElement('span'));
+    // 머리 꼭대기(= 발밑에서 상자 높이만큼 위)보다 조금 더 위에 띄운다.
+    fxEl.style.top = (-box.originY - 96) + 'px';
+    container.appendChild(fxEl);
+    const FX_GLYPH = { heart: '\u{1F495}', sparkle: '✨', droop: '\u{1F4A6}' };
+    function setFx(type) {
+      fxEl.className = 'rw-fx' + (type ? ' rw-fx-' + type : '');
+      const ch = FX_GLYPH[type] || '';
+      for (const sp of fxEl.children) sp.textContent = ch;
+      fxEl.style.opacity = type ? '1' : '0';
+    }
+
     let raf = null, cancelled = false;
     let cur = null;              // { seq:[{image,dur}], total, loop, startedAt }
     let curClipId = null;
@@ -132,6 +150,7 @@
       cancelled = true;
       if (raf) cancelAnimationFrame(raf);
       raf = null;
+      setFx(null);
     }
 
     function play(gestureId, options) {
@@ -141,6 +160,8 @@
       stop();
       cancelled = false;
       curClipId = gestureId;
+      // 이펙트 종류는 클립 메타가 정한다(트월킹처럼 없는 동작은 끈다).
+      setFx((RW.clips.get(charId, gestureId) || {}).fx || null);
       const built = buildSeq(plan);
       cur = built;
       const loop = plan.loop;
@@ -185,7 +206,7 @@
       currentGesture() { return curClipId; },
       contentRect,
       placeholder: RW.clips.placeholders(charId).length > 0,
-      destroy() { stop(); el.remove(); }
+      destroy() { stop(); el.remove(); fxEl.remove(); }
     };
   }
 
