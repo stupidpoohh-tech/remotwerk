@@ -1,0 +1,56 @@
+name: Build Windows Installer
+
+# 리눅스에서는 wine 없이 Windows exe 를 만들 수 없으므로 windows 러너에서 빌드한다.
+#  - 수동 실행(workflow_dispatch): 설치파일을 아티팩트로 올린다(다운로드용).
+#  - 태그 푸시(v*): GitHub Release 로 게시한다(자동 업데이트 피드가 된다).
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node 설치
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 의존성 설치
+        run: npm install
+
+      - name: 아이콘 생성
+        run: npm run icon
+
+      - name: 설치파일 빌드 (아티팩트용)
+        if: startsWith(github.ref, 'refs/tags/') == false
+        run: npx electron-builder --win --publish never
+
+      - name: 설치파일 빌드 + Release 게시 (태그일 때)
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win --publish always
+
+      - name: 산출물 목록
+        shell: bash
+        run: ls -la dist/ || true
+
+      - name: 설치파일 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: Remotwerk-Windows-Setup
+          path: |
+            dist/*.exe
+            dist/*.exe.blockmap
+            dist/latest.yml
+          if-no-files-found: error
+          retention-days: 30
