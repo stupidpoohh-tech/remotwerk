@@ -171,7 +171,8 @@ function createRemote() {
   }
 
   const w = new BrowserWindow({
-    width: 300, height: 360,
+    // 카드가 200×184 라서 그림자·토스트 여백만 남기고 창을 줄였다(업무 화면을 덜 가린다).
+    width: 236, height: 226,
     transparent: true,
     frame: false,
     resizable: false,

@@ -193,12 +193,16 @@
     anchor.innerHTML = '';
     const scale = Math.max(0.4, Math.min(2.5, Number(cfg.overlayScale) || 1));
     anchor.style.transform = `scale(${scale})`;
-    previewCtrl = RW.engine.mount(anchor, RW.characters.rigFor(myChar, cfg));
+    const spec = RW.characters.rigFor(myChar, cfg);
+    // 발을 바닥선(240px)에 맞춘다. 리그마다 다리 길이가 달라 고정 top 을 쓰면 발이 잘렸다.
+    const groundY = (spec.skeleton.box && spec.skeleton.box.groundY != null) ? spec.skeleton.box.groundY : 86;
+    anchor.style.top = (240 - groundY * scale).toFixed(1) + 'px';
+    previewCtrl = RW.engine.mount(anchor, spec);
     previewCtrl.play('idle');
     $('previewNow').textContent = '멍때리는 중… (상대 화면에서도 이 크기로 보입니다)';
   }
 
-  // 능동 동작 8개를 차례로 재생해 실제로 어떻게 움직이는지 보여준다.
+  // 능동 신호를 차례로 재생해 실제로 어떻게 움직이는지 보여준다.
   function playPreviewSequence() {
     if (!previewCtrl) return;
     const list = RW.gestures.ACTIVE.map((g) => g.id);
@@ -285,12 +289,15 @@
 
   async function save() {
     const status = $('status');
-    let firebase = null;
+    let firebase;
     const raw = $('firebase').value.trim();
     if (raw) {
       try { firebase = JSON.parse(raw); }
       catch (_) { status.textContent = 'Firebase 설정 JSON 형식이 올바르지 않아요.'; return; }
     }
+    // 칸이 비어 있으면 firebase 를 건드리지 않는다.
+    // 예전엔 여기서 null 을 저장해 내장 기본 설정을 지워버렸고, 그 뒤로는 초대 코드가
+    // "Firebase 설정이 필요해요" 로 막혔다.
 
     // 페어링(roomId)은 위 초대/참여 흐름에서만 설정된다. 여기서는 건드리지 않는다.
     const patch = {

@@ -33,6 +33,9 @@ jobs:
       - name: 의존성 설치
         run: npm install
 
+      - name: 회귀 테스트
+        run: npm test
+
       - name: 아이콘 생성
         run: npm run icon
 

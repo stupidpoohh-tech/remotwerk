@@ -18,7 +18,11 @@
     const skeleton = (bundle.proportions && skeletonId === 'bipedal5')
       ? RW.skeleton.buildBipedal5(bundle.proportions)
       : RW.skeleton.getSkeleton(skeletonId);
-    return { skeleton, rig: { skeletonId, slots: bundle.slots || {} } };
+    // slotsBack 은 뒷모습(트월킹에서 등을 보일 때만 쓰인다). 없으면 앞모습으로 재생된다.
+    return {
+      skeleton,
+      rig: { skeletonId, slots: bundle.slots || {}, slotsBack: bundle.slotsBack || null }
+    };
   }
 
   function customList(config) { return (config && config.customCharacters) || []; }

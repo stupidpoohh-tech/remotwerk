@@ -150,7 +150,7 @@ button {
 }
 #previewStage {
   position: relative;
-  height: 230px;
+  height: 260px;
   border-radius: 10px;
   overflow: hidden;
   background:
@@ -158,7 +158,8 @@ button {
     linear-gradient(90deg, #e7e7ef 1px, transparent 1px) 0 0 / 20px 20px,
     #eef0f6;
 }
-#previewAnchor { position: absolute; left: 50%; top: 160px; transform-origin: 0 86px; }
+/* top/transform 은 settings.js 가 리그의 groundY 로 계산해 넣는다(발이 잘리지 않게) */
+#previewAnchor { position: absolute; left: 50%; transform-origin: 0 0; }
 @media (prefers-color-scheme: dark) {
   .preview-panel { background: #202028; border-color: #2e2e38; }
   #previewStage { background: #24242c; }

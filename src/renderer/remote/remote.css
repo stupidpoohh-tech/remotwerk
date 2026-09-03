@@ -1,6 +1,13 @@
-/* 리모컨 — 내 캐릭터 미리보기 + 신호 3개.
-   라디얼 8버튼을 버리고, 캐릭터를 크게 보여주고 버튼은 아래 가로로 뒀다.
-   "내가 뭘 보냈는지" 캐릭터가 그 자리에서 바로 연기해 준다. */
+/* 리모컨 — 내 캐릭터 미리보기 + 신호 4개.
+ *
+ * 설계 메모
+ *  - 리모컨은 "업무 화면 위에 잠깐 뜨는 물건"이라 작을수록 좋다(비침습성).
+ *    카드 268px → 200px, 창 300×360 → 236×226 으로 줄였다.
+ *  - 자리를 줄이려고 캡션을 무대 아래 줄에서 무대 위 알약으로 옮겼다.
+ *    세로 한 줄(약 30px)이 통째로 사라진다.
+ *  - 캐릭터 위치는 CSS 로 고정하지 않는다. 리그마다 다리 길이(groundY)가 달라
+ *    발이 잘리던 문제가 있었다 → remote.js 가 groundY 를 읽어 바닥에 맞춘다.
+ */
 html, body {
   margin: 0;
   width: 100%;
@@ -15,81 +22,124 @@ html, body {
   position: absolute;
   left: 50%; top: 50%;
   transform: translate(-50%, -50%);
-  width: 268px;
-  padding: 12px 12px 14px;
+  width: 200px;
+  padding: 8px 8px 9px;
   box-sizing: border-box;
-  background: rgba(252, 252, 255, 0.97);
-  border-radius: 20px;
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.28);
-  text-align: center;
-}
-@media (prefers-color-scheme: dark) {
-  #card { background: rgba(32, 32, 40, 0.97); color: #ececf1; }
-  #stage { background: #26262f !important; }
-  .btn { background: #2e2e3a !important; color: #ececf1 !important; border-color: #3a3a48 !important; }
+  background: linear-gradient(180deg, #ffffff 0%, #f7f5ff 100%);
+  border: 1px solid rgba(138, 99, 255, 0.16);
+  border-radius: 18px;
+  box-shadow: 0 12px 28px rgba(46, 30, 90, 0.24), 0 2px 6px rgba(46, 30, 90, 0.12);
 }
 
-/* 미리보기 무대 */
+/* ---- 미리보기 무대 ---- */
 #stage {
   position: relative;
-  height: 168px;
-  border-radius: 14px;
+  height: 132px;
+  border-radius: 13px;
   overflow: hidden;
-  background:
-    linear-gradient(#e9e9f2 1px, transparent 1px) 0 0 / 18px 18px,
-    linear-gradient(90deg, #e9e9f2 1px, transparent 1px) 0 0 / 18px 18px,
-    #f1f2f8;
+  background: linear-gradient(180deg, #f3efff 0%, #eaeefb 100%);
+  /* 창을 옮길 수 있게 무대는 드래그 손잡이로 쓴다(버튼은 아래에서 해제). */
+  -webkit-app-region: drag;
 }
-/* 골반 원점 위치 + 리모컨 안에서는 좀 작게 */
+/* 바닥 그림자 — 캐릭터가 떠 있지 않고 "서 있게" 보이게 하는 최소 장치 */
+#stage::after {
+  content: '';
+  position: absolute;
+  left: 50%; bottom: 23px;   /* remote.js 의 FEET_Y(104) 에 맞춘 바닥선 */
+  width: 56px; height: 9px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(70, 50, 130, 0.16), rgba(70, 50, 130, 0) 70%);
+}
 #charAnchor {
   position: absolute;
   left: 50%;
-  top: 128px;
-  transform: scale(0.62);
-  transform-origin: 0 86px;
+  /* top / transform 은 remote.js 가 리그의 groundY 로 계산해 넣는다 */
 }
 
+/* 캡션 — 무대 위에 얹은 알약. 세로 공간을 먹지 않는다. */
 #caption {
-  font-size: 12px;
-  opacity: 0.7;
-  margin: 9px 0 10px;
-  min-height: 16px;
+  position: absolute;
+  left: 50%; bottom: 6px;
+  transform: translateX(-50%);
+  max-width: 92%;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #4a4460;
+  font-size: 10.5px;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
 }
 
-/* 신호 버튼 3개 */
-#buttons { display: flex; gap: 8px; }
+/* ---- 신호 버튼 ---- */
+#buttons {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+  -webkit-app-region: no-drag;
+}
 .btn {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 9px 4px 8px;
-  border: 1px solid #e2e2ea;
-  border-radius: 13px;
+  gap: 2px;
+  padding: 6px 2px 5px;
+  border: 1px solid #e6e3f2;
+  border-radius: 11px;
   background: #fff;
+  color: #3c3752;
   cursor: pointer;
   font-family: inherit;
-  transition: transform .08s ease, border-color .12s ease, background .12s ease;
+  transition: transform .08s ease, border-color .12s ease, background .12s ease, box-shadow .12s ease;
 }
-.btn .ic { font-size: 25px; line-height: 1; }
-.btn .nm { font-size: 11px; font-weight: 600; }
-.btn:hover { border-color: #8a63ff; transform: translateY(-2px); }
-.btn:active { transform: scale(0.95); }
-.btn.sent { border-color: #8a63ff; background: #f2eeff; }
+.btn .ic { font-size: 19px; line-height: 1; }
+.btn .nm { font-size: 9.5px; font-weight: 600; letter-spacing: -0.3px; }
+.btn:hover {
+  border-color: #b7a1ff;
+  box-shadow: 0 3px 8px rgba(138, 99, 255, 0.18);
+  transform: translateY(-1px);
+}
+.btn:active { transform: scale(0.94); }
+.btn.sent {
+  border-color: #8a63ff;
+  background: linear-gradient(180deg, #f4efff, #ece4ff);
+  box-shadow: inset 0 0 0 1px rgba(138, 99, 255, 0.25);
+}
 
+/* ---- 전송 결과 토스트 ---- */
 #toast {
   position: absolute;
-  left: 50%; bottom: -30px;
-  transform: translateX(-50%);
-  background: rgba(20, 20, 25, 0.92);
+  left: 50%; top: 6px;
+  transform: translateX(-50%) translateY(-4px);
+  background: rgba(28, 22, 46, 0.88);
   color: #fff;
-  padding: 5px 12px;
-  border-radius: 14px;
-  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 10.5px;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity .18s ease, transform .18s ease;
   pointer-events: none;
   white-space: nowrap;
 }
-#toast.show { opacity: 1; }
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---- 다크 모드 ---- */
+@media (prefers-color-scheme: dark) {
+  #card {
+    background: linear-gradient(180deg, #2b2a36 0%, #232230 100%);
+    border-color: rgba(160, 130, 255, 0.22);
+    color: #ececf1;
+  }
+  #stage { background: linear-gradient(180deg, #2f2d3d 0%, #272636 100%); }
+  #stage::after { background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0) 70%); }
+  #caption { background: rgba(20, 19, 28, 0.6); color: #cfc9e2; }
+  .btn { background: #33323f; color: #ececf1; border-color: #403e50; }
+  .btn:hover { border-color: #8a63ff; }
+  .btn.sent { background: linear-gradient(180deg, #3b3350, #322b46); border-color: #8a63ff; }
+}

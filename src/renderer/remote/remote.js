@@ -40,18 +40,38 @@
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') host.closeSelf();
-      // 1·2·3 키로도 보낼 수 있게
-      const idx = ['1', '2', '3'].indexOf(e.key);
-      if (idx >= 0 && RW.gestures.ACTIVE[idx]) fire(RW.gestures.ACTIVE[idx]);
+      // 숫자 키로도 보낼 수 있게 (버튼 개수만큼)
+      const idx = Number(e.key) - 1;
+      if (Number.isInteger(idx) && idx >= 0 && RW.gestures.ACTIVE[idx]) fire(RW.gestures.ACTIVE[idx]);
     });
   }
+
+  // 미리보기 무대(122px) 안에서 발이 놓일 높이와 최대 배율.
+  // CSS 로 top/scale 을 박아 두면 리그마다 다리 길이가 달라 발이 잘린다.
+  const FEET_Y = 104;      // 무대(132px) 안에서 발이 놓일 y
+  const TOP_MARGIN = 6;    // 머리 위 여백
+  const MAX_SCALE = 0.62;  // 작은 캐릭터를 과하게 키우지 않는다
 
   // 내 캐릭터(상대 화면에 뜨는 그 캐릭터)를 그린다.
   function buildCharacter() {
     if (ctrl) ctrl.stop();
     anchor.innerHTML = '';
-    ctrl = RW.engine.mount(anchor, RW.characters.rigFor(cfg.characterId || 'preset1', cfg));
+    const spec = RW.characters.rigFor(cfg.characterId || 'preset1', cfg);
+    ctrl = RW.engine.mount(anchor, spec);
+    fitAnchor(spec.skeleton);
     backToIdle();
+  }
+
+  // 캐릭터 원점(0,0)은 골반이고 발은 +groundY 에 있다.
+  // 발을 FEET_Y 에 두고, 머리 끝(발에서 box.h 만큼 위)까지 무대 안에 들어오게 배율을 정한다.
+  function fitAnchor(sk) {
+    const box = (sk && sk.box) || {};
+    const groundY = box.groundY != null ? box.groundY : 86;
+    const totalH = Math.max(1, box.h != null ? box.h : 210);
+    const scale = Math.min(MAX_SCALE, (FEET_Y - TOP_MARGIN) / totalH);
+    anchor.style.transformOrigin = '0 0';
+    anchor.style.transform = `scale(${scale.toFixed(3)})`;
+    anchor.style.top = (FEET_Y - groundY * scale).toFixed(1) + 'px';
   }
 
   function backToIdle() {

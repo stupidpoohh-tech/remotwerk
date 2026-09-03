@@ -12,15 +12,15 @@
 
   const BONE_PROPS = ['rot', 'x', 'y', 'vis'];
   // sx/sy = 스쿼시&스트레치. 치비 체형은 관절 회전보다 몸 전체의 눌림/늘어남이 더 잘 읽힌다.
-  const ROOT_PROPS = ['x', 'y', 'rot', 'vis', 'flip', 'fx', 'sx', 'sy'];
+  const ROOT_PROPS = ['x', 'y', 'rot', 'vis', 'flip', 'fx', 'sx', 'sy', 'back'];
 
   function neutral(prop) {
     if (prop === 'vis') return true;
-    if (prop === 'flip') return false;
+    if (prop === 'flip' || prop === 'back') return false;
     if (prop === 'sx' || prop === 'sy') return 1;   // 스케일 기본값은 1
     return 0; // rot, x, y, fx(이펙트 강도)
   }
-  function isStepProp(prop) { return prop === 'vis' || prop === 'flip'; }
+  function isStepProp(prop) { return prop === 'vis' || prop === 'flip' || prop === 'back'; }
 
   // 애니메이션 → 트랙({t,v} 목록) 으로 변환. 희소 프레임을 허용한다.
   // 트랙은 애니메이션 자체의 본 키로 만든다(골격에 종속되지 않음). 어떤 골격이든
@@ -113,6 +113,7 @@
     }
 
     const elByName = {};
+    const partBySlot = {};   // 슬롯 → { el, front, back } — 뒤돌기용 이미지 교체
     for (const bone of skeleton.bones) {
       const el = document.createElement('div');
       el.className = 'rw-bone rw-bone-' + bone.name;
@@ -146,6 +147,12 @@
           part.style.transform = `rotate(${slotStyle.fit.rot}deg)`;
         }
         applySlotStyle(part, slotStyle, P);
+        const backSlot = rig.slotsBack && rig.slotsBack[P.slot];
+        partBySlot[P.slot] = {
+          el: part,
+          front: slotStyle.image || null,
+          back: (backSlot && backSlot.image) || null
+        };
         el.appendChild(part);
       }
 
@@ -155,6 +162,8 @@
     }
 
     container.appendChild(stage);
+
+    let showingBack = false;
 
     function applyPose(pose) {
       const r = pose.root;
@@ -166,6 +175,17 @@
       stage.style.opacity = r.vis === false ? '0' : '1';
       const fx = r.fx || 0;
       fxEl.style.opacity = fx > 0 ? String(Math.min(1, fx)) : '0';
+
+      // 뒤돌기 — 뒷모습 이미지가 있는 슬롯만 교체한다(없으면 앞모습 그대로, 깨지지 않음).
+      const wantBack = !!r.back;
+      if (wantBack !== showingBack) {
+        showingBack = wantBack;
+        for (const slot of Object.keys(partBySlot)) {
+          const pb = partBySlot[slot];
+          const src = (wantBack && pb.back) ? pb.back : pb.front;
+          if (src) pb.el.style.backgroundImage = `url("${src}")`;
+        }
+      }
 
       for (const bone of skeleton.bones) {
         if (bone.name === 'root') continue;

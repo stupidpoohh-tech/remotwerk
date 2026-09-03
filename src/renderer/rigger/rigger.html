@@ -75,6 +75,24 @@
         <div id="slots"></div>
       </details>
 
+      <details id="backBox">
+        <summary>5. 뒷모습 (트월킹용 · 선택)</summary>
+        <p class="hint small">🍑 트월킹에서 <b>뒤로 돌 때</b> 쓰는 이미지입니다. 없어도 됩니다
+          (그때만 앞모습 그대로 흔들어요).</p>
+        <p class="hint small">앞모습과 <b>같은 크기·같은 자세(大자)</b>의 뒷모습을 올리고,
+          “뒷모습 맞추기”를 켠 채 위치를 맞춘 뒤 잘라내세요. 자르기 상자는 앞모습과 같은 걸 씁니다.</p>
+        <label class="upload block">뒷모습 이미지 올리기<input type="file" id="backFile" accept="image/png,image/*"></label>
+        <div id="backCtl" class="hidden-until-src">
+          <label class="chk"><input type="checkbox" id="showBack" /> 뒷모습 맞추기 (스테이지에 뒷모습 표시·이동)</label>
+          <div class="ctl"><label>크기</label><input type="range" id="backScale" min="10" max="400" value="100"><span class="val" id="backScaleVal">100</span></div>
+          <div class="row">
+            <button id="cutBackBtn" class="primary small">✂ 뒷모습 잘라내기</button>
+            <button id="clearBackBtn" class="ghost small">뒷모습 지우기</button>
+          </div>
+        </div>
+        <p id="backMsg" class="hint small"></p>
+      </details>
+
       <div class="panel-actions">
         <label class="chk" id="publishRow" hidden>
           <input type="checkbox" id="publishCatalog" />

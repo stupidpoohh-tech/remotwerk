@@ -74,8 +74,9 @@
   // ---- 위치 · 크기 ----
   function positionChar() {
     const pos = (cfg && cfg.overlayPos) || { x: 0.82, y: 0.72 };
-    charEl.style.left = `calc(${clamp01(pos.x) * 100}% - 60px)`;
-    charEl.style.top = `calc(${clamp01(pos.y) * 100}% - 120px)`;
+    // roamX/Y = 자율 생활로 돌아다닌 누적 오프셋(저장하지 않는다).
+    charEl.style.left = `calc(${clamp01(pos.x) * 100}% - 60px + ${Math.round(roamX)}px)`;
+    charEl.style.top = `calc(${clamp01(pos.y) * 100}% - 120px + ${Math.round(roamY)}px)`;
     applyScale();
   }
 
@@ -101,12 +102,35 @@
     clearTimeout(ambientTimer);
     const play = () => {
       if (state !== 'ambient') return;
-      const id = Math.random() < 0.55 ? 'idle' : 'wander';
-      ctrl.play(id);
-      ambientTimer = setTimeout(play, 4000 + Math.random() * 8000);
+      // 돌아다니는 쪽에 무게를 둔다(가만히 있으면 심심하다).
+      const walking = Math.random() < 0.65;
+      ctrl.play(walking ? 'wander' : 'idle');
+      // 걸었으면 실제 자리도 조금 옮겨, 시간이 지나면 여기저기 가 있게 한다.
+      if (walking) roam();
+      ambientTimer = setTimeout(play, walking ? 3400 + Math.random() * 3000
+                                             : 3000 + Math.random() * 5000);
     };
     if (now) play();
-    else ambientTimer = setTimeout(play, 2000 + Math.random() * 4000);
+    else ambientTimer = setTimeout(play, 1500 + Math.random() * 3000);
+  }
+
+  // ---- 배회(roam) ----
+  // wander 는 제자리에서 걷다 돌아오는 루프라, 그것만으로는 "늘 같은 자리"에 있다.
+  // 걸을 때마다 기준 위치를 조금씩 옮겨서 시간이 지나면 화면 여기저기로 이동하게 한다.
+  // 사용자가 잡아둔 집 위치(config.overlayPos)는 건드리지 않는다 — 껐다 켜면 제자리로.
+  let roamX = 0, roamY = 0;
+  function roam() {
+    const s = charScale();
+    roamX += (Math.random() * 2 - 1) * 130;
+    roamY += (Math.random() * 2 - 1) * 40;
+    // 화면 밖으로 나가지 않게 집 위치 기준으로 제한
+    const pos = (cfg && cfg.overlayPos) || { x: 0.82, y: 0.72 };
+    const homeX = clamp01(pos.x) * window.innerWidth;
+    const homeY = clamp01(pos.y) * window.innerHeight;
+    const margin = 70 * s;
+    roamX = Math.max(margin - homeX, Math.min(window.innerWidth - margin - homeX, roamX));
+    roamY = Math.max(margin - homeY, Math.min(window.innerHeight - margin - homeY, roamY));
+    positionChar();
   }
 
   // ---- 신호 처리 ----
@@ -261,9 +285,10 @@
         host.openRemote();
         return;
       }
-      // 위치를 화면 비율로 저장(펠비스 기준점, 레이아웃 좌표 기준)
+      // 직접 옮긴 자리가 새 "집"이 된다. 배회 누적분은 0으로 되돌린다.
       const x = (charEl.offsetLeft + 60) / window.innerWidth;
       const y = (charEl.offsetTop + 120) / window.innerHeight;
+      roamX = 0; roamY = 0;
       host.setConfig({ overlayPos: { x: clamp01(x), y: clamp01(y) } });
     });
   }

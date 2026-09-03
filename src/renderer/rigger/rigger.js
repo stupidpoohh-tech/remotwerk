@@ -45,6 +45,13 @@
 
   // 원본 이미지 상태 (스켈레톤 좌표에 놓인다)
   const source = { img: null, dataUrl: null, natW: 0, natH: 0, x: 0, y: 0, scale: 1 };
+  // 뒷모습 원본 — 트월킹에서 등을 보일 때만 쓴다. 없으면 앞모습으로 재생된다.
+  const sourceBack = { img: null, dataUrl: null, natW: 0, natH: 0, x: 0, y: 0, scale: 1 };
+  // 잘라낸 뒷모습 조각. fit(위치·회전)은 앞모습 것을 그대로 쓴다.
+  //   자르기 상자는 "보는 사람 기준" 좌표라, 뒷모습도 같은 상자로 자르면 된다.
+  //   (등을 보이면 화면 왼쪽에 오는 팔이 캐릭터의 오른팔로 바뀌지만, 엉덩이를 흔드는
+  //    동작에서는 문제가 되지 않는다. 좌우를 뒤집지 않는 게 오히려 자연스럽다.)
+  const backImages = {};             // slot → dataUrl
 
   // 자르기 상자 (스켈레톤 좌표의 회전 사각형)
   const cutBoxes = {};               // slot → { cx, cy, w, h, rot }
@@ -88,6 +95,10 @@
       s.rot = f.rot || 0; s.scale = 1; s.offx = 0; s.offy = 0;
       if (sl.z != null) s.z = sl.z;
     }
+    for (const slot of SLOTS) {
+      const bk = (b.slotsBack || {})[slot];
+      if (bk && bk.image) backImages[slot] = bk.image;
+    }
     syncBoxesToGuide();
     document.getElementById('charName').value = entry.name || '';
     document.getElementById('showResult').checked = true;
@@ -113,6 +124,25 @@
       document.getElementById('srcScaleVal').textContent = e.target.value;
       redraw();
     });
+    document.getElementById('backFile').addEventListener('change', (e) => onBackUpload(e.target.files[0]));
+    document.getElementById('backScale').addEventListener('input', (e) => {
+      sourceBack.scale = Math.max(0.05, +e.target.value / 100);
+      document.getElementById('backScaleVal').textContent = e.target.value;
+      redraw();
+    });
+    document.getElementById('showBack').addEventListener('change', () => {
+      // 뒷모습을 맞추는 동안엔 원본 레이어가 보여야 한다.
+      if (document.getElementById('showBack').checked) {
+        document.getElementById('showSrc').checked = true;
+        dragTarget = 'src';
+        updateStageHint();
+      }
+      redraw();
+    });
+    document.getElementById('cutBackBtn').addEventListener('click', cutBack);
+    document.getElementById('clearBackBtn').addEventListener('click', clearBack);
+    refreshBackUI();
+
     document.getElementById('fitToGuide').addEventListener('click', () => { syncBoxesToGuide(); boxesTouched = false; redraw(); });
     document.getElementById('cutBtn').addEventListener('click', cutAll);
     document.getElementById('previewBtn').addEventListener('click', preview);
@@ -193,17 +223,25 @@
     redraw();
   }
 
+  // 지금 스테이지에서 다루는 원본(앞모습/뒷모습)
+  function backMode() {
+    const el = document.getElementById('showBack');
+    return !!(el && el.checked && sourceBack.dataUrl);
+  }
+  function activeSource() { return backMode() ? sourceBack : source; }
+
   // ---- 스테이지 그리기 ----
   function drawSource() {
     const layer = document.getElementById('srcLayer');
-    const show = document.getElementById('showSrc').checked && source.dataUrl;
+    const src = activeSource();
+    const show = document.getElementById('showSrc').checked && src.dataUrl;
     if (!show) { layer.style.display = 'none'; return; }
     layer.style.display = 'block';
-    layer.style.left = source.x + 'px';
-    layer.style.top = source.y + 'px';
-    layer.style.width = (source.natW * source.scale) + 'px';
-    layer.style.height = (source.natH * source.scale) + 'px';
-    layer.style.backgroundImage = `url("${source.dataUrl}")`;
+    layer.style.left = src.x + 'px';
+    layer.style.top = src.y + 'px';
+    layer.style.width = (src.natW * src.scale) + 'px';
+    layer.style.height = (src.natH * src.scale) + 'px';
+    layer.style.backgroundImage = `url("${src.dataUrl}")`;
   }
 
   function drawGuide() {
@@ -360,12 +398,13 @@
   }
 
   // 회전 사각형 영역을 원본에서 잘라 축 정렬 이미지로 만든다.
-  function cropPiece(box) {
-    const outW = Math.max(1, Math.round(box.w / source.scale));
-    const outH = Math.max(1, Math.round(box.h / source.scale));
+  function cropPiece(box, src) {
+    src = src || source;
+    const outW = Math.max(1, Math.round(box.w / src.scale));
+    const outH = Math.max(1, Math.round(box.h / src.scale));
     if (outW > 2000 || outH > 2000) return null;
-    const cxImg = (box.cx - source.x) / source.scale;
-    const cyImg = (box.cy - source.y) / source.scale;
+    const cxImg = (box.cx - src.x) / src.scale;
+    const cyImg = (box.cy - src.y) / src.scale;
 
     const cv = document.createElement('canvas');
     cv.width = outW; cv.height = outH;
@@ -374,9 +413,72 @@
     ctx.translate(outW / 2, outH / 2);
     ctx.rotate(-box.rot * Math.PI / 180);
     ctx.translate(-cxImg, -cyImg);
-    ctx.drawImage(source.img, 0, 0);
+    ctx.drawImage(src.img, 0, 0);
     return cv.toDataURL('image/png');
   }
+
+  // ---- 뒷모습 ----
+  function onBackUpload(file) {
+    if (!file) return;
+    loadDownscaled(file, MAX_SIDE).then(({ dataUrl, img, w, h }) => {
+      sourceBack.dataUrl = dataUrl; sourceBack.img = img; sourceBack.natW = w; sourceBack.natH = h;
+      // 앞모습이 이미 자리를 잡았으면 같은 배치로 시작한다(같은 크기·자세를 전제).
+      if (source.img) {
+        sourceBack.scale = source.scale;
+        sourceBack.x = source.x; sourceBack.y = source.y;
+      } else {
+        const targetH = proportions.torsoLen + proportions.legLen;
+        sourceBack.scale = targetH / h;
+        sourceBack.x = -(w * sourceBack.scale) / 2;
+        sourceBack.y = -proportions.torsoLen;
+      }
+      const sc = document.getElementById('backScale');
+      sc.value = Math.round(sourceBack.scale * 100);
+      document.getElementById('backScaleVal').textContent = sc.value;
+      document.getElementById('showBack').checked = true;
+      document.getElementById('showSrc').checked = true;
+      dragTarget = 'src';
+      updateStageHint();
+      refreshBackUI();
+      setBackMsg('뒷모습을 올렸어요. 앞모습과 같은 자리에 오도록 맞춘 뒤 잘라내세요.');
+      redraw();
+    }).catch((e) => setBackMsg('이미지를 불러오지 못했어요: ' + e.message));
+  }
+
+  function cutBack() {
+    if (!sourceBack.img) return setBackMsg('먼저 뒷모습 이미지를 올려 주세요.');
+    let n = 0;
+    for (const slot of SLOTS) {
+      if (!state[slot].image) continue;        // 앞모습이 없는 조각은 뒷모습도 만들지 않는다
+      const url = cropPiece(cutBoxes[slot], sourceBack);
+      if (!url) continue;
+      backImages[slot] = url;
+      n++;
+    }
+    document.getElementById('showBack').checked = false;
+    document.getElementById('showResult').checked = true;
+    refreshBackUI();
+    redraw();
+    setBackMsg(n
+      ? `뒷모습 ${n}조각을 잘랐어요. “▶ 동작 미리보기”에서 트월킹으로 확인하세요.`
+      : '먼저 앞모습을 잘라 주세요(3단계).');
+  }
+
+  function clearBack() {
+    for (const slot of SLOTS) delete backImages[slot];
+    document.getElementById('showBack').checked = false;
+    refreshBackUI();
+    redraw();
+    setBackMsg('뒷모습을 지웠어요. 트월킹은 앞모습으로 재생됩니다.');
+  }
+
+  function refreshBackUI() {
+    const has = sourceBack.dataUrl || Object.keys(backImages).length > 0;
+    document.getElementById('backCtl').classList.toggle('ready', !!has);
+    if (Object.keys(backImages).length > 0) document.getElementById('backBox').open = true;
+  }
+
+  function setBackMsg(m) { document.getElementById('backMsg').textContent = m || ''; }
 
   // 관절 기준으로 rot 만큼 회전시키면 원래 자리에 놓이도록 역회전해 fit 계산
   function fitForCut(box, P) {
@@ -399,11 +501,17 @@
   }
   function buildBundle() {
     const slots = {};
+    const slotsBack = {};
     for (const slot of SLOTS) {
       const s = state[slot];
-      if (s.image) slots[slot] = { image: s.image, fit: fitOf(s), z: s.z };
+      if (!s.image) continue;
+      slots[slot] = { image: s.image, fit: fitOf(s), z: s.z };
+      // 뒷모습은 이미지만 담는다. 위치·회전은 앞모습 fit 을 그대로 쓴다(같은 상자에서 잘랐다).
+      if (backImages[slot]) slotsBack[slot] = { image: backImages[slot] };
     }
-    return { skeletonId: 'bipedal5', proportions: Object.assign({}, proportions), slots };
+    const bundle = { skeletonId: 'bipedal5', proportions: Object.assign({}, proportions), slots };
+    if (Object.keys(slotsBack).length) bundle.slotsBack = slotsBack;
+    return bundle;
   }
 
   // ---- 렌더 ----
@@ -417,7 +525,11 @@
       const anchor = document.getElementById('charAnchor');
       anchor.innerHTML = '';
       anchor.style.display = document.getElementById('showResult').checked ? 'block' : 'none';
-      ctrl = RW.engine.mount(anchor, { skeleton: workingSkeleton(), rig: { skeletonId: 'bipedal5', slots: buildBundle().slots } });
+      const b = buildBundle();
+      ctrl = RW.engine.mount(anchor, {
+        skeleton: workingSkeleton(),
+        rig: { skeletonId: 'bipedal5', slots: b.slots, slotsBack: b.slotsBack || null }
+      });
       updateSize();
     });
   }
@@ -425,7 +537,10 @@
 
   function updateSize() {
     let bytes = 0;
-    for (const slot of SLOTS) { const im = state[slot].image; if (im) bytes += Math.floor(im.length * 0.75); }
+    for (const slot of SLOTS) {
+      const im = state[slot].image; if (im) bytes += Math.floor(im.length * 0.75);
+      const bk = backImages[slot]; if (bk) bytes += Math.floor(bk.length * 0.75);
+    }
     const info = document.getElementById('sizeInfo');
     info.textContent = `번들 ≈ ${Math.round(bytes / 1024)} KB`;
     info.style.color = bytes > MAX_TOTAL ? '#c0392b' : '';
@@ -444,8 +559,9 @@
       const dy = (e.clientY - lastY) / S;
       lastX = e.clientX; lastY = e.clientY;
 
-      if (dragTarget === 'src' && source.img) {
-        source.x += dx; source.y += dy;
+      if (dragTarget === 'src' && activeSource().img) {
+        const src = activeSource();
+        src.x += dx; src.y += dy;
       } else if (dragTarget === 'piece' && state[selected].image) {
         // 조각은 관절 기준 rot 로 회전돼 그려지므로, 화면 이동을 -rot 로 돌려 로컬 이동으로
         const r = -state[selected].rot * Math.PI / 180;
@@ -471,7 +587,8 @@
 
   function updateStageHint() {
     const map = {
-      src: '드래그 = 원본 이미지 이동 (스페이스로 전환)',
+      src: backMode() ? '드래그 = 뒷모습 이미지 이동 (스페이스로 전환)'
+                      : '드래그 = 원본 이미지 이동 (스페이스로 전환)',
       cut: '드래그 = 선택한 자르기 상자 이동 (스페이스로 전환)',
       piece: '드래그 = 잘라낸 조각 미세 이동 (스페이스로 전환)'
     };
@@ -497,6 +614,7 @@
 
     let bytes = 0;
     for (const k of Object.keys(bundle.slots)) bytes += Math.floor(bundle.slots[k].image.length * 0.75);
+    for (const k of Object.keys(bundle.slotsBack || {})) bytes += Math.floor(bundle.slotsBack[k].image.length * 0.75);
     if (bytes > MAX_TOTAL) return setStatus('번들이 너무 큽니다. 원본 크기를 줄여 주세요.');
 
     // 편집 모드면 같은 id 를 유지하며 덮어쓰고, 아니면 새로 만든다.

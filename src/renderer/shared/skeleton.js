@@ -71,11 +71,22 @@
       { name: 'legL',  parent: 'root',  pivotOffset: [-q.hipX, 0], part: rect(-q.legW / 2, 0, q.legW, q.legLen, 'legL'), z: 2, guideRot: 14,  animSource: 'legL_upper' },
       { name: 'legR',  parent: 'root',  pivotOffset: [q.hipX, 0],  part: rect(-q.legW / 2, 0, q.legW, q.legLen, 'legR'), z: 3, guideRot: -14, animSource: 'legR_upper' }
     ];
+    // 콘텐츠 상자 — 비율에서 계산한다. 고정값(130×220)을 쓰면 다리를 길게 잡은
+    // 캐릭터가 상자를 넘쳐서, 이 상자로 배치를 계산하는 화면(리모컨 미리보기)에서
+    // 머리나 발이 잘렸다. 원점은 골반(0,0)이고 originY 는 상자 위에서 골반까지다.
+    const M = 4;
+    const halfW = Math.max(q.torsoW / 2, q.shoulderX + q.armW / 2, q.hipX + q.legW / 2);
     return {
       id: 'bipedal5',
       bones,
       slots: ['torso', 'armL', 'armR', 'legL', 'legR'],
-      box: { w: 130, h: 220, originX: 65, originY: 122, groundY: q.legLen },
+      box: {
+        w: Math.round(halfW * 2 + M * 2),
+        h: Math.round(q.torsoLen + q.legLen + M * 2),
+        originX: Math.round(halfW + M),
+        originY: Math.round(q.torsoLen + M),
+        groundY: q.legLen
+      },
       spread: true,
       proportions: q
     };

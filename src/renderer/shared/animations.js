@@ -1,17 +1,18 @@
 'use strict';
 /* 애니메이션 데이터 — 골격별 키프레임 시퀀스.
  *
- * ▣ 설계 원칙: "세 신호가 곁눈질 0.5초에 갈릴 것"
+ * ▣ 설계 원칙: "네 신호가 곁눈질 0.5초에 갈릴 것"
  *
  * 치비(2~3등신) 체형은 관절을 꺾어도 잘 안 읽힌다. 그래서 구분은 관절이 아니라
- * **움직임의 방향**과 **이펙트**로 만든다. 세 신호가 정확히 반대 방향을 쓴다:
+ * **움직임의 방향**과 **이펙트**로 만든다. 네 신호가 서로 다른 축을 쓴다:
  *
  *   💗 보고싶어 : 위로 살짝 폴짝 + 몸 살랑    + 분홍 하트     (부드럽고 작게)
  *   ✨ 신나     : 크게 3연속 점프             + 노랑 반짝     (빠르고 크게)
  *   🫠 지쳤어   : 아래로 푹 눌려 좌우로 흔들   + 파랑 땀방울   (느리고 무겁게)
+ *   🍑 트월킹   : 뒤로 돌아 좌우로 둠칫둠칫   + 이펙트 없음   (유일하게 등을 보인다)
  *
- * 방향(위/반복/아래) · 속도(보통/빠름/느림) · 색(분홍/노랑/파랑) 이 셋 다 다르므로
- * 하나만 봐도 구분된다.
+ * 방향(위/반복/아래/뒤) · 속도 · 색이 서로 달라 하나만 봐도 구분된다.
+ * 트월킹만 이펙트가 없는데, "돌아선다"는 것 자체가 다른 셋과 겹치지 않는 신호라서다.
  *
  * 표기:
  *   { t:<ms>, root:{x,y,rot,sx,sy,fx,vis,flip}, <bone>:{rot,x,y,vis} }   // 뉴트럴 기준 델타
@@ -79,6 +80,34 @@
       ]
     },
 
+    // 🍑 트월킹 — 앱 이름값 하는 시그니처. 유일하게 **뒤로 돈다**.
+    //    도는 인상은 sx 를 얇게 눌렀다 펴서 만든다(옆모습을 지나가는 느낌).
+    //    뒷모습 이미지를 등록해 두면 그때 등이 보이고, 없으면 앞모습 그대로 흔든다.
+    g_twerk: {
+      loop: false,
+      frames: [
+        { t: 0 },
+        { t: 180, root: { y: 7, sy: 0.93, sx: 1.06 } },                                   // 준비로 살짝 눌림
+        { t: 330, root: { sx: 0.28, sy: 1.02, y: 2 } },                                   // 몸이 얇아짐 = 도는 중
+        { t: 430, root: { back: true, sx: 0.28, sy: 1.02, y: 2 } },                       // 뒷모습으로 교체
+        { t: 560, root: { back: true, sx: 1, sy: 0.92, y: 11 }, legR_upper: { rot: 7 }, legL_upper: { rot: 7 }, torso: { rot: 10 } }, // 자세 잡기
+        // 둠칫둠칫 — 좌우 + 위아래를 엇갈리게 해서 엉덩이가 튕기는 인상
+        { t: 690,  root: { back: true, y: 14, rot: -8, x: -7, sy: 0.86, sx: 1.10 }, torso: { rot: 12 } },
+        { t: 810,  root: { back: true, y: 5,  rot: 8,  x: 7,  sy: 0.98, sx: 1.01 }, torso: { rot: 8 } },
+        { t: 930,  root: { back: true, y: 14, rot: -8, x: -7, sy: 0.86, sx: 1.10 }, torso: { rot: 12 } },
+        { t: 1050, root: { back: true, y: 5,  rot: 8,  x: 7,  sy: 0.98, sx: 1.01 }, torso: { rot: 8 } },
+        { t: 1170, root: { back: true, y: 14, rot: -8, x: -7, sy: 0.86, sx: 1.10 }, torso: { rot: 12 } },
+        { t: 1290, root: { back: true, y: 5,  rot: 8,  x: 7,  sy: 0.98, sx: 1.01 }, torso: { rot: 8 } },
+        { t: 1410, root: { back: true, y: 14, rot: -8, x: -7, sy: 0.86, sx: 1.10 }, torso: { rot: 12 } },
+        { t: 1530, root: { back: true, y: 7,  rot: 0,  x: 0,  sy: 0.94, sx: 1.05 }, torso: { rot: 8 } },
+        // 다시 앞으로
+        { t: 1680, root: { back: true, sx: 0.28, sy: 1.0, y: 3 } },
+        { t: 1780, root: { back: false, sx: 0.28, sy: 1.0, y: 3 } },
+        { t: 1920, root: { sx: 1, sy: 0.96, y: 4 } },
+        { t: 2080, root: { y: 0 } }
+      ]
+    },
+
     // --- 자율 생활 2종 (전송/히스토리 없음, 로컬 반복) ---
     // 신호와 헷갈리면 안 되므로 아주 작게(멍때리기) 또는 수평 이동(돌아다니기)만 쓴다.
 
@@ -98,16 +127,19 @@
       loop: true,
       frames: [
         { t: 0, root: { x: 0 } },
-        { t: 250, root: { x: 10, y: -6, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 16 }, legL_upper: { rot: -16 }, armR_upper: { rot: -8 }, armL_upper: { rot: 8 } },
-        { t: 500, root: { x: 22, y: 3, sy: 0.95, sx: 1.05 }, legR_upper: { rot: -16 }, legL_upper: { rot: 16 }, armR_upper: { rot: 8 }, armL_upper: { rot: -8 } },
-        { t: 750, root: { x: 34, y: -6, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 16 }, legL_upper: { rot: -16 }, armR_upper: { rot: -8 }, armL_upper: { rot: 8 } },
-        { t: 1000, root: { x: 46, y: 3, sy: 0.95, sx: 1.05 }, legR_upper: { rot: -16 }, legL_upper: { rot: 16 }, armR_upper: { rot: 8 }, armL_upper: { rot: -8 } },
-        { t: 1250, root: { x: 55, y: 0, flip: true } },
-        { t: 1500, root: { x: 46, y: -6, flip: true, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 16 }, legL_upper: { rot: -16 }, armR_upper: { rot: -8 }, armL_upper: { rot: 8 } },
-        { t: 1750, root: { x: 34, y: 3, flip: true, sy: 0.95, sx: 1.05 }, legR_upper: { rot: -16 }, legL_upper: { rot: 16 }, armR_upper: { rot: 8 }, armL_upper: { rot: -8 } },
-        { t: 2000, root: { x: 22, y: -6, flip: true, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 16 }, legL_upper: { rot: -16 } },
-        { t: 2250, root: { x: 10, y: 3, flip: true, sy: 0.95, sx: 1.05 }, legR_upper: { rot: -16 }, legL_upper: { rot: 16 } },
-        { t: 2500, root: { x: 0, y: 0, flip: false } }
+        { t: 260, root: { x: 14, y: -6, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 17 }, legL_upper: { rot: -17 }, armR_upper: { rot: -9 }, armL_upper: { rot: 9 } },
+        { t: 520, root: { x: 30, y: 3, sy: 0.95, sx: 1.05 }, legR_upper: { rot: -17 }, legL_upper: { rot: 17 }, armR_upper: { rot: 9 }, armL_upper: { rot: -9 } },
+        { t: 780, root: { x: 48, y: -6, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 17 }, legL_upper: { rot: -17 }, armR_upper: { rot: -9 }, armL_upper: { rot: 9 } },
+        { t: 1040, root: { x: 68, y: 3, sy: 0.95, sx: 1.05 }, legR_upper: { rot: -17 }, legL_upper: { rot: 17 }, armR_upper: { rot: 9 }, armL_upper: { rot: -9 } },
+        { t: 1300, root: { x: 88, y: -6, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 17 }, legL_upper: { rot: -17 } },
+        { t: 1560, root: { x: 104, y: 2 } },
+        { t: 1800, root: { x: 108, y: 0, flip: true } },
+        { t: 2060, root: { x: 92, y: -6, flip: true, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 17 }, legL_upper: { rot: -17 }, armR_upper: { rot: -9 }, armL_upper: { rot: 9 } },
+        { t: 2320, root: { x: 72, y: 3, flip: true, sy: 0.95, sx: 1.05 }, legR_upper: { rot: -17 }, legL_upper: { rot: 17 }, armR_upper: { rot: 9 }, armL_upper: { rot: -9 } },
+        { t: 2580, root: { x: 52, y: -6, flip: true, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 17 }, legL_upper: { rot: -17 } },
+        { t: 2840, root: { x: 32, y: 3, flip: true, sy: 0.95, sx: 1.05 }, legR_upper: { rot: -17 }, legL_upper: { rot: 17 } },
+        { t: 3100, root: { x: 14, y: -6, flip: true, sy: 1.05, sx: 0.96 }, legR_upper: { rot: 17 }, legL_upper: { rot: -17 } },
+        { t: 3360, root: { x: 0, y: 0, flip: false } }
       ]
     }
   };

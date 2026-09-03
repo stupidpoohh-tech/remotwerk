@@ -66,7 +66,18 @@ function load() {
   } catch (_) {
     data = {};
   }
-  cached = Object.assign(defaults(), data);
+
+  const base = defaults();
+  const merged = Object.assign({}, base, data);
+
+  // 저장된 null 이 기본값을 덮어쓰지 않게 한다.
+  // (초기 버전 config.json 에 남은 "firebase": null 때문에 내장 Firebase 설정이
+  //  통째로 날아가 페어링이 "Firebase 설정이 필요해요" 로 막히던 문제)
+  for (const k of Object.keys(base)) {
+    if (base[k] != null && merged[k] == null) merged[k] = base[k];
+  }
+
+  cached = merged;
   // userId 는 최초 1회만 생성해 고정
   if (!data.userId) save(cached);
   return cached;
