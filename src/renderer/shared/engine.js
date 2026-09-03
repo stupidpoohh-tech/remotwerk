@@ -194,7 +194,11 @@
         const track = bone.animSource || bone.name;
         const b = pose.bones[track];
         const neutral = bone.neutral || 0;   // 大자 가이드 기준 기본 각도
-        const rot = neutral + (b ? (b.rot || 0) : 0);
+        // animScale = 이 골격에서 관절 회전을 얼마나 받아들일지(기본 1).
+        // 애니메이션은 팔다리가 가는 상세 골격 기준으로 만들었는데, 5조각 리그의
+        // '몸통'은 머리까지 포함한 몸 전체라 같은 각도를 그대로 주면 과하게 꺾인다.
+        const k = bone.animScale == null ? 1 : bone.animScale;
+        const rot = neutral + (b ? (b.rot || 0) : 0) * k;
         const tx = b ? (b.x || 0) : 0;
         const ty = b ? (b.y || 0) : 0;
         el.style.transform = `translate(${tx}px, ${ty}px) rotate(${rot}deg)`;

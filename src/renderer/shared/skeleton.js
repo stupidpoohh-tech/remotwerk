@@ -65,11 +65,20 @@
     const shoulderY = -Math.round(q.torsoLen * q.shoulderRatio);
     const bones = [
       { name: 'root',  parent: null,    pivotOffset: [0, 0], part: null, z: 5 },
-      { name: 'torso', parent: 'root',  pivotOffset: [0, 0], part: rect(-q.torsoW / 2, -q.torsoLen, q.torsoW, q.torsoLen, 'torso'), z: 5, guideRot: 0,   animSource: 'torso' },
-      { name: 'armL',  parent: 'torso', pivotOffset: [-q.shoulderX, shoulderY], part: rect(-q.armW / 2, 0, q.armW, q.armLen, 'armL'), z: 4, guideRot: 28,  animSource: 'armL_upper' },
-      { name: 'armR',  parent: 'torso', pivotOffset: [q.shoulderX, shoulderY],  part: rect(-q.armW / 2, 0, q.armW, q.armLen, 'armR'), z: 6, guideRot: -28, animSource: 'armR_upper' },
-      { name: 'legL',  parent: 'root',  pivotOffset: [-q.hipX, 0], part: rect(-q.legW / 2, 0, q.legW, q.legLen, 'legL'), z: 2, guideRot: 14,  animSource: 'legL_upper' },
-      { name: 'legR',  parent: 'root',  pivotOffset: [q.hipX, 0],  part: rect(-q.legW / 2, 0, q.legW, q.legLen, 'legR'), z: 3, guideRot: -14, animSource: 'legR_upper' }
+      { name: 'torso', parent: 'root',  pivotOffset: [0, 0], part: rect(-q.torsoW / 2, -q.torsoLen, q.torsoW, q.torsoLen, 'torso'), z: 5, guideRot: 0,   animSource: 'torso', animScale: 0.45 },
+      { name: 'armL',  parent: 'torso', pivotOffset: [-q.shoulderX, shoulderY], part: rect(-q.armW / 2, 0, q.armW, q.armLen, 'armL'), z: 4, guideRot: 28,  animSource: 'armL_upper', animScale: 0.55 },
+      { name: 'armR',  parent: 'torso', pivotOffset: [q.shoulderX, shoulderY],  part: rect(-q.armW / 2, 0, q.armW, q.armLen, 'armR'), z: 6, guideRot: -28, animSource: 'armR_upper', animScale: 0.55 },
+      // 다리는 root 가 아니라 **torso 의 자식**이다.
+      //   5조각 리그의 '몸통'은 머리까지 포함한 몸 전체다. 다리를 root 에 붙이면
+      //   몸통이 기울 때(지쳤어의 torso rot) 다리만 제자리에 남아 허리가 찢어졌다.
+      //   torso 의 관절이 골반(0,0)이라 pivotOffset 값은 그대로 쓸 수 있다.
+      //
+      // animScale 은 이 골격이 관절 회전을 얼마나 받아들일지다. 애니메이션은 팔다리가
+      // 가늘고 머리가 따로 있는 상세 골격 기준으로 만들었다. 5조각 치비에 같은 각도를
+      // 그대로 주면 몸이 반으로 접히고(몸통 20°) 팔이 머리 위로 넘어간다(팔 38°).
+      // 치비의 표현은 어차피 관절보다 몸 전체의 이동·스쿼시가 담당한다(설계 원칙).
+      { name: 'legL',  parent: 'torso', pivotOffset: [-q.hipX, 0], part: rect(-q.legW / 2, 0, q.legW, q.legLen, 'legL'), z: 2, guideRot: 14,  animSource: 'legL_upper', animScale: 0.7 },
+      { name: 'legR',  parent: 'torso', pivotOffset: [q.hipX, 0],  part: rect(-q.legW / 2, 0, q.legW, q.legLen, 'legR'), z: 3, guideRot: -14, animSource: 'legR_upper', animScale: 0.7 }
     ];
     // 콘텐츠 상자 — 비율에서 계산한다. 고정값(130×220)을 쓰면 다리를 길게 잡은
     // 캐릭터가 상자를 넘쳐서, 이 상자로 배치를 계산하는 화면(리모컨 미리보기)에서

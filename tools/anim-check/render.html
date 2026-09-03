@@ -1,0 +1,77 @@
+<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="../../src/renderer/shared/character.css">
+<style>
+  html,body{margin:0;background:transparent}
+  #stage{position:relative;width:420px;height:420px;overflow:hidden}
+  #anchor{position:absolute;left:210px;top:300px}
+</style>
+<div id="stage"><div id="anchor"></div></div>
+<script src="../../src/renderer/shared/skeleton.js"></script>
+<script src="../../src/renderer/shared/gestures.js"></script>
+<script src="../../src/renderer/shared/animations.js"></script>
+<script src="../../src/renderer/shared/engine.js"></script>
+<script src="../../src/renderer/shared/preset-art.js"></script>
+<script src="../../src/renderer/shared/presets.js"></script>
+<script src="../../src/renderer/shared/characters.js"></script>
+<script>
+  // 조각별 검사용 색. 마스크로 칠하므로 그림 모양(알파)은 그대로다.
+  const TINT = { torso: '#ff0000', armL: '#00ff00', armR: '#0000ff', legL: '#ffff00', legR: '#ff00ff' };
+  let ctrl = null, tinted = false;
+
+  window.SETUP = function (charId) {
+    const anchor = document.getElementById('anchor');
+    anchor.innerHTML = '';
+    tinted = false;
+    const spec = RW.characters.rigFor(charId, { customCharacters: [] });
+    ctrl = RW.engine.mount(anchor, spec);
+    // 원본 background-image 를 기억해 둔다(색칠/복원용)
+    document.querySelectorAll('.rw-part').forEach((el) => {
+      el.dataset.bg = el.style.backgroundImage;
+    });
+    return { box: spec.skeleton.box, tint: TINT };
+  };
+
+  window.SET_TINT = function (on) {
+    if (on === tinted) return;
+    tinted = on;
+    document.querySelector('.rw-fx').style.display = on ? 'none' : '';
+    document.querySelectorAll('.rw-part').forEach((el) => {
+      const slot = (el.className.match(/rw-slot-(\w+)/) || [])[1];
+      if (on) {
+        // 뒤돌기로 이미지가 바뀌었을 수 있으니 지금 그려지는 이미지를 그대로 마스크로 쓴다.
+        const cur = el.style.backgroundImage;
+        el.style.webkitMaskImage = cur;
+        el.style.webkitMaskSize = 'contain';
+        el.style.webkitMaskRepeat = 'no-repeat';
+        el.style.webkitMaskPosition = 'center';
+        el.dataset.bg = cur;
+        el.style.backgroundImage = 'none';
+        el.style.backgroundColor = TINT[slot] || '#888';
+      } else {
+        el.style.webkitMaskImage = '';
+        el.style.backgroundColor = '';
+        el.style.backgroundImage = el.dataset.bg;
+      }
+    });
+  };
+
+  window.POSE = function (animId, t) {
+    const built = RW.engine.buildTracks(RW.animations.get(animId));
+    ctrl.applyPose(RW.engine.poseAt(built, Math.min(t, built.duration)));
+    // 색칠 중이면 뒤돌기로 바뀐 이미지에 마스크를 다시 맞춘다.
+    if (tinted) {
+      document.querySelectorAll('.rw-part').forEach((el) => {
+        if (el.style.backgroundImage && el.style.backgroundImage !== 'none') {
+          el.style.webkitMaskImage = el.style.backgroundImage;
+          el.dataset.bg = el.style.backgroundImage;
+          el.style.backgroundImage = 'none';
+        }
+      });
+    }
+    return built.duration;
+  };
+
+  window.DURATION = function (animId) {
+    return RW.engine.buildTracks(RW.animations.get(animId)).duration;
+  };
+</script>

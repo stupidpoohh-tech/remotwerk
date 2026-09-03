@@ -199,6 +199,41 @@ for (const id of ART_IDS) {
   }
 }
 
+// --- 10. 5조각 리그가 찢어지지 않기 위한 구조 조건 ---------------------------
+// v0.6.0 에서 캐릭터가 움직이면 몸이 잘려 나갔다. 원인이 됐던 조건들을 못으로 박아 둔다.
+{
+  const sk5 = RW.skeleton.buildBipedal5({});
+  const byName = {};
+  sk5.bones.forEach((b) => (byName[b.name] = b));
+
+  // (1) 다리가 root 에 붙어 있으면 몸통이 기울 때 허리가 찢어진다.
+  ok('다리는 몸통의 자식', byName.legL.parent === 'torso' && byName.legR.parent === 'torso',
+     byName.legL.parent);
+  ok('팔은 몸통의 자식', byName.armL.parent === 'torso' && byName.armR.parent === 'torso');
+
+  // (2) 상세 골격 기준으로 만든 회전각을 그대로 받으면 몸이 반으로 접힌다.
+  for (const n of ['torso', 'armL', 'armR', 'legL', 'legR']) {
+    ok(`${n}: 회전 감쇠(animScale)가 있다`, byName[n].animScale > 0 && byName[n].animScale < 1,
+       String(byName[n].animScale));
+  }
+  ok('몸통이 가장 크게 감쇠된다',
+     byName.torso.animScale <= byName.armL.animScale && byName.torso.animScale <= byName.legL.animScale);
+
+  // (3) 엔진이 animScale 을 실제로 적용하는지 — 몸통 20° 는 절반 이하로 줄어야 한다.
+  const built = RW.engine.buildTracks({ frames: [{ t: 0 }, { t: 100, torso: { rot: 20 } }] });
+  ok('트랙에는 원래 각도가 들어 있다', near(RW.engine.poseAt(built, 100).bones.torso.rot, 20));
+}
+
+// --- 11. 제공 캐릭터 조각은 몸통 뒤에 그려진다 -------------------------------
+// 관절을 가리려고 조각을 몸통 쪽으로 물려 두는데, 앞에 그리면 그 물린 부분이 몸 위에 겹친다.
+for (const id of ART_IDS) {
+  const slots = RW.presets.rigFor(id).rig.slots;
+  const tz = slots.torso.z;
+  for (const s of ['armL', 'armR', 'legL', 'legR']) {
+    ok(`${id}.${s}: 몸통보다 뒤(z)`, slots[s].z < tz, `${s}=${slots[s].z} torso=${tz}`);
+  }
+}
+
 // --- 결과 -------------------------------------------------------------------
 if (fails.length) {
   console.error(`\n✗ 실패 ${fails.length}건 / 통과 ${pass}건`);

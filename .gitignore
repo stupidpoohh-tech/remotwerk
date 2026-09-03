@@ -6,3 +6,5 @@ out/
 Thumbs.db
 # 로컬 Firebase 설정 (커밋 금지)
 src/renderer/shared/firebase.local.json
+tools/anim-check/frames/
+tools/anim-check/sheets/
