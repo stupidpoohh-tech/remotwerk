@@ -22,7 +22,7 @@ const { chromium } = require('playwright-core');
 
 const ROOT = path.join(__dirname, '..');
 const OUT = path.join(os.tmpdir(), 'rw-smoke');
-const USERDATA = path.join(OUT, 'userdata');
+
 const ELECTRON = path.join(ROOT, 'node_modules', 'electron', 'dist', 'electron');
 const only = process.argv[2];
 
@@ -34,6 +34,10 @@ const CASES = {
   '왼쪽 위 끝':            { overlayPos: { x: 0, y: 0 } },
   '오른쪽 아래 끝':         { overlayPos: { x: 1, y: 1 } },
   '집중 모드':             { focusMode: true },
+  '크게 + 위쪽 끝':         { overlayScale: 2.5, overlayPos: { x: 0.5, y: 0.02 } },
+  '크게 + 왼쪽 끝':         { overlayScale: 2.5, overlayPos: { x: 0, y: 0.5 } },
+  '크게 + 오른쪽 아래':      { overlayScale: 2.5, overlayPos: { x: 1, y: 1 } },
+  '작게 + 왼쪽 위':         { overlayScale: 0.5, overlayPos: { x: 0, y: 0 } },
   '없는 캐릭터 선택':       { characterId: '없는id', partnerCharacterId: '없는id2' },
   '없어진 색 프리셋':       { characterId: 'preset1', partnerCharacterId: 'preset3' },
   '깨진 커스텀(슬롯 비어)':  { characterId: 'c1', partnerCharacterId: 'c1',
@@ -45,7 +49,26 @@ const CASES = {
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
-async function runCase(label, cfg, port) {
+// 남은 프로세스를 **정확히** 죽인다.
+// 이전에는 xvfb-run 만 죽여서 그 아래 Electron 이 살아남았고, 다음 케이스가 그 포트에
+// 붙어 **엉뚱한 인스턴스를 검사**했다(라벨과 결과가 어긋났다). 검사 도구가 거짓말을 하면
+// 검사가 없는 것만 못하다. 그래서 케이스마다 고유한 표식(userdata 경로)을 주고,
+// /proc 에서 그 표식을 가진 프로세스만 골라 죽인다.
+function killByMark(mark) {
+  let killed = 0;
+  for (const pid of fs.readdirSync('/proc')) {
+    if (!/^\d+$/.test(pid)) continue;
+    let cmd = '';
+    try { cmd = fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8'); } catch (_) { continue; }
+    if (cmd.includes(mark) && Number(pid) !== process.pid) {
+      try { process.kill(Number(pid), 'SIGKILL'); killed++; } catch (_) {}
+    }
+  }
+  return killed;
+}
+
+async function runCase(label, cfg, port, mark) {
+  const USERDATA = mark;
   fs.rmSync(USERDATA, { recursive: true, force: true });
   fs.mkdirSync(USERDATA, { recursive: true });
   fs.writeFileSync(path.join(USERDATA, 'config.json'),
@@ -110,11 +133,14 @@ async function runCase(label, cfg, port) {
       if (!r) problems.push('캐릭터 엘리먼트가 없다');
       else {
         if (r.w === 0 || r.h === 0) problems.push('캐릭터 상자가 0 크기');
-        // 창 밖으로 완전히 벗어났는가(절반 이상 보이면 통과)
+        // **거의 전부 보여야 통과.** 예전엔 50% 만 보이면 통과여서, 배율을 키웠을 때
+        // 머리가 잘려 나가도 검사가 초록불이었다.
         const visX = Math.min(r.x + r.w, o.vw) - Math.max(r.x, 0);
         const visY = Math.min(r.y + r.h, o.vh) - Math.max(r.y, 0);
-        if (visX < r.w * 0.5 || visY < r.h * 0.5) {
-          problems.push(`캐릭터가 화면 밖 (상자 ${JSON.stringify(r)}, 창 ${o.vw}x${o.vh})`);
+        const vis = (visX / r.w) * (visY / r.h);
+        if (vis < 0.97) {
+          problems.push(`캐릭터가 잘렸다 (보이는 비율 ${Math.round(vis * 100)}%, ` +
+                        `상자 ${JSON.stringify(r)}, 창 ${o.vw}x${o.vh})`);
         }
       }
     }
@@ -129,19 +155,25 @@ async function runCase(label, cfg, port) {
     return { problems, seen, logs };
   } finally {
     if (browser) await browser.close().catch(() => {});
-    try { process.kill(-child.pid, 'SIGKILL'); } catch (_) {
-      try { child.kill('SIGKILL'); } catch (_) {}
-    }
-    await sleep(1200);
+    try { process.kill(-child.pid, 'SIGKILL'); } catch (_) {}
+    try { child.kill('SIGKILL'); } catch (_) {}
+    killByMark(USERDATA);
+    await sleep(400);
+    killByMark(USERDATA);      // 종료 중 새로 뜬 자식까지
+    await sleep(600);
   }
 }
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
-  let fail = 0, port = 9222;
+  let fail = 0, n = 0;
   for (const [label, cfg] of Object.entries(CASES)) {
     if (only && !label.includes(only)) continue;
-    const { problems, seen } = await runCase(label, cfg, port++);
+    // 포트도 실행마다 다르게 — 남은 프로세스의 포트에 잘못 붙는 일을 막는다.
+    const port = 9300 + ((process.pid + n * 7) % 400);
+    const mark = path.join(OUT, `ud-${process.pid}-${n}`);
+    n++;
+    const { problems, seen } = await runCase(label, cfg, port, mark);
     const o = (seen && seen.overlay) || {};
     const detail = o.rect ? `조각 ${o.parts} 스프라이트 ${o.sprites} 상자 ${JSON.stringify(o.rect)}` : '';
     if (problems.length) {

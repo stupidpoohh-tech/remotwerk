@@ -128,5 +128,26 @@
     return { roomId, uid };
   }
 
-  RW.pairing = { genCode, normalize, isValidCode, createRoomAndInvite, joinWithCode, CODE_LEN };
+  // 상대가 실제로 들어왔는지 지켜본다(좌석 a·b 가 둘 다 차고, 서로 다른 uid 인가).
+  // 방을 만들기만 해도 roomId 는 생기므로, 그것만으로 "연결됨" 이라 말하면 안 된다.
+  // 해제 함수를 돌려준다.
+  function watchPartner(cfg, cb) {
+    let off = null, cancelled = false;
+    (async () => {
+      try {
+        const fb = await RW.fb.init(cfg.firebase);
+        if (cancelled || !cfg.roomId) return;
+        const { db, dbMod } = fb;
+        const seats = dbMod.ref(db, `rooms/${cfg.roomId}`);
+        off = dbMod.onValue(seats, (snap) => {
+          const v = snap.val() || {};
+          cb(!!(v.a && v.b && v.a !== v.b));
+        }, () => cb(false));
+      } catch (_) { cb(false); }
+    })();
+    return () => { cancelled = true; if (off) off(); };
+  }
+
+  RW.pairing = { genCode, normalize, isValidCode, createRoomAndInvite, joinWithCode,
+                 watchPartner, CODE_LEN };
 })(typeof window !== 'undefined' ? window : globalThis);

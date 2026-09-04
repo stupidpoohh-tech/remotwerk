@@ -115,26 +115,40 @@
 
   // ---- 위치 · 크기 ----
   // overlayPos 는 "골반이 놓일 화면 비율" 이다(예전 저장값과 그대로 호환된다).
+  // 배율(transform: scale)의 기준점은 applyScale() 이 정한 (originX, originY+groundY) 다.
+  // 그래서 **화면에 실제로 그려지는 상자**는 style.left/top 과 다르다.
+  //   그려진 좌표 = left + originPoint * (1 - s),  그려진 크기 = 상자 * s
+  // 이 관계를 무시하고 계산하면 배율을 키울수록 캐릭터가 저장한 자리에서 밀려난다.
+  function renderGeom(x, y, s) {
+    const ox = charBox.originX, oy = charBox.originY + charBox.groundY;
+    return {
+      left: x + ox * (1 - s), top: y + oy * (1 - s),
+      w: charBox.w * s, h: charBox.h * s
+    };
+  }
+
   function positionChar() {
     const pos = (cfg && cfg.overlayPos) || { x: 0.82, y: 0.72 };
     const W = window.innerWidth, H = window.innerHeight;
     const s = charScale();
-    // 화면에 실제로 차지하는 크기(배율 반영). 기준점은 발밑이라 세로는 위로 자란다.
-    const w = charBox.w * s, h = charBox.h * s;
 
-    let x = clamp01(pos.x) * W - charBox.originX * s + Math.round(roamX);
-    let y = clamp01(pos.y) * H - charBox.originY * s + Math.round(roamY);
+    // 저장된 위치는 "골반이 놓일 자리" 다. 가로 기준점은 originX 라 배율과 무관하고,
+    // 세로는 기준점이 발밑(originY+groundY)이라 배율에 따라 groundY 만큼 보정된다.
+    let x = clamp01(pos.x) * W - charBox.originX + Math.round(roamX);
+    let y = clamp01(pos.y) * H - charBox.originY - charBox.groundY * (1 - s) + Math.round(roamY);
 
     // **캐릭터가 화면 밖으로 나가지 않게 붙잡는다.**
     // 비율(0~1)만 제한하면 부족하다 — 0,0 이어도 기준점이 발밑·골반이라 캐릭터 몸은
     // 화면 위/왼쪽으로 밀려 나간다. 실제로 overlayPos 가 0,0 이면 (-100,-192) 에 그려져
     // 사용자는 "캐릭터가 사라졌다"고 느낀다. 모니터 구성이 바뀌어도 마찬가지다.
+    // 붙잡을 대상은 style 값이 아니라 **그려진 상자**여야 한다.
     const M = 4;
-    x = Math.max(M, Math.min(x, Math.max(M, W - w - M)));
-    y = Math.max(M, Math.min(y, Math.max(M, H - h - M)));
+    const g = renderGeom(x, y, s);
+    const dx = Math.max(M, Math.min(g.left, Math.max(M, W - g.w - M))) - g.left;
+    const dy = Math.max(M, Math.min(g.top, Math.max(M, H - g.h - M))) - g.top;
 
-    charEl.style.left = Math.round(x) + 'px';
-    charEl.style.top = Math.round(y) + 'px';
+    charEl.style.left = Math.round(x + dx) + 'px';
+    charEl.style.top = Math.round(y + dy) + 'px';
     applyScale();
   }
 
@@ -310,8 +324,13 @@
         return;
       }
       // 직접 옮긴 자리가 새 "집"이 된다. 배회 누적분은 0으로 되돌린다.
-      const x = (charEl.offsetLeft + 60) / window.innerWidth;
-      const y = (charEl.offsetTop + 120) / window.innerHeight;
+      //
+      // positionChar() 의 역산이어야 한다. 예전엔 60/120 이 박혀 있어서, 캐릭터 상자가
+      // 다른 체형(그리고 배율)이면 저장값이 원래 자리와 어긋났다 — 끌어다 놓을 때마다
+      // 캐릭터가 왼쪽 위로 조금씩 튀었고, 반복하면 화면 밖으로 나갔다.
+      const s = charScale();
+      const x = (charEl.offsetLeft + charBox.originX) / window.innerWidth;
+      const y = (charEl.offsetTop + charBox.originY + charBox.groundY * (1 - s)) / window.innerHeight;
       roamX = 0; roamY = 0;
       if (actor) actor.resetPosition();
       host.setConfig({ overlayPos: { x: clamp01(x), y: clamp01(y) } });

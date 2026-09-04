@@ -234,15 +234,32 @@
   // ---- 페어링 ----
   function setPairMsg(msg) { $('pairMsg').textContent = msg || ''; }
 
+  // 방을 만든 것과 상대가 들어온 것은 다르다.
+  // 예전에는 roomId 만 있으면 "상대와 연결되어 있어요" 라고 했는데, 초대 코드를 만들기만
+  // 해도 roomId 가 생긴다. 상대는 아직 아무것도 안 했는데 연결됐다고 말하는 셈이었다.
+  // 실제로 두 좌석(a·b)이 다 찼는지를 보고 말한다.
+  let stopWatchSeats = null;
   function refreshPairStatus() {
     const el = $('pairStatus');
-    if (cfg.roomId) {
-      el.textContent = '✅ 페어링 완료 — 상대와 연결되어 있어요.';
-      el.className = 'pair-status ok';
-    } else {
+    if (!cfg.roomId) {
       el.textContent = '⚠️ 아직 페어링되지 않았어요. 코드를 만들거나, 받은 코드로 참여하세요.';
       el.className = 'pair-status warn';
+      return;
     }
+    el.textContent = '⏳ 방은 만들어졌어요. 상대가 코드로 참여하면 연결됩니다.';
+    el.className = 'pair-status warn';
+
+    if (stopWatchSeats) { stopWatchSeats(); stopWatchSeats = null; }
+    if (!cfg.firebase || !RW.pairing.watchPartner) return;
+    stopWatchSeats = RW.pairing.watchPartner(cfg, (paired) => {
+      if (paired) {
+        el.textContent = '✅ 페어링 완료 — 상대와 연결되어 있어요.';
+        el.className = 'pair-status ok';
+      } else {
+        el.textContent = '⏳ 방은 만들어졌어요. 상대가 코드로 참여하면 연결됩니다.';
+        el.className = 'pair-status warn';
+      }
+    });
   }
 
   async function onCreateInvite() {
