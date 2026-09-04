@@ -58,7 +58,8 @@ npm run pack         # 설치파일 없이 폴더로만 빌드(빠른 확인용)
   그리고 스프라이트 클립 규격(캔버스·기준점·접지·접합 자세·리그 대체)을 검사한다.
 
 ```bash
-node tools/app-smoke.js  # ★ 진짜 앱을 띄워 캐릭터가 실제로 보이는지 확인(설정 22가지)
+node tools/app-smoke.js   # ★ 진짜 앱을 띄워 캐릭터가 실제로 보이는지 확인(설정 22가지)
+node tools/flag-check.js  # 업로드 진입점이 실제로 막혔는지 + 기존 캐릭터 보존
 node tools/overlay-startup-test.js  # 네트워크가 끝나지 않을 때도 캐릭터가 뜨는지(npm test 에 포함)
 node tools/anim-check/render.js && python3 tools/anim-check/check.py  # 프레임 단위 검사
 node tools/anim-check/timeline.js        # 실제 재생 시간축 검사(스프라이트)
@@ -100,6 +101,31 @@ python3 tools/build-clip-art.py          # 클립 규격 검사 + 등록부 재�
 > ⚠️ **코드 서명은 아직 설정하지 않았다.** 서명 없는 설치파일은 Windows SmartScreen 이
 > "알 수 없는 게시자" 경고를 띄운다(*추가 정보 → 실행*으로 진행 가능). 공개 배포 시에는
 > 코드 서명 인증서 도입을 검토해야 한다.
+
+## 제품 방향 — 제공형 캐릭터
+
+사용자가 이미지를 올려 캐릭터를 만드는 기능은 **기본 꺼짐**이다(`src/features.js` 의
+`characterUpload`). 우리가 제작·검수한 캐릭터를 고르는 서비스로 운영한다.
+업로드 구현(리깅 도구)은 **지우지 않았다.** 플래그만 켜면 그대로 돌아온다.
+
+- 플래그 하나(`src/features.js`)를 **메인·preload·설정 화면이 같이 본다.** preload 가
+  `window.rwHost.features` 로 그대로 넘긴다. 값을 두 군데 적으면 반드시 어긋난다.
+- 화면에서 버튼만 숨기는 것은 끈 게 아니다. `createRigger()` 와 `ui:open-rigger` IPC
+  핸들러도 같은 플래그로 막는다. IPC 로 강제로 열어도 창이 뜨지 않는 것을
+  `tools/flag-check.js` 가 진짜 앱에서 확인한다.
+- **기존 개인 캐릭터는 그대로 둔다.** 목록에 보이고, 고를 수 있고, 상대에게 전달되고,
+  재시작해도 남는다. 없어지는 것은 "만들기"·"편집" 버튼뿐이다(삭제는 남긴다 — 이미
+  가진 것을 정리하는 일은 새로 만드는 기능이 아니다).
+
+### 원화 반입
+
+원화는 바깥 제작 환경에서 만들고, 여기서는 **가져오기·검사·연결**만 한다.
+`art/staging/<characterId>/<clipId>/` 에 놓고 `tools/import-clip.py` 로 넣는다.
+자세한 절차·규격은 `art/staging/README.md`.
+
+- 규격을 못 넘기면 **아무 파일도 쓰지 않는다**(기존 정상 에셋 보호).
+- `--approve` 없이는 `placeholder` 가 유지된다. 파일이 있다는 이유로 풀지 않는다.
+- 승인된 클립은 `tools/bake-placeholder-clips.js` 가 **건너뛴다**(`--force` 로만 덮어씀).
 
 ## 동작(신호) 목록
 

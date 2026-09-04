@@ -20,7 +20,7 @@ vm.createContext(sandbox);
 
 for (const f of ['skeleton.js', 'gestures.js', 'animations.js', 'engine.js',
                  'preset-art.js', 'presets.js', 'characters.js',
-                 'clip-art.js', 'clips.js']) {
+                 'clip-art.js', 'clips.js', 'deform.js']) {
   vm.runInContext(fs.readFileSync(path.join(SHARED, f), 'utf8'), sandbox, { filename: f });
 }
 const RW = sandbox.RW;
@@ -237,9 +237,10 @@ for (const st of STAGES) {
 }
 
 // --- 9. 제공 캐릭터(그림 프리셋) ---------------------------------------------
-const ART_IDS = ['char_seal', 'char_ribbon', 'char_hamster', 'char_wolf'];
+const ART_IDS = ['char_seal', 'char_ribbon', 'char_hamster', 'char_wolf',
+                 'char_rabbit', 'char_racoon', 'char_dada'];
 const presetIds = RW.presets.PRESETS.map((p) => p.id);
-ok('제공 캐릭터 4종', presetIds.length === 4, presetIds.join(','));
+ok('제공 캐릭터 7종', presetIds.length === 7, presetIds.join(','));
 ok('제공 캐릭터 순서', ART_IDS.every((id, i) => presetIds[i] === id), presetIds.join(','));
 for (const id of ART_IDS) {
   const p = RW.presets.get(id);
@@ -492,6 +493,92 @@ for (const id of ART_IDS) {
   ok('트레이 실패를 조용히 삼키지 않는다', !/catch \(_\) \{\s*return;/.test(buildTray));
   ok('캐릭터 되돌리기 메뉴가 있다', /recenterCharacter/.test(mainJs));
   ok('리모컨 전역 단축키는 없다', !/globalShortcut\.register\(\s*'CommandOrControl\+Shift\+R'/.test(mainJs));
+}
+
+// --- 16. 기능 플래그(업로드 숨기기) ------------------------------------------
+//
+// 화면에서 버튼만 숨기면 끈 게 아니다. IPC 로는 여전히 열 수 있다.
+// 메인·preload·설정 화면이 **같은 플래그 하나**를 보고 있는지 못으로 박아 둔다.
+{
+  const SRC = path.join(__dirname, '..', 'src');
+  const feat = require(path.join(SRC, 'features.js'));
+  ok('기능 플래그 파일이 있다', typeof feat === 'object');
+  ok('업로드는 기본 꺼짐', feat.characterUpload === false, String(feat.characterUpload));
+
+  const mainJs = fs.readFileSync(path.join(SRC, 'main', 'main.js'), 'utf8');
+  const preJs = fs.readFileSync(path.join(SRC, 'main', 'preload.js'), 'utf8');
+  const setJs = fs.readFileSync(path.join(SRC, 'renderer', 'settings', 'settings.js'), 'utf8');
+
+  ok('메인이 같은 플래그 파일을 읽는다', /require\('\.\.\/features'\)/.test(mainJs));
+  ok('preload 가 같은 플래그 파일을 읽는다', /require\('\.\.\/features'\)/.test(preJs));
+  ok('preload 가 렌더러에 플래그를 넘긴다', /features: Object\.freeze/.test(preJs));
+
+  // 창을 만드는 함수 자체가 막혀 있어야 한다(마지막 관문)
+  const rig = mainJs.slice(mainJs.indexOf('function createRigger'),
+                           mainJs.indexOf('function createViewer'));
+  ok('createRigger 가 플래그로 막힌다', /if \(!features\.characterUpload\)/.test(rig));
+  ok('IPC 핸들러도 막힌다',
+     /ui:open-rigger[\s\S]{0,200}!features\.characterUpload/.test(mainJs));
+  ok('트레이 메뉴에서 캐릭터 만들기 항목이 빠졌다',
+     !/label: '캐릭터 만들기/.test(mainJs));
+
+  ok('설정 화면이 플래그를 본다', /host\.features && host\.features\.characterUpload/.test(setJs));
+  ok('(+) 타일을 조건부로 만든다', /if \(uploadEnabled\) \{[\s\S]{0,200}tile add/.test(setJs));
+  // 버튼이 없는데 이벤트를 걸면 null 오류가 난다
+  ok('편집 이벤트는 버튼이 있을 때만 건다', /if \(canEdit\) \{/.test(setJs));
+  // 개인 캐릭터 목록 자체는 없애면 안 된다
+  ok('개인 캐릭터 목록은 그대로 그린다', !/uploadEnabled[\s\S]{0,80}customList/.test(setJs));
+
+  const bake = fs.readFileSync(path.join(__dirname, 'bake-placeholder-clips.js'), 'utf8');
+  ok('굽기 도구가 승인된 원화를 건너뛴다', /approved\)\s*\{\s*skipped\.push/.test(bake));
+  ok('굽기 도구에 --force 탈출구가 있다', /--force/.test(bake));
+}
+
+// --- 17. 전체 변형(지쳤어 납작해지기) ----------------------------------------
+{
+  const d = RW.deform.get('g_droop');
+  ok('지쳤어에 변형이 정의돼 있다', !!d);
+  ok('총 길이는 2.1초 부근', d.duration >= 2000 && d.duration <= 2200, d.duration + 'ms');
+  ok('구간 유지 시간은 40ms 격자', d.phases.every((p) => p.ms % 40 === 0),
+     d.phases.map((p) => p.ms).join('/'));
+  ok('3단계(납작·유지·회복)', d.phases.length === 3);
+
+  // 시작·끝은 정확히 원래 비율이어야 한다. 안 그러면 변형이 남는다.
+  const a0 = RW.deform.at(d, 0), aEnd = RW.deform.at(d, d.duration);
+  ok('t=0 은 원래 비율', a0.sx === 1 && a0.sy === 1);
+  ok('끝은 정확히 원래 비율', aEnd.sx === 1 && aEnd.sy === 1, JSON.stringify(aEnd));
+
+  // 사전 준비 동작(위로 늘어남) 금지 — 세로가 1을 넘는 순간이 없어야 한다.
+  // 오버슈트 금지 — 회복 중에도 1을 넘지 않는다.
+  let maxSy = 0, minSy = 9, maxSx = 0;
+  for (let t = 0; t <= d.duration; t += 20) {
+    const v = RW.deform.at(d, t);
+    maxSy = Math.max(maxSy, v.sy); minSy = Math.min(minSy, v.sy);
+    maxSx = Math.max(maxSx, v.sx);
+  }
+  ok('사전 늘어남·오버슈트 없음(세로가 1을 넘지 않는다)', maxSy <= 1.0001, String(maxSy));
+  ok('충분히 납작해진다', minSy <= 0.8, String(minSy));
+  ok('가로로 넓어진다', maxSx >= 1.15, String(maxSx));
+
+  // 유지 구간이 실제로 멈춰 있는가(반복 바운스 금지)
+  const hold = d.phases[1];
+  ok('유지 구간은 값이 변하지 않는다',
+     hold.from.sx === hold.to.sx && hold.from.sy === hold.to.sy);
+  ok('유지 구간이 1초 부근', hold.ms >= 800 && hold.ms <= 1200, hold.ms + 'ms');
+
+  ok('최대 배율을 알려 준다(화면 끝 여백 계산용)', RW.deform.maxScale().sx > 1);
+
+  // 재생기가 변형 레이어를 쓰는지 — 조각마다 따로 누르면 이음매가 벌어진다.
+  const pl = fs.readFileSync(path.join(SHARED, 'player.js'), 'utf8');
+  ok('변형 레이어를 만든다', /makeDeformLayer/.test(pl));
+  ok('스프라이트가 레이어 안에 그려진다', /deformLayer\.appendChild\(el\)/.test(pl));
+  ok('리그도 레이어 안에 조립된다', /RW\.engine\.mount\(deformLayer/.test(pl));
+  ok('기준점은 레이어 원점(=발밑)', /transformOrigin = '0 0'/.test(pl));
+  ok('중단하면 변형을 지운다', /deformLayer\.style\.transform = ''/.test(pl));
+  ok('리그도 중단 시 변형을 지운다', /clearDeform\(\); ctrl\.stop\(\)/.test(pl));
+
+  const ov = fs.readFileSync(path.join(SHARED, '..', 'overlay', 'overlay.js'), 'utf8');
+  ok('화면 끝에서 넓어질 여백을 확보한다', /maxScale\(\)[\s\S]{0,200}padX/.test(ov));
 }
 
 // --- 결과 -------------------------------------------------------------------
