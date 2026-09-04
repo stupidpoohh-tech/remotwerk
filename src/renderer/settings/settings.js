@@ -146,9 +146,11 @@
     'no-database': '이 프로젝트에 실시간 데이터베이스(Realtime Database)가 없습니다. ' +
           'Firebase 콘솔 → 빌드 → Realtime Database → "데이터베이스 만들기" 로 하나 만들어 주세요. ' +
           '(Firestore 와는 다른 제품입니다. 이 앱은 Realtime Database 를 씁니다.)',
-    socket: '데이터베이스 주소까지는 닿았는데 실시간 연결만 막혔습니다. ' +
-          '회사망·VPN·방화벽이 WebSocket 을 막는 경우입니다. 다른 네트워크(휴대폰 핫스팟)로 ' +
-          '한 번만 시도해 보시면 확실해집니다.'
+    socket: '데이터베이스까지는 닿는데 WebSocket 만 막혀 있습니다(회사망·VPN·백신·방화벽). ' +
+          '이 앱은 평범한 https 요청만 쓰는 "롱폴링" 방식으로도 연결할 수 있습니다. ' +
+          '아래 버튼을 누르면 그 방식으로 바꿔 다시 시도합니다.',
+    'socket-final': '데이터베이스 주소까지는 닿았는데 실시간 연결이 되지 않습니다. ' +
+          '다른 네트워크(휴대폰 핫스팟)로 한 번만 시도해 보시면 망 문제인지 확실해집니다.'
   };
 
   let diagRunning = false;
@@ -180,8 +182,13 @@
         verdict.textContent = VERDICT[r.cause] || '원인을 특정하지 못했습니다.';
         verdict.className = 'diag-verdict bad';
         if (r.cause === 'wrong-url' && r.working) {
+          $('diagFix').textContent = '이 주소로 고치기';
           $('diagFixRow').hidden = false;
           $('diagFix').onclick = () => applyDatabaseURL(r.working);
+        } else if (r.cause === 'socket' && r.canLongPoll) {
+          $('diagFix').textContent = '롱폴링으로 바꿔 다시 시도';
+          $('diagFixRow').hidden = false;
+          $('diagFix').onclick = () => applyTransport('longpoll');
         }
       }
       return r;
@@ -207,6 +214,19 @@
     $('diagVerdict').textContent = '주소를 바꿨습니다. 다시 진단해 확인해 주세요.';
     $('diagVerdict').className = 'diag-verdict ok';
     initConnStatus();
+  }
+
+  // 전송 방식을 바꾼다.
+  //
+  // 한 번 만들어진 데이터베이스 연결은 방식을 바꿀 수 없다(SDK 가 앱 단위로 캐시한다).
+  // 그래서 설정만 저장하고 **창을 다시 연다.** 새로 뜬 창은 처음부터 그 방식으로 붙는다.
+  async function applyTransport(mode) {
+    const next = Object.assign({}, cfg.firebase, { rwTransport: mode });
+    await host.setConfig({ firebase: next });
+    $('diagFixRow').hidden = true;
+    $('diagVerdict').textContent = '롱폴링으로 바꿨습니다. 설정 창을 다시 불러옵니다…';
+    $('diagVerdict').className = 'diag-verdict ok';
+    setTimeout(() => location.reload(), 600);
   }
 
   // ---- 페어링 ----

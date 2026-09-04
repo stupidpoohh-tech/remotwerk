@@ -14,16 +14,36 @@
   let readyPromise = null;   // { app, auth, db, dbMod, authMod, uid }
   let storagePromise = null;
 
+  // 전송 방식(transport). 설정의 firebase 객체 안에 `rwTransport` 로 실어 나른다.
+  //
+  // 왜 여기 넣는가: 이 값은 **getDatabase() 를 부르기 전에** 정해져야 한다(한 번 만들어진
+  // DB 인스턴스는 앱 단위로 캐시돼 나중에 바꿀 수 없다). 모든 화면이 이미 cfg.firebase 를
+  // 그대로 넘기고 있으므로, 여기 실어 두면 어느 화면에서 먼저 초기화하든 같은 방식이 된다.
+  //
+  //   'auto'     기본. SDK 가 알아서 고른다(보통 WebSocket).
+  //   'longpoll' WebSocket 이 막힌 망에서 쓴다. 평범한 https 요청만으로 붙는다.
+  const TRANSPORT_KEY = 'rwTransport';
+
+  function splitTransport(firebaseConfig) {
+    const cfg = Object.assign({}, firebaseConfig || {});
+    const transport = cfg[TRANSPORT_KEY] || 'auto';
+    delete cfg[TRANSPORT_KEY];        // initializeApp 에 넘기면 안 되는 우리 값
+    return { cfg, transport };
+  }
+
   // 최초 1회만 초기화. 이후 호출은 같은 Promise 를 돌려준다.
   function init(firebaseConfig) {
     if (readyPromise) return readyPromise;
+    const { cfg: appConfig, transport } = splitTransport(firebaseConfig);
     readyPromise = (async () => {
       const [appMod, authMod, dbMod] = await Promise.all([
         import(CDN + 'firebase-app.js'),
         import(CDN + 'firebase-auth.js'),
         import(CDN + 'firebase-database.js')
       ]);
-      const app = appMod.initializeApp(firebaseConfig);
+      // 이미 만들어져 있으면 다시 만들지 않는다(재초기화 시 duplicate-app 방지).
+      const app = (appMod.getApps && appMod.getApps().length)
+        ? appMod.getApp() : appMod.initializeApp(appConfig);
       const auth = authMod.getAuth(app);
 
       // 익명 로그인. Firebase 콘솔 → Authentication → 로그인 방법 → '익명' 사용 설정 필요.
@@ -38,8 +58,12 @@
         );
       }
 
+      // 반드시 getDatabase() 앞에서 정해야 한다. 연결이 만들어진 뒤에는 못 바꾼다.
+      const canLongPoll = typeof dbMod.forceLongPolling === 'function';
+      if (transport === 'longpoll' && canLongPoll) dbMod.forceLongPolling();
+
       const db = dbMod.getDatabase(app);
-      return { app, auth, db, dbMod, authMod, uid };
+      return { app, auth, db, dbMod, authMod, uid, transport, canLongPoll };
     })();
     return readyPromise;
   }
@@ -195,14 +219,22 @@
       return { steps, cause: 'no-database', working: null };
     }
 
-    // 주소는 살아 있다. 남은 것은 실시간 소켓뿐이다.
+    // 주소는 살아 있다. 남은 것은 실시간 연결뿐이다.
+    const now = fb.transport === 'longpoll' ? '롱폴링' : 'WebSocket';
     try {
       await waitConnected(8000);
-      push('실시간 연결(wss)', true, '연결됨');
-      return { steps, cause: null, working: cfg.databaseURL };
+      push('실시간 연결(' + now + ')', true, '연결됨');
+      return { steps, cause: null, working: cfg.databaseURL, transport: fb.transport };
     } catch (e) {
-      push('실시간 연결(wss)', false, (e && e.message) || String(e));
-      return { steps, cause: 'socket', working: cfg.databaseURL };
+      push('실시간 연결(' + now + ')', false, (e && e.message) || String(e));
+      // REST 는 되는데 소켓만 안 된다 = 이 망이 WebSocket 을 막는다.
+      // RTDB 는 롱폴링으로도 붙을 수 있다. 롱폴링은 평범한 https 라 이미 통하는 길이다.
+      if (fb.transport !== 'longpoll' && fb.canLongPoll) {
+        return { steps, cause: 'socket', working: cfg.databaseURL, canLongPoll: true };
+      }
+      push('롱폴링 전환 가능 여부', false,
+           fb.canLongPoll ? '이미 롱폴링인데도 연결되지 않았습니다' : '이 SDK 버전은 롱폴링 전환을 지원하지 않습니다');
+      return { steps, cause: 'socket-final', working: cfg.databaseURL, canLongPoll: false };
     }
   }
 

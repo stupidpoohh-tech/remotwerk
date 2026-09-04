@@ -18,6 +18,9 @@ section { margin-bottom: 22px; }
 .tag { font-size: 10px; background: #8a63ff; color: #fff; padding: 1px 6px; border-radius: 8px; vertical-align: middle; }
 
 .row { display: flex; gap: 8px; }
+/* [hidden] 은 UA 스타일이라 .row 의 display:flex 에 진다.
+   (숨겨 둔 "이 주소로 고치기" 버튼이 그대로 보이던 버그) */
+[hidden] { display: none !important; }
 
 /* 페어링 */
 .pair-status {
