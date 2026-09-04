@@ -347,6 +347,20 @@ for (const id of ART_IDS) {
     for (const host of NEEDED) {
       ok(`${name}: CSP 에 ${host}`, m[1].includes(host));
     }
+
+    // ★ frame-src — 롱폴링은 **숨은 iframe** 안에서 서버→클라이언트 밀어내기를 받는다.
+    // 이게 막히면 쓰기와 REST 읽기는 되는데 **실시간 수신만 안 된다**.
+    // 증상: 페어링도 되고 히스토리도 쌓이는데 캐릭터가 신호에 반응하지 않는다.
+    // (default-src 'self' 가 대신 적용돼 조용히 막혔고, 화면 검사 6개가 전부 초록불이었다.)
+    // 브라우저로 확인하는 tools/csp-check.js 가 더 정확하지만 그건 크로미움이 필요해
+    // CI 에서 못 돈다. 그래서 여기서 문자열로라도 반드시 확인한다.
+    const f = html.match(/frame-src([^;"]*)/);
+    ok(`${name}: CSP 에 frame-src 가 있다`, !!f);
+    if (f) {
+      for (const host of ['https://*.firebaseio.com', 'https://*.firebasedatabase.app']) {
+        ok(`${name}: frame-src 에 ${host}`, f[1].includes(host));
+      }
+    }
   }
 }
 

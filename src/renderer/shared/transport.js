@@ -9,7 +9,8 @@
  *
  * 공통 규칙:
  *   - 신호 = { from, gestureId, ts } 로 매우 가볍다.
- *   - live 판별: 클라이언트 시작 시각(sessionStartTs) 이후 ts 면 라이브 재생, 이전이면 히스토리만.
+ *   - live 판별: **도착 순서**로 본다. 처음 붙을 때 딸려 오는 오늘치는 히스토리,
+ *     그 뒤에 오는 것은 라이브. 두 PC 시계가 어긋나도 영향받지 않는다.
  *   - 히스토리: 상대가 보낸(from != 내 uid) 오늘(KST) 신호만.
  */
 
@@ -31,7 +32,6 @@
   // ------------------------------------------------------------------ Firebase
   function FirebaseTransport(cfg) {
     const roomId = cfg.roomId;
-    const sessionStartTs = Date.now();
     const listeners = [];
     let fb = null, mod = null, refs = null, uid = null;
 
@@ -100,13 +100,23 @@
         signals: mod.ref(db, `rooms/${roomId}/signals`)
       };
 
-      // 멤버십 갱신(이미 페어링 시 등록됨). 커스텀 캐릭터면 번들 업로드 후 참조 기록.
-      await mod.update(refs.me, { characterId: cfg.characterId, lastSeen: mod.serverTimestamp() });
-      writeMyCharacter(cfg.characterId).catch((e) => console.error('[transport] 캐릭터 등록', e));
-
-      pruneOld().catch(() => {});
-
+      // ★ 신호 구독을 **가장 먼저** 건다.
+      // 예전에는 멤버십 갱신(await update)을 먼저 하고 그다음에 구독했다. 그러면
+      // 그 쓰기 하나가 늦거나 실패하는 순간 **구독 자체가 등록되지 않아** 신호가
+      // 영영 안 온다. 증상은 "연결도 됐고 히스토리도 쌓이는데 캐릭터만 반응 없음"
+      // 이라 원인을 찾기 어렵다(히스토리는 get 으로 따로 읽기 때문).
+      // 구독은 네트워크를 기다리지 않는 등록 작업이라 먼저 해도 안전하다.
       const q = mod.query(refs.signals, mod.orderByChild('ts'), mod.startAt(startOfTodayKST()));
+
+      // ★ '지금 온 신호인가'를 **시계로 판단하지 않는다.**
+      // 예전에는 보낸 쪽의 ts(그 PC 의 Date.now())를 받는 쪽의 시작 시각과 비교했다.
+      // 두 PC 시계가 몇 분만 어긋나도 상대가 보낸 신호가 전부 '과거'로 분류돼
+      // **히스토리에는 남는데 캐릭터는 반응하지 않는다.** 원인이 시계라서 더 안 보인다.
+      //
+      // 대신 **도착 순서**로 판단한다. RTDB 는 한 쿼리에 대해 기존 자식들의
+      // child_added 를 먼저 모두 보내고 그다음 value 를 보낸다. 그래서 value 가
+      // 오기 전 = 오늘치 기존 신호, 그 뒤 = 방금 도착한 신호다. 시계와 무관하다.
+      let initialLoaded = false;
       mod.onChildAdded(q, (snap) => {
         const v = snap.val() || {};
         emit({
@@ -115,9 +125,17 @@
           gestureId: v.gestureId,
           ts: v.ts || 0,
           mine: v.from === uid,
-          live: (v.ts || 0) >= sessionStartTs
+          live: initialLoaded
         });
       });
+      mod.onValue(q, () => { initialLoaded = true; }, { onlyOnce: true });
+
+      // 멤버십 갱신(이미 페어링 시 등록됨). 커스텀 캐릭터면 번들 업로드 후 참조 기록.
+      // 실패해도 신호 수신은 이미 살아 있다.
+      await mod.update(refs.me, { characterId: cfg.characterId, lastSeen: mod.serverTimestamp() });
+      writeMyCharacter(cfg.characterId).catch((e) => console.error('[transport] 캐릭터 등록', e));
+
+      pruneOld().catch(() => {});
     }
 
     async function pruneOld() {

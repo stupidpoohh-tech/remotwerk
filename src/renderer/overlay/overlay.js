@@ -31,8 +31,12 @@
 
     try {
       transport = RW.transport.createTransport(cfg);
-      await transport.ready;
+      // ★ 신호 구독을 ready 보다 **먼저** 건다.
+      // onSignal 은 콜백을 배열에 넣는 것뿐이라 연결을 기다릴 필요가 없다.
+      // ready 뒤에 두면, 연결이 늦거나 실패하는 순간 구독이 통째로 건너뛰어져
+      // 캐릭터가 신호에 영영 반응하지 않는다(창은 멀쩡히 떠 있어서 더 헷갈린다).
       transport.onSignal(onSignal);
+      await transport.ready;
       // 최초 조회가 지연되어도 이후 실시간 변경을 받을 수 있다.
       if (transport.onPartnerCharacter) transport.onPartnerCharacter(applyCharDef);
       applyCharDef(await transport.getPartnerCharacter());

@@ -268,7 +268,8 @@ tools/
 |---|---|---|
 | Firebase SDK 동적 import | `https://www.gstatic.com` | `script-src` |
 | DB REST | `https://*.firebasedatabase.app` | `connect-src` |
-| **DB 롱폴링** | **`https://*.firebasedatabase.app`** | **`script-src`** ← fetch 가 아니라 `<script>` 주입이다 |
+| **DB 롱폴링(보내기)** | **`https://*.firebasedatabase.app`** | **`script-src`** ← fetch 가 아니라 `<script>` 주입이다 |
+| **DB 롱폴링(받기)** | **`https://*.firebasedatabase.app`** | **`frame-src`** ← 숨은 iframe 안에서 받는다 |
 | DB 실시간 | `wss://*.firebasedatabase.app` | `connect-src` |
 | 익명 인증 · Storage | `https://*.googleapis.com` | `connect-src` |
 
@@ -279,9 +280,18 @@ tools/
 > 롱폴링으로 넘어가는데, 이 통로가 `<script src="…/.lp?…">` 주입이라 `connect-src` 로는
 > 열리지 않는다. 여기가 빠져 있으면 **WebSocket 도 롱폴링도 막힌 채**, 화면에는
 > "네트워크를 확인하세요" 라고만 나온다 — 실제로 사용자에게 망 탓이라고 잘못 안내했다.
+>
+> **`frame-src` 는 더 고약하다(v0.9.2 까지 빠져 있었다).** 롱폴링은 보내기와 받기가
+> 다른 통로를 쓴다. 받기(서버→클라이언트 밀어내기)는 **숨은 iframe** 안에서 이뤄지는데,
+> `frame-src` 를 안 적으면 `default-src 'self'` 가 대신 적용돼 그 iframe 만 막힌다.
+> 그러면 **쓰기도 되고 REST 읽기도 되는데 실시간 수신만 안 된다.**
+> 겉으로는 "페어링도 됐고 히스토리도 쌓이는데 캐릭터만 신호에 반응하지 않는" 상태라
+> 네트워크 문제로도, 애니메이션 문제로도 보이지 않는다.
+> 콘솔에는 `Refused to frame … because it violates … default-src 'self'` 한 줄만 남는다.
 
 ```bash
-node tools/csp-check.js   # 6개 화면 × 5가지 통로를 진짜 브라우저에서 확인
+node tools/csp-check.js       # 6개 화면 × 6가지 통로를 진짜 브라우저에서 확인
+node tools/signal-path-test.js # 신호가 실제로 구독·재생되는 경로 (npm test 에 포함)
 ```
 
 CSP 위반은 네트워크 없이도 발생하므로 이 검사는 오프라인에서도 정확하다.

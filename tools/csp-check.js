@@ -27,12 +27,17 @@ const DB = ${JSON.stringify(DB)};
 window.TRY = (kind) => new Promise((res) => {
   if (kind === 'SDK(gstatic)')   { const s=document.createElement('script'); s.src='https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js'; document.head.appendChild(s); }
   if (kind === '롱폴링(script)')  { const s=document.createElement('script'); s.src=DB+'/.lp?start=t&ser=1&cb=1'; document.head.appendChild(s); }
+  // 롱폴링은 script 주입만이 아니다. SDK 는 **숨은 iframe** 을 만들어 그 안에서
+  // 서버→클라이언트 밀어내기(수신)를 받는다. 이건 frame-src 가 받는다.
+  // 이 통로가 막히면 쓰기·읽기는 되는데 **실시간 수신만 안 된다** — 신호가 안 오는
+  // 증상의 원인이었는데, 이 검사에 없어서 6화면 전부 초록불이었다.
+  if (kind === '롱폴링(iframe)')  { const f=document.createElement('iframe'); f.style.display='none'; f.src=DB+'/.lp?dframe=t&id=1'; document.body.appendChild(f); }
   if (kind === 'REST(fetch)')     { fetch(DB+'/.json').catch(()=>{}); }
   if (kind === 'WebSocket')       { try { new WebSocket(DB.replace('https','wss')+'/.ws?v=5'); } catch(e) { V.push('ws throw: '+e.name); } }
   if (kind === '인증(googleapis)'){ fetch('https://identitytoolkit.googleapis.com/v1/x').catch(()=>{}); }
   setTimeout(() => res(V.slice()), 600);
 });`;
-const KINDS = ['SDK(gstatic)', '롱폴링(script)', 'REST(fetch)', 'WebSocket', '인증(googleapis)'];
+const KINDS = ['SDK(gstatic)', '롱폴링(script)', '롱폴링(iframe)', 'REST(fetch)', 'WebSocket', '인증(googleapis)'];
 
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox', '--allow-file-access-from-files'] });
