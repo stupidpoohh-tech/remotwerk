@@ -69,14 +69,28 @@
   const DEFAULT_BOX = { w: 120, h: 210, originX: 60, originY: 120, groundY: 86 };
   let charBox = DEFAULT_BOX;
 
+  const FALLBACK_CHAR = 'char_seal';
+
   function buildFromRig(spec, charId) {
-    const { skeleton } = spec;
     if (actor) actor.stop();
     if (ctrl && ctrl.destroy) ctrl.destroy();
     anchorEl.innerHTML = '';
     // 스프라이트 클립이 있으면 클립으로, 없으면 기존 5조각 리그로 자동 폴백된다.
     ctrl = RW.player.create(anchorEl, charId, spec);
-    const b = ctrl.box || (skeleton && skeleton.box) || {};
+
+    // **아무것도 안 그려졌으면 기본 캐릭터로 되돌린다.**
+    // 슬롯이 비었거나 깨진 번들이면 조각이 0개가 되어 화면에 아무것도 안 남는다.
+    // 사용자에게는 "앱이 안 켜졌다" 와 구분이 안 되므로, 빈 화면을 두지 않는다.
+    if (!anchorEl.querySelector('.rw-part, .rw-sprite') && charId !== FALLBACK_CHAR) {
+      console.warn('[overlay] 캐릭터가 비어 있어 기본 캐릭터로 대체합니다:', charId);
+      if (ctrl && ctrl.destroy) ctrl.destroy();
+      anchorEl.innerHTML = '';
+      spec = RW.characters.rigFor(FALLBACK_CHAR, cfg);
+      charId = FALLBACK_CHAR;
+      ctrl = RW.player.create(anchorEl, charId, spec);
+    }
+
+    const b = ctrl.box || (spec.skeleton && spec.skeleton.box) || {};
     charBox = {
       w: b.w != null ? b.w : DEFAULT_BOX.w,
       h: b.h != null ? b.h : DEFAULT_BOX.h,
@@ -103,9 +117,24 @@
   // overlayPos 는 "골반이 놓일 화면 비율" 이다(예전 저장값과 그대로 호환된다).
   function positionChar() {
     const pos = (cfg && cfg.overlayPos) || { x: 0.82, y: 0.72 };
-    // roamX/Y = 자율 생활로 돌아다닌 누적 오프셋(저장하지 않는다).
-    charEl.style.left = `calc(${clamp01(pos.x) * 100}% - ${charBox.originX}px + ${Math.round(roamX)}px)`;
-    charEl.style.top = `calc(${clamp01(pos.y) * 100}% - ${charBox.originY}px + ${Math.round(roamY)}px)`;
+    const W = window.innerWidth, H = window.innerHeight;
+    const s = charScale();
+    // 화면에 실제로 차지하는 크기(배율 반영). 기준점은 발밑이라 세로는 위로 자란다.
+    const w = charBox.w * s, h = charBox.h * s;
+
+    let x = clamp01(pos.x) * W - charBox.originX * s + Math.round(roamX);
+    let y = clamp01(pos.y) * H - charBox.originY * s + Math.round(roamY);
+
+    // **캐릭터가 화면 밖으로 나가지 않게 붙잡는다.**
+    // 비율(0~1)만 제한하면 부족하다 — 0,0 이어도 기준점이 발밑·골반이라 캐릭터 몸은
+    // 화면 위/왼쪽으로 밀려 나간다. 실제로 overlayPos 가 0,0 이면 (-100,-192) 에 그려져
+    // 사용자는 "캐릭터가 사라졌다"고 느낀다. 모니터 구성이 바뀌어도 마찬가지다.
+    const M = 4;
+    x = Math.max(M, Math.min(x, Math.max(M, W - w - M)));
+    y = Math.max(M, Math.min(y, Math.max(M, H - h - M)));
+
+    charEl.style.left = Math.round(x) + 'px';
+    charEl.style.top = Math.round(y) + 'px';
     applyScale();
   }
 

@@ -58,12 +58,18 @@ npm run pack         # 설치파일 없이 폴더로만 빌드(빠른 확인용)
   그리고 스프라이트 클립 규격(캔버스·기준점·접지·접합 자세·리그 대체)을 검사한다.
 
 ```bash
+node tools/app-smoke.js  # ★ 진짜 앱을 띄워 캐릭터가 실제로 보이는지 확인(가상 화면)
 node tools/anim-check/render.js && python3 tools/anim-check/check.py  # 프레임 단위 검사
 node tools/anim-check/timeline.js        # 실제 재생 시간축 검사(스프라이트)
 node tools/anim-check/timeline.js --rig  # 〃 (리그 호환 경로)
 python3 tools/build-clip-art.py          # 클립 규격 검사 + 등록부 재생성
 ```
 
+> **렌더러만 열어 보고 "된다"고 판단하지 않는다.** 렌더러 검사는 통과하는데 실제 앱에서는
+> 캐릭터가 안 보이는 일이 있었다(설정값 때문에 화면 밖으로 나가거나, 빈 캐릭터라 아무것도
+> 안 그려지거나). `tools/app-smoke.js` 는 Xvfb 위에서 **진짜 Electron 앱**을 띄우고,
+> 사용자가 실제로 만들 수 있는 설정 상태 11가지에서 캐릭터가 화면에 보이는지 확인한다.
+>
 > **정지 이미지 한 장으로 애니메이션을 판단하지 않는다.** 리그·클립·아트를 건드리면
 > 위 도구로 **재생 중인 화면을 시간축으로** 확인한다.
 
