@@ -477,7 +477,19 @@ for (const id of ART_IDS) {
     ok(`${f}: ${w}px`, b.readUInt32BE(16) === w, String(b.readUInt32BE(16)));
   }
   const mainJs = fs.readFileSync(path.join(MAIN, 'main.js'), 'utf8');
-  ok('트레이가 실제 아이콘 파일을 쓴다', /createFromPath\([^)]*tray-16\.png/.test(mainJs));
+  ok('트레이가 실제 아이콘 파일을 쓴다', /createFromPath\(path\.join\(__dirname, f\)\)/.test(mainJs));
+
+  // addRepresentation 의 buffer 는 **압축되지 않은 비트맵**이다. PNG 바이트를 넘기면
+  // 빈 이미지가 되고, 빈 이미지로 Tray 를 만들면 실패해 아이콘이 아예 안 보인다.
+  ok('addRepresentation 에 PNG 를 넘기지 않는다', !/addRepresentation\([^)]*toPNG\(\)/.test(mainJs));
+
+  // 트레이 생성 실패를 조용히 넘기면 앱에 닿을 방법이 없어진다
+  // (오버레이는 skipTaskbar 라 작업표시줄에 안 뜬다).
+  const buildTray = mainJs.slice(mainJs.indexOf('function buildTray()'),
+                                 mainJs.indexOf('function refreshTrayMenu()'));
+  ok('트레이 실패를 로그에 남긴다', /logError\('buildTray'/.test(buildTray));
+  ok('트레이 실패 시 창이라도 띄운다', /createSettings\(\)/.test(buildTray));
+  ok('트레이 실패를 조용히 삼키지 않는다', !/catch \(_\) \{\s*return;/.test(buildTray));
   ok('캐릭터 되돌리기 메뉴가 있다', /recenterCharacter/.test(mainJs));
   ok('리모컨 전역 단축키는 없다', !/globalShortcut\.register\(\s*'CommandOrControl\+Shift\+R'/.test(mainJs));
 }

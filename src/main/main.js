@@ -355,17 +355,17 @@ function toggleBossKey() {
 function buildTrayIcon() {
   // 실제 앱 아이콘을 쓴다. 트레이 아이콘이 정체불명의 점이면 사용자가 앱을 못 찾는다.
   // (Windows 11 은 새 트레이 아이콘을 기본으로 숨김 영역에 넣기 때문에 더 그렇다.)
-  try {
-    const img = nativeImage.createFromPath(path.join(__dirname, 'tray-16.png'));
-    if (!img.isEmpty()) {
-      const hi = nativeImage.createFromPath(path.join(__dirname, 'tray-32.png'));
-      if (!hi.isEmpty()) {
-        img.addRepresentation({ scaleFactor: 2, width: 32, height: 32, buffer: hi.toPNG() });
-      }
-      return img;
+  // PNG 파일에서 바로 만든다. addRepresentation 에 PNG 바이트를 넘기면 안 된다 —
+  // 그 buffer 는 **압축되지 않은 비트맵**이어야 해서, PNG 를 주면 빈 이미지가 되고
+  // 빈 이미지로 Tray 를 만들면 실패한다(그래서 아이콘이 아예 안 보였다).
+  for (const f of ['tray-32.png', 'tray-16.png']) {
+    try {
+      const img = nativeImage.createFromPath(path.join(__dirname, f));
+      if (!img.isEmpty()) return img;
+      logError('buildTrayIcon', new Error(`빈 이미지: ${f}`));
+    } catch (e) {
+      logError('buildTrayIcon', e);
     }
-  } catch (e) {
-    logError('buildTrayIcon', e);
   }
 
   // 아이콘 파일을 못 읽으면 코드로 그린 점이라도 띄운다(트레이가 아예 없으면 앱을 못 찾는다).
@@ -398,9 +398,16 @@ function recenterCharacter() {
 function buildTray() {
   try {
     tray = new Tray(buildTrayIcon());
-  } catch (_) {
-    return; // 일부 환경(헤드리스)에서는 트레이 생성이 불가할 수 있음
+  } catch (e) {
+    // 예전에는 여기서 조용히 return 했다. 그런데 오버레이 창은 작업표시줄에 뜨지 않으므로
+    // **트레이가 없으면 앱에 닿을 방법이 사라진다** — 프로세스는 살아 있는데 화면에는
+    // 아무것도 없는 상태가 된다. 조용히 넘기면 안 되는 실패다.
+    logError('buildTray', e);
+    tray = null;
+    createSettings();          // 최소한 창 하나는 띄워서 앱을 찾을 수 있게 한다
+    return;
   }
+  logInfo('tray', '트레이 아이콘 생성됨');
   tray.setToolTip('Remotwerk — 클릭하면 리모컨');
   // 좌클릭/더블클릭으로 바로 리모컨을 연다(메뉴를 거치지 않아도 되게).
   tray.on('click', () => createRemote());
