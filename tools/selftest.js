@@ -240,7 +240,14 @@ for (const st of STAGES) {
 const ART_IDS = ['char_seal', 'char_ribbon'];
 const presetIds = RW.presets.PRESETS.map((p) => p.id);
 ok('제공 캐릭터가 목록 맨 앞에', presetIds[0] === ART_IDS[0] && presetIds[1] === ART_IDS[1], presetIds.join(','));
-ok('색 프리셋도 남아 있다', ['preset1', 'preset2', 'preset3'].every((id) => presetIds.includes(id)));
+// 색 프리셋(preset1~3)은 뺐다. 목록에는 없어야 하지만, 예전에 그걸 고른 설정이
+// 깨지면 안 되므로 get() 은 여전히 그릴 수 있는 캐릭터를 돌려줘야 한다.
+ok('색 프리셋은 목록에서 빠졌다', ['preset1', 'preset2', 'preset3'].every((id) => !presetIds.includes(id)));
+for (const id of ['preset1', 'preset2', 'preset3']) {
+  const p = RW.presets.get(id);
+  ok(`없어진 ${id} 도 그릴 수 있는 캐릭터로 대체된다`, !!(p && p.bundle), p && p.id);
+}
+ok('모르는 id 도 대체된다', !!RW.presets.get('없는캐릭터').bundle);
 for (const id of ART_IDS) {
   const spec = RW.presets.rigFor(id);
   ok(`${id}: 5조각이 모두 있다`, SLOT5.every((s) => spec.rig.slots[s] && spec.rig.slots[s].image));

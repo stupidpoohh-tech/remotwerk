@@ -276,7 +276,7 @@
       await host.setConfig({ roomId, pairCode: RW.pairing.normalize(raw) });
       cfg = await host.getConfig();
       $('inviteBox').hidden = true;
-      setPairMsg('연결됐어요! 리모컨(Ctrl+Shift+R)으로 신호를 보내보세요.');
+      setPairMsg('연결됐어요! 캐릭터를 클릭하거나 트레이 아이콘을 눌러 리모컨을 여세요.');
       refreshPairStatus();
     } catch (e) {
       setPairMsg('실패: ' + (e && e.message ? e.message : e));

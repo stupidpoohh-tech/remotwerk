@@ -360,7 +360,7 @@ function refreshTrayMenu() {
   if (!tray) return;
   const cfg = config.load();
   const menu = Menu.buildFromTemplate([
-    { label: '리모컨 열기', accelerator: 'CommandOrControl+Shift+R', click: () => createRemote() },
+    { label: '리모컨 열기', click: () => createRemote() },
     { label: '히스토리 열기', click: () => createHistory() },
     { type: 'separator' },
     {
@@ -449,7 +449,7 @@ function registerIpc() {
   // 캐릭터 자체에서 끄기/숨기기로 갈 수 있어야 한다.
   ipcMain.on('overlay:context-menu', () => {
     const menu = Menu.buildFromTemplate([
-      { label: '리모컨 열기', accelerator: 'CommandOrControl+Shift+R', click: () => createRemote() },
+      { label: '리모컨 열기', click: () => createRemote() },
       { label: '설정', accelerator: 'CommandOrControl+Shift+S', click: () => createSettings() },
       { label: '히스토리', click: () => createHistory() },
       { type: 'separator' },
@@ -484,7 +484,8 @@ function registerIpc() {
 // ---------------------------------------------------------------------------
 
 function registerShortcuts() {
-  globalShortcut.register('CommandOrControl+Shift+R', () => createRemote());
+  // 리모컨 전역 단축키는 뺐다 — 캐릭터를 톡 클릭하거나 트레이 아이콘을 누르면 열리고,
+  // 전역 단축키는 다른 프로그램의 Ctrl+Shift+R(새로고침 등)을 가로채기만 한다.
   globalShortcut.register('CommandOrControl+Shift+H', () => toggleBossKey());
   globalShortcut.register('CommandOrControl+Shift+S', () => createSettings());
 }

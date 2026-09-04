@@ -33,35 +33,21 @@
     { id: 'char_ribbon', name: '리본',   swatch: '#2f56c9' }
   ].filter((p) => ART[p.id]).map((p) => Object.assign({}, p, { bundle: ART[p.id] }));
 
-  const PRESETS = ART_PRESETS.concat([
-    {
-      id: 'preset1',
-      name: '캐릭터1',
-      skeletonId: 'bipedal',
-      swatch: '#8a63ff',
-      slots: slots('#8a63ff', '#5b3ecc', '#ffd9c0')
-    },
-    {
-      id: 'preset2',
-      name: '캐릭터2',
-      skeletonId: 'bipedal',
-      swatch: '#ff6fa5',
-      slots: slots('#ff6fa5', '#d24f84', '#ffe0cf')
-    },
-    {
-      id: 'preset3',
-      name: '캐릭터3',
-      skeletonId: 'bipedal',
-      swatch: '#38c6a0',
-      slots: slots('#38c6a0', '#1f9b7c', '#ffe0cf')
-    }
-  ]);
+  const PRESETS = ART_PRESETS.slice();
 
   const byId = {};
   for (const p of PRESETS) byId[p.id] = p;
 
+  // 없어진 색 프리셋(preset1~3). 목록에서는 빼되, **예전에 이걸 고른 설정이
+  // 깨지지 않게** 그림 프리셋으로 대신 보여 준다. (get() 이 빈 값을 돌려주면
+  // 오버레이가 아무것도 못 그린다.)
+  const RETIRED = { preset1: 'char_seal', preset2: 'char_ribbon', preset3: 'char_seal' };
+
   function get(id) {
-    return byId[id] || PRESETS[0];
+    if (byId[id]) return byId[id];
+    const alt = RETIRED[id];
+    if (alt && byId[alt]) return byId[alt];
+    return PRESETS[0];
   }
 
   // 엔진 mount 에 넘길 { skeleton, rig } 구성
