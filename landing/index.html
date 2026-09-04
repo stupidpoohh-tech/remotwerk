@@ -3,379 +3,81 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#f7f5f0" />
-  <meta name="description" content="연인의 작은 캐릭터가 내 화면에 삽니다. 답장을 요구하지 않는 작은 몸짓으로 서로의 하루 곁에 머무는 Remotwerk." />
-  <meta property="og:title" content="Remotwerk — 연인의 작은 캐릭터가 내 화면에" />
-  <meta property="og:description" content="메신저 대신 작은 몸짓. 연인의 캐릭터를 내 화면 곁에 두세요." />
+  <meta name="theme-color" content="#fffaf6" />
+  <meta name="description" content="씰룩 — 연인의 작은 캐릭터가 내 화면에 삽니다. 답장을 요구하지 않는 작은 몸짓으로 연결되는 커플 캐릭터 앱." />
+  <meta property="og:title" content="씰룩 · Remotwerk" />
+  <meta property="og:description" content="연인의 작은 캐릭터가 내 화면에 삽니다." />
   <meta property="og:type" content="website" />
-  <title>Remotwerk — 연인의 작은 캐릭터가 내 화면에</title>
+  <title>씰룩 · Remotwerk</title>
   <link rel="icon" href="https://raw.githubusercontent.com/stupidpoohh-tech/remotwerk/claude/remotwerk-desktop-app-lcys33/build/icon.png" />
   <style>
-    :root {
-      --bg: #f7f5f0;
-      --panel: rgba(255,255,255,.78);
-      --ink: #171717;
-      --muted: #6e6b65;
-      --line: rgba(23,23,23,.11);
-      --accent: #ff6a4a;
-      --accent-2: #ffd6c7;
-      --shadow: 0 24px 70px rgba(39,31,24,.10);
-      --radius: 28px;
-      --max: 1140px;
+    :root{
+      --bg:#fffaf6;--paper:#fff;--ink:#1e1d1b;--muted:#77706a;--line:#eee4dc;--accent:#ff7048;--soft:#fff1e9;--max:1180px;
     }
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body {
-      margin: 0;
-      color: var(--ink);
-      background:
-        radial-gradient(circle at 76% 8%, rgba(255,209,193,.50), transparent 28rem),
-        radial-gradient(circle at 13% 34%, rgba(255,240,188,.36), transparent 23rem),
-        var(--bg);
-      font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-      line-height: 1.55;
-      letter-spacing: -.02em;
-    }
-    a { color: inherit; }
-    button, a { -webkit-tap-highlight-color: transparent; }
-    .wrap { width: min(calc(100% - 40px), var(--max)); margin: 0 auto; }
-    .nav {
-      height: 76px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 24px;
-    }
-    .brand { display:flex; align-items:center; gap:11px; text-decoration:none; font-weight:800; font-size:20px; letter-spacing:-.04em; }
-    .brand img { width:32px; height:32px; object-fit:contain; }
-    .nav-links { display:flex; gap:26px; align-items:center; font-size:14px; color:var(--muted); }
-    .nav-links a { text-decoration:none; }
-    .nav-links a:hover { color:var(--ink); }
-    .download-mini {
-      display:inline-flex; align-items:center; justify-content:center; min-height:42px; padding:0 18px;
-      border-radius:999px; color:white!important; background:var(--ink); font-weight:750; text-decoration:none!important;
-    }
-    .hero {
-      min-height: calc(100vh - 76px);
-      display:grid; grid-template-columns: 1.02fr .98fr; align-items:center; gap:56px;
-      padding:74px 0 96px;
-    }
-    .eyebrow {
-      display:inline-flex; gap:8px; align-items:center; padding:8px 12px; border:1px solid var(--line); border-radius:999px;
-      background:rgba(255,255,255,.54); font-size:13px; font-weight:700; color:#55514c;
-    }
-    .eyebrow::before { content:""; width:7px; height:7px; border-radius:50%; background:#4ec07a; box-shadow:0 0 0 4px rgba(78,192,122,.12); }
-    h1 { margin:24px 0 22px; font-size:clamp(48px, 6.2vw, 82px); line-height:1.03; letter-spacing:-.065em; font-weight:860; }
-    h1 .soft { color:#77716b; }
-    .hero-copy { max-width:610px; font-size:18px; color:var(--muted); }
-    .hero-copy strong { color:var(--ink); font-weight:720; }
-    .cta-row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:34px; }
-    .cta {
-      display:inline-flex; align-items:center; justify-content:center; gap:10px; min-height:58px; padding:0 24px; border-radius:17px;
-      background:var(--ink); color:white; text-decoration:none; font-weight:800; box-shadow:0 12px 30px rgba(23,23,23,.16); transition:.18s ease;
-    }
-    .cta:hover { transform:translateY(-2px); box-shadow:0 16px 35px rgba(23,23,23,.20); }
-    .cta.secondary { color:var(--ink); background:rgba(255,255,255,.64); border:1px solid var(--line); box-shadow:none; }
-    .version-line { margin-top:13px; color:#858078; font-size:12px; }
-    .hero-stage {
-      position:relative; min-height:570px; display:flex; align-items:center; justify-content:center;
-    }
-    .desktop {
-      width:min(100%, 560px); aspect-ratio: 1.18/1; border:1px solid rgba(23,23,23,.10); border-radius:32px; overflow:hidden;
-      background:linear-gradient(145deg,#fdfdfd,#e9e8e5); box-shadow:var(--shadow); position:relative;
-    }
-    .desktop-top { height:42px; border-bottom:1px solid rgba(23,23,23,.08); background:rgba(255,255,255,.78); display:flex; align-items:center; gap:6px; padding:0 16px; }
-    .desktop-top i { display:block; width:8px; height:8px; border-radius:50%; background:#d5d1cb; }
-    .work-lines { position:absolute; left:8%; top:20%; width:62%; display:grid; gap:14px; opacity:.5; }
-    .work-lines span { height:10px; background:#d8d6d1; border-radius:20px; }
-    .work-lines span:nth-child(2){ width:80%; } .work-lines span:nth-child(3){ width:55%; }
-    .work-card { position:absolute; left:8%; top:40%; width:56%; height:31%; border-radius:16px; border:1px solid #ddd9d3; background:rgba(255,255,255,.52); }
-    .seal-wrap { position:absolute; right:3%; bottom:2%; width:47%; aspect-ratio:1; display:flex; align-items:flex-end; justify-content:center; }
-    .seal-wrap img { width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 14px 14px rgba(38,31,25,.10)); transform-origin:50% 88%; }
-    .seal-wrap.pop img { animation:tinyPop .55s cubic-bezier(.2,.9,.35,1); }
-    @keyframes tinyPop { 0%{transform:scale(1)} 35%{transform:scale(.93,1.05) translateY(3px)} 70%{transform:scale(1.06,.94) translateY(-7px)} 100%{transform:scale(1)} }
-    .signal {
-      position:absolute; right:7%; bottom:39%; padding:10px 14px; border-radius:16px 16px 4px 16px; background:white; border:1px solid var(--line);
-      box-shadow:0 10px 24px rgba(39,31,24,.10); font-size:13px; font-weight:760; animation:float 2.6s ease-in-out infinite;
-    }
-    @keyframes float { 50%{ transform:translateY(-5px); } }
-    .stage-note { position:absolute; left:-18px; bottom:36px; background:#171717; color:white; padding:13px 15px; border-radius:16px; font-size:13px; box-shadow:0 12px 30px rgba(23,23,23,.18); }
-    .section { padding:120px 0; }
-    .section-kicker { font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:#8c867e; font-weight:780; }
-    h2 { margin:14px 0 20px; font-size:clamp(36px,4.7vw,60px); line-height:1.08; letter-spacing:-.055em; }
-    .section-lead { max-width:690px; color:var(--muted); font-size:18px; }
-    .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:52px; }
-    .step { padding:30px; min-height:225px; border-top:1px solid var(--line); }
-    .step-no { font-size:12px; color:#aaa39a; font-weight:800; letter-spacing:.08em; }
-    .step h3 { margin:42px 0 8px; font-size:23px; letter-spacing:-.04em; }
-    .step p { margin:0; color:var(--muted); font-size:15px; }
-    .presence {
-      display:grid; grid-template-columns:.9fr 1.1fr; gap:62px; align-items:center;
-    }
-    .motion-stage {
-      min-height:520px; border-radius:36px; background:#171717; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center;
-      box-shadow:0 30px 80px rgba(23,23,23,.14);
-    }
-    .motion-stage::before { content:""; position:absolute; width:420px; height:420px; border-radius:50%; background:radial-gradient(circle, rgba(255,106,74,.30), transparent 67%); }
-    .motion-stage img { position:relative; width:min(82%,440px); aspect-ratio:1; object-fit:contain; filter:drop-shadow(0 22px 22px rgba(0,0,0,.28)); }
-    .motion-badge { position:absolute; left:22px; top:22px; color:white; font-size:12px; padding:8px 11px; border:1px solid rgba(255,255,255,.18); border-radius:999px; background:rgba(255,255,255,.08); backdrop-filter:blur(10px); }
-    .motion-copy ul { list-style:none; padding:0; margin:34px 0 0; display:grid; gap:18px; }
-    .motion-copy li { display:grid; grid-template-columns:34px 1fr; gap:13px; align-items:start; }
-    .motion-copy li b { width:32px; height:32px; border-radius:50%; display:grid; place-items:center; background:white; border:1px solid var(--line); font-size:14px; }
-    .motion-copy li span { color:var(--muted); }
-    .characters { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:46px; }
-    .character { position:relative; min-height:340px; border-radius:26px; background:rgba(255,255,255,.58); border:1px solid var(--line); overflow:hidden; padding:20px; display:flex; flex-direction:column; justify-content:flex-end; }
-    .character img { position:absolute; inset:16px 8px 70px; width:calc(100% - 16px); height:calc(100% - 86px); object-fit:contain; transition:.23s ease; }
-    .character:hover img { transform:translateY(-5px) scale(1.025); }
-    .character strong { position:relative; z-index:1; font-size:16px; }
-    .character small { position:relative; z-index:1; color:var(--muted); margin-top:2px; }
-    .privacy-box {
-      margin-top:52px; padding:50px; border-radius:34px; background:#fff; border:1px solid var(--line); box-shadow:0 20px 60px rgba(39,31,24,.06);
-      display:grid; grid-template-columns:1fr 1fr; gap:55px;
-    }
-    .privacy-box h3 { margin:0 0 14px; font-size:30px; letter-spacing:-.05em; }
-    .privacy-list { display:grid; grid-template-columns:1fr 1fr; gap:12px 18px; }
-    .privacy-list div { font-size:14px; padding:13px 0; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:9px; }
-    .privacy-list div::before { content:"✓"; width:21px; height:21px; border-radius:50%; display:grid; place-items:center; background:#e8f7ed; color:#198844; font-weight:900; font-size:11px; }
-    .beta-warning { margin-top:18px; font-size:12px; color:#8a8177; }
-    .faq { margin-top:44px; border-top:1px solid var(--line); }
-    details { border-bottom:1px solid var(--line); padding:21px 0; }
-    summary { cursor:pointer; font-weight:760; font-size:17px; list-style:none; display:flex; justify-content:space-between; gap:20px; }
-    summary::-webkit-details-marker { display:none; }
-    summary::after { content:"+"; color:#918980; font-size:20px; font-weight:400; }
-    details[open] summary::after { content:"−"; }
-    details p { color:var(--muted); max-width:820px; margin:12px 0 2px; font-size:14px; }
-    .final { text-align:center; padding:120px 0 130px; }
-    .final h2 { max-width:800px; margin:0 auto 30px; }
-    .final .cta-row { justify-content:center; }
-    footer { border-top:1px solid var(--line); padding:27px 0 44px; color:#8d867e; font-size:12px; }
-    .footer-row { display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap; }
-    .footer-links { display:flex; gap:18px; }
-    .footer-links a { text-decoration:none; }
-    .only-mobile { display:none; }
-    @media (max-width: 900px) {
-      .nav-links a:not(.download-mini) { display:none; }
-      .hero { grid-template-columns:1fr; padding-top:48px; gap:24px; min-height:auto; }
-      .hero-stage { min-height:470px; }
-      .desktop { max-width:570px; }
-      .stage-note { left:8px; }
-      .presence { grid-template-columns:1fr; }
-      .motion-stage { min-height:450px; }
-      .characters { grid-template-columns:1fr 1fr; }
-      .privacy-box { grid-template-columns:1fr; gap:30px; }
-    }
-    @media (max-width: 620px) {
-      .wrap { width:min(calc(100% - 28px), var(--max)); }
-      .nav { height:66px; }
-      .brand { font-size:18px; }
-      .brand img { width:29px; height:29px; }
-      .download-mini { padding:0 14px; min-height:38px; font-size:12px; }
-      .hero { padding:42px 0 68px; }
-      h1 { font-size:47px; }
-      .hero-copy { font-size:16px; }
-      .cta { width:100%; }
-      .cta.secondary { width:auto; }
-      .hero-stage { min-height:390px; }
-      .desktop { border-radius:25px; }
-      .seal-wrap { width:53%; right:0; }
-      .signal { right:5%; bottom:42%; font-size:11px; }
-      .stage-note { bottom:15px; font-size:11px; }
-      .section { padding:84px 0; }
-      .steps { grid-template-columns:1fr; gap:0; margin-top:30px; }
-      .step { min-height:auto; padding:24px 4px 31px; }
-      .step h3 { margin:22px 0 7px; }
-      .motion-stage { min-height:390px; border-radius:28px; }
-      .characters { grid-template-columns:1fr 1fr; gap:9px; }
-      .character { min-height:255px; padding:15px; }
-      .privacy-box { padding:28px 22px; border-radius:26px; }
-      .privacy-list { grid-template-columns:1fr; gap:0; }
-      .final { padding:88px 0 100px; }
-      .only-mobile { display:inline; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after { animation-duration:.001ms!important; animation-iteration-count:1!important; scroll-behavior:auto!important; }
-    }
+    *{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;background:linear-gradient(180deg,#fffdfb 0%,#fff9f4 100%);color:var(--ink);font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif;letter-spacing:-.03em} a{text-decoration:none;color:inherit}.wrap{width:min(calc(100% - 36px),var(--max));margin:auto}
+    header{height:76px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+    .brand{display:flex;align-items:baseline;gap:11px;font-size:24px;font-weight:900}.brand small{font-size:13px;color:var(--muted);font-weight:600}.menu{font-size:28px;line-height:1}
+    .hero{padding:54px 0 36px;display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}.beta{display:inline-flex;padding:9px 14px;border-radius:999px;background:var(--soft);color:var(--accent);font-size:14px;font-weight:800}.hero h1{font-size:clamp(48px,5.5vw,76px);line-height:1.06;margin:26px 0 20px;letter-spacing:-.065em}.hero h1 em{font-style:normal;color:var(--accent)}.lead{font-size:20px;line-height:1.65;color:var(--muted);margin:0 0 28px}.cta{display:inline-flex;align-items:center;justify-content:center;min-height:58px;padding:0 24px;border-radius:16px;background:var(--accent);color:white;font-size:18px;font-weight:900;box-shadow:0 12px 28px rgba(255,112,72,.22)}.secondary{display:inline-flex;margin-left:12px;min-height:58px;padding:0 20px;align-items:center;border:1px solid var(--line);border-radius:16px;background:white;font-weight:750}.version{font-size:12px;color:#a0968d;margin-top:12px}
+    .device{position:relative;min-height:480px;border-radius:34px;background:linear-gradient(145deg,#f5d8c7,#ece8e4);overflow:hidden;box-shadow:0 25px 70px rgba(70,53,42,.12)}.screen{position:absolute;left:14%;right:14%;top:8%;bottom:12%;border:14px solid #222;border-bottom-width:42px;border-radius:26px 26px 18px 18px;background:linear-gradient(#a9d0e5,#d9e8ee);overflow:hidden}.taskbar{position:absolute;left:0;right:0;bottom:0;height:38px;background:#202224}.bubble{position:absolute;top:17%;left:50%;transform:translateX(-50%);background:white;padding:10px 14px;border-radius:15px;font-size:14px;font-weight:800;box-shadow:0 7px 18px rgba(0,0,0,.08)}.hero-motion{position:absolute;left:50%;bottom:15%;transform:translateX(-50%);width:58%;aspect-ratio:1;object-fit:contain;image-rendering:auto}.caption{position:absolute;left:20px;bottom:18px;padding:9px 12px;border-radius:999px;background:rgba(255,255,255,.84);font-size:12px;font-weight:800;color:#665b54}
+    .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin:28px auto 0;background:white;border:1px solid var(--line);border-radius:26px;overflow:hidden}.step{padding:26px 28px;display:grid;grid-template-columns:42px 1fr;gap:14px;align-items:center}.step+.step{border-left:1px solid var(--line)}.n{width:42px;height:42px;border-radius:14px;background:var(--soft);color:var(--accent);display:grid;place-items:center;font-weight:900}.step strong{display:block;font-size:18px}.step span{font-size:13px;color:var(--muted)}
+    .fit{margin-top:28px;padding:24px 28px;border-radius:24px;background:#fff3eb;display:grid;grid-template-columns:190px 1fr;align-items:center;gap:20px}.fit h2{font-size:21px;margin:0}.fit ul{margin:0;padding:0;list-style:none;display:flex;gap:24px;flex-wrap:wrap}.fit li{font-size:14px}.fit li:before{content:"●";color:var(--accent);margin-right:8px}
+    .section-title{font-size:22px;margin:34px 0 14px}.characters{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.char{background:white;border:1px solid var(--line);border-radius:22px;padding:14px 14px 12px;text-align:center}.char img{width:100%;height:180px;object-fit:contain}.char b{font-size:15px}.char small{display:block;color:var(--muted);margin-top:3px}.motion-card{margin-top:16px;border:1px solid var(--line);background:white;border-radius:24px;padding:20px;display:grid;grid-template-columns:280px 1fr;gap:26px;align-items:center}.motion-preview{background:#eef7fb;border-radius:19px;min-height:220px;display:grid;place-items:center;overflow:hidden}.motion-preview img{width:88%;height:220px;object-fit:contain}.motion-copy h3{font-size:25px;margin:0 0 8px}.motion-copy p{color:var(--muted);font-size:16px;line-height:1.6;margin:0}.tag{display:inline-flex;margin-top:14px;padding:8px 11px;border-radius:999px;background:var(--soft);color:var(--accent);font-size:12px;font-weight:850}
+    .privacy{margin:24px 0 0;background:#fff5ef;border-radius:22px;padding:18px 24px;display:flex;align-items:center;justify-content:center;gap:42px;flex-wrap:wrap;font-size:14px}.privacy span:before{content:"✓";color:var(--accent);font-weight:900;margin-right:8px}
+    .final{margin:26px 0 56px;padding:32px;text-align:center;background:#fff0e7;border-radius:26px}.final h2{font-size:28px;margin:0 0 18px}.final .cta{min-width:340px}.final p{font-size:12px;color:var(--muted);margin:12px 0 0}
+    footer{padding:20px 0 34px;border-top:1px solid var(--line);font-size:12px;color:#9a9088;text-align:center}
+    @media(max-width:760px){.wrap{width:min(calc(100% - 24px),var(--max))}header{height:64px}.brand{font-size:21px}.brand small{display:none}.hero{grid-template-columns:1fr;padding:34px 0 20px;gap:24px}.hero h1{font-size:43px;margin:20px 0 16px}.lead{font-size:16px;margin-bottom:20px}.cta,.secondary{width:100%;margin:0 0 10px}.version{margin-top:2px}.device{min-height:380px}.screen{left:12%;right:12%;top:6%;bottom:9%}.steps{grid-template-columns:1fr;margin-top:18px}.step{padding:18px 20px}.step+.step{border-left:0;border-top:1px solid var(--line)}.fit{grid-template-columns:1fr;padding:20px}.fit ul{display:grid;gap:10px}.characters{grid-template-columns:repeat(2,1fr)}.char img{height:150px}.motion-card{grid-template-columns:1fr;padding:14px}.motion-preview{min-height:230px}.motion-preview img{height:230px}.privacy{gap:13px;justify-content:flex-start;padding:18px 20px}.final{padding:26px 16px;margin-bottom:34px}.final h2{font-size:23px}.final .cta{min-width:0;width:100%}}
   </style>
 </head>
 <body>
-  <header class="wrap nav">
-    <a class="brand" href="#top" aria-label="Remotwerk 홈">
-      <img src="https://raw.githubusercontent.com/stupidpoohh-tech/remotwerk/claude/remotwerk-desktop-app-lcys33/build/icon.png" alt="" />
-      Remotwerk
-    </a>
-    <nav class="nav-links" aria-label="주요 메뉴">
-      <a href="#how">사용 방법</a>
-      <a href="#characters">캐릭터</a>
-      <a href="#privacy">프라이버시</a>
-      <a class="download-mini download-link" href="https://github.com/stupidpoohh-tech/remotwerk/releases/download/v0.9.3/Remotwerk-Setup-0.9.3.exe">Windows 다운로드</a>
-    </nav>
-  </header>
-
-  <main id="top">
-    <section class="wrap hero">
-      <div>
-        <span class="eyebrow">Windows Beta</span>
-        <h1>연인의 작은 캐릭터가<br /><span class="soft">내 화면에 삽니다.</span></h1>
-        <p class="hero-copy">메신저처럼 대화를 이어갈 필요는 없습니다. <strong>보고 싶을 때 작은 몸짓 하나.</strong> Remotwerk는 서로의 화면 한구석에 조용히 머무는 커플 캐릭터 앱입니다.</p>
-        <div class="cta-row">
-          <a class="cta download-link" href="https://github.com/stupidpoohh-tech/remotwerk/releases/download/v0.9.3/Remotwerk-Setup-0.9.3.exe">↓ Windows용 다운로드</a>
-          <a class="cta secondary" href="#how">어떻게 쓰나요?</a>
-        </div>
-        <div class="version-line"><span class="version-text">최신 버전 확인 중…</span> · Windows 설치파일 · 베타</div>
-      </div>
-      <div class="hero-stage" aria-label="Remotwerk 사용 장면 예시">
-        <div class="desktop">
-          <div class="desktop-top"><i></i><i></i><i></i></div>
-          <div class="work-lines"><span></span><span></span><span></span></div>
-          <div class="work-card"></div>
-          <div class="signal">💗 보고싶어</div>
-          <div class="seal-wrap" id="heroSealWrap">
-            <img id="heroSeal" src="https://raw.githubusercontent.com/stupidpoohh-tech/remotwerk/claude/remotwerk-desktop-app-lcys33/art/presets/seal-front.png" alt="화면 구석에 있는 Remotwerk 물개 캐릭터" />
-          </div>
-        </div>
-        <div class="stage-note">답장을 요구하지 않아요. 그냥 도착합니다.</div>
-      </div>
-    </section>
-
-    <section class="section" id="how">
-      <div class="wrap">
-        <div class="section-kicker">How it works</div>
-        <h2>설치하고, 연결하고,<br />작은 몸짓을 보냅니다.</h2>
-        <p class="section-lead">복잡한 커플 기능 대신 한 가지 경험에 집중했습니다. 상대의 캐릭터가 내 화면에 살고, 내가 보낸 몸짓은 상대 화면의 캐릭터가 대신 보여줍니다.</p>
-        <div class="steps">
-          <article class="step"><div class="step-no">01</div><h3>Remotwerk 설치</h3><p>Windows PC에 설치하고 마음에 드는 캐릭터를 고릅니다.</p></article>
-          <article class="step"><div class="step-no">02</div><h3>둘만 연결</h3><p>초대 코드를 공유해 두 사람을 연결합니다. 서로 다른 캐릭터를 골라도 됩니다.</p></article>
-          <article class="step"><div class="step-no">03</div><h3>몸짓 하나 보내기</h3><p>리모컨에서 신호를 누르면 상대 화면의 내 캐릭터가 움직입니다. 읽음이나 답장 압박은 없습니다.</p></article>
-        </div>
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="wrap presence">
-        <div class="motion-stage">
-          <span class="motion-badge">실제 캐릭터 모션</span>
-          <img id="motionSeal" src="https://raw.githubusercontent.com/stupidpoohh-tech/remotwerk/claude/remotwerk-desktop-app-lcys33/art/clips/char_seal/twerk_loop/frame-00.png" alt="장난스럽게 움직이는 Remotwerk 물개" />
-        </div>
-        <div class="motion-copy">
-          <div class="section-kicker">Low-bandwidth presence</div>
-          <h2>말보다 먼저<br />몸짓이 도착해요.</h2>
-          <p class="section-lead">상대가 뭘 하고 있는지 감시하지 않습니다. 그냥 문득 생각났을 때, 캐릭터에게 작은 행동 하나를 맡깁니다.</p>
-          <ul>
-            <li><b>♡</b><span><strong>답장 의무 없음.</strong><br />읽음 표시나 응답 상태를 만들지 않습니다.</span></li>
-            <li><b>↗</b><span><strong>작고 바로 읽히는 몸짓.</strong><br />곁눈질로 봐도 무슨 기분인지 알 수 있게 설계합니다.</span></li>
-            <li><b>···</b><span><strong>혼자서도 살아 있음.</strong><br />신호가 없을 때도 캐릭터는 화면 한구석에서 자기 시간을 보냅니다.</span></li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="characters">
-      <div class="wrap">
-        <div class="section-kicker">Characters</div>
-        <h2>내 대신 화면에<br />살아줄 얼굴을 고르세요.</h2>
-        <p class="section-lead">Remotwerk가 직접 제작하고 검수한 캐릭터를 중심으로 확장하고 있습니다. 캐릭터마다 생김새뿐 아니라 움직이는 성격도 달라질 예정입니다.</p>
-        <div class="characters">
-          <article class="character"><img src="https://raw.githubusercontent.com/stupidpoohh-tech/remotwerk/claude/remotwerk-desktop-app-lcys33/art/presets/seal-front.png" alt="물개 캐릭터" /><strong>물개</strong><small>말랑하고 적극적</small></article>
-          <article class="character"><img src="https://raw.githubusercontent.com/stupidpoohh-tech/remotwerk/claude/remotwerk-desktop-app-lcys33/art/presets/hamster-front.png" alt="햄스터 캐릭터" /><strong>햄스터</strong><small>작고 멍한 편</small></article>
-          <article class="character"><img src="https://raw.githubusercontent.com/stupidpoohh-tech/remotwerk/claude/remotwerk-desktop-app-lcys33/art/presets/rabbit-front.png" alt="토끼 캐릭터" /><strong>토끼</strong><small>폭신하고 조금 부산함</small></article>
-          <article class="character"><img src="https://raw.githubusercontent.com/stupidpoohh-tech/remotwerk/claude/remotwerk-desktop-app-lcys33/art/presets/racoon-front.png" alt="너구리 캐릭터" /><strong>너구리</strong><small>능청스럽고 태평함</small></article>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="privacy">
-      <div class="wrap">
-        <div class="section-kicker">Privacy by design</div>
-        <h2>당신의 화면을<br />보지 않습니다.</h2>
-        <p class="section-lead">Remotwerk는 상대와 작은 몸짓을 주고받기 위해 필요한 정보만 다룹니다. 업무 화면이나 입력 내용을 읽는 기능을 제품에 넣지 않습니다.</p>
-        <div class="privacy-box">
-          <div>
-            <h3>작게 존재하고,<br />작게 연결합니다.</h3>
-            <p class="section-lead" style="font-size:15px">현재 버전은 화면 캡처, 키 입력, 마이크·카메라, 업무 파일을 수집하지 않습니다. 상대에게도 접속 상태나 현재 사용하는 앱 같은 활동 정보를 보여주지 않습니다.</p>
-            <p class="beta-warning">※ 회사 PC에서는 사내 보안정책에 따라 설치 또는 외부 네트워크 연결이 제한될 수 있습니다.</p>
-          </div>
-          <div class="privacy-list">
-            <div>화면 캡처 안 함</div><div>키 입력 수집 안 함</div><div>마이크·카메라 안 씀</div><div>업무 파일 접근 안 함</div><div>읽음 표시 없음</div><div>상대 접속상태 감시 안 함</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="faq">
-      <div class="wrap">
-        <div class="section-kicker">FAQ</div>
-        <h2>설치하기 전에.</h2>
-        <div class="faq">
-          <details><summary>두 사람 모두 설치해야 하나요?</summary><p>현재 Windows 베타에서는 서로의 화면에서 캐릭터를 주고받으려면 두 사람 모두 Remotwerk를 설치하는 방식입니다.</p></details>
-          <details><summary>회사 PC에서도 쓸 수 있나요?</summary><p>Remotwerk 자체는 화면·키 입력·업무 파일을 읽지 않지만, 회사마다 개인 프로그램 설치와 외부 서비스 통신 정책이 다릅니다. 사내 정책에서 허용되는 PC에서 사용해 주세요.</p></details>
-          <details><summary>Windows에서 게시자 경고가 보일 수 있나요?</summary><p>현재 베타는 정식 코드 서명을 준비 중이라 Windows에서 게시자 또는 SmartScreen 관련 안내가 표시될 수 있습니다. 공개 1.0 전 코드 서명 적용을 목표로 하고 있습니다.</p></details>
-          <details><summary>상대가 신호를 읽었는지 알 수 있나요?</summary><p>알 수 없습니다. 일부러 만들지 않았습니다. Remotwerk는 대답을 요구하지 않는 작은 존재감을 목표로 합니다.</p></details>
-          <details><summary>캐릭터는 더 추가되나요?</summary><p>네. 사용자 업로드보다 Remotwerk가 직접 제작·검수한 캐릭터를 늘리는 방향으로 개발하고 있습니다.</p></details>
-        </div>
-      </div>
-    </section>
-
-    <section class="wrap final">
-      <div class="section-kicker">Remotwerk Beta</div>
-      <h2>오늘은 말 대신<br />작은 캐릭터 하나 보내볼까요?</h2>
-      <div class="cta-row">
-        <a class="cta download-link" href="https://github.com/stupidpoohh-tech/remotwerk/releases/download/v0.9.3/Remotwerk-Setup-0.9.3.exe">↓ Windows용 다운로드</a>
-      </div>
-      <div class="version-line"><span class="version-text">최신 버전 확인 중…</span> · Windows Beta</div>
-    </section>
-  </main>
-
-  <footer>
-    <div class="wrap footer-row">
-      <span>© 2026 Remotwerk</span>
-      <div class="footer-links"><a href="#privacy">Privacy</a><a href="#faq">FAQ</a><a href="https://github.com/stupidpoohh-tech/remotwerk" rel="noreferrer">GitHub</a></div>
+<header class="wrap"><div class="brand">씰룩 <small>Remotwerk</small></div><div class="menu">☰</div></header>
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <span class="beta">Windows Beta</span>
+      <h1>연인의 작은 캐릭터가<br><em>내 화면에</em> 삽니다.</h1>
+      <p class="lead">답장을 요구하지 않는<br>작은 커플 캐릭터 앱.</p>
+      <a class="cta download-link" href="https://github.com/stupidpoohh-tech/remotwerk/releases/latest">⊞&nbsp; Windows 베타 다운로드</a>
+      <a class="secondary" href="#how">어떻게 쓰나요?</a>
+      <div class="version"><span class="version-text">최신 버전 확인 중…</span> · Windows 10/11</div>
     </div>
-  </footer>
+    <div class="device" aria-label="씰룩 실제 동작 미리보기">
+      <div class="screen"><div class="bubble">💗 보고싶어</div><img class="hero-motion twerk-frame" src="https://raw.githubusercontent.com/stupidpoohh-tech/remotwerk/claude/remotwerk-desktop-app-lcys33/art/clips/char_seal/twerk_loop/frame-00.png" alt="물개 씰룩 모션"><div class="taskbar"></div></div>
+      <div class="caption">실제 물개 트월킹 프레임</div>
+    </div>
+  </section>
 
-  <script>
-    const repo = 'stupidpoohh-tech/remotwerk';
-    const fallbackDownload = 'https://github.com/stupidpoohh-tech/remotwerk/releases/download/v0.9.3/Remotwerk-Setup-0.9.3.exe';
+  <section class="steps" id="how">
+    <div class="step"><div class="n">1</div><div><strong>설치</strong><span>Windows 앱을 설치해요.</span></div></div>
+    <div class="step"><div class="n">2</div><div><strong>연결</strong><span>연인과 코드로 연결해요.</span></div></div>
+    <div class="step"><div class="n">3</div><div><strong>몸짓 보내기</strong><span>캐릭터로 마음을 전해요.</span></div></div>
+  </section>
 
-    async function resolveLatestRelease() {
-      try {
-        const response = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' } });
-        if (!response.ok) throw new Error('release lookup failed');
-        const release = await response.json();
-        const exe = (release.assets || []).find(asset => /\.exe$/i.test(asset.name) && !/blockmap/i.test(asset.name));
-        const href = exe ? exe.browser_download_url : fallbackDownload;
-        document.querySelectorAll('.download-link').forEach(link => { link.href = href; });
-        document.querySelectorAll('.version-text').forEach(el => { el.textContent = `Remotwerk ${release.tag_name || ''}`.trim(); });
-      } catch (_) {
-        document.querySelectorAll('.download-link').forEach(link => { link.href = fallbackDownload; });
-        document.querySelectorAll('.version-text').forEach(el => { el.textContent = 'Remotwerk v0.9.3'; });
-      }
-    }
-    resolveLatestRelease();
+  <section class="fit"><h2>이런 분께 맞아요</h2><ul><li>업무 중 조용히 연결되고 싶을 때</li><li>읽음 압박 없는 관계를 원할 때</li><li>작고 귀여운 표현이 좋을 때</li></ul></section>
 
-    const heroSealWrap = document.getElementById('heroSealWrap');
-    setInterval(() => {
-      heroSealWrap.classList.remove('pop');
-      void heroSealWrap.offsetWidth;
-      heroSealWrap.classList.add('pop');
-    }, 3600);
+  <h2 class="section-title">캐릭터</h2>
+  <section class="characters">
+    <div class="char"><img src="https://raw.githubusercontent.com/stupidpoohh-tech/remotwerk/claude/remotwerk-desktop-app-lcys33/art/presets/seal-front.png" alt="물개"><b>물개</b><small>말랑하고 적극적</small></div>
+    <div class="char"><img src="https://raw.githubusercontent.com/stupidpoohh-tech/remotwerk/claude/remotwerk-desktop-app-lcys33/art/presets/hamster-front.png" alt="햄스터"><b>햄스터</b><small>작고 멍한 편</small></div>
+    <div class="char"><img src="https://raw.githubusercontent.com/stupidpoohh-tech/remotwerk/claude/remotwerk-desktop-app-lcys33/art/presets/rabbit-front.png" alt="토끼"><b>토끼</b><small>폭신하고 부산함</small></div>
+    <div class="char"><img src="https://raw.githubusercontent.com/stupidpoohh-tech/remotwerk/claude/remotwerk-desktop-app-lcys33/art/presets/racoon-front.png" alt="너구리"><b>너구리</b><small>능청스럽고 태평함</small></div>
+  </section>
 
-    const motion = document.getElementById('motionSeal');
-    const base = 'https://raw.githubusercontent.com/stupidpoohh-tech/remotwerk/claude/remotwerk-desktop-app-lcys33/art/clips/char_seal/twerk_loop/';
-    const frames = [
-      ['frame-00.png',120],
-      ['frame-01.png',200],
-      ['frame-02.png',120],
-      ['frame-03.png',200]
-    ];
-    frames.forEach(([file]) => { const img = new Image(); img.src = base + file; });
-    let frame = 0;
-    function playMotion() {
-      const [file, duration] = frames[frame];
-      motion.src = base + file;
-      frame = (frame + 1) % frames.length;
-      window.setTimeout(playMotion, duration);
-    }
-    playMotion();
-  </script>
-</body>
-</html>
+  <section class="motion-card">
+    <div class="motion-preview"><img class="twerk-frame" src="https://raw.githubusercontent.com/stupidpoohh-tech/remotwerk/claude/remotwerk-desktop-app-lcys33/art/clips/char_seal/twerk_loop/frame-00.png" alt="씰룩 대표 모션"></div>
+    <div class="motion-copy"><h3>대표 모션 · 씰룩</h3><p>말 대신, 화면 한켠에서 씰룩.<br>상대가 문득 생각났을 때 작은 몸짓이 도착합니다.</p><span class="tag">seal look · 실제 게임 프레임 사용</span></div>
+  </section>
+
+  <section class="privacy"><span>화면 캡처 안 함</span><span>업무 파일 접근 안 함</span><span>키 입력 수집 안 함</span><span>읽음 표시 없음</span></section>
+
+  <section class="final"><h2>오늘, 작은 캐릭터 하나 보내볼까요?</h2><a class="cta download-link" href="https://github.com/stupidpoohh-tech/remotwerk/releases/latest">⊞&nbsp; Windows 베타 다운로드</a><p>무료 베타 · Windows 10/11 지원</p></section>
+</main>
+<footer>씰룩 · Remotwerk Beta</footer>
+<script>
+  const repo='stupidpoohh-tech/remotwerk';
+  const fallback='https://github.com/stupidpoohh-tech/remotwerk/releases/latest';
+  async function latest(){try{const r=await fetch(`https://api.github.com/repos/${repo}/releases/latest`);if(!r.ok)throw 0;const j=await r.json();const exe=(j.assets||[]).find(a=>/\.exe$/i.test(a.name)&&!/blockmap/i.test(a.name));document.querySelectorAll('.download-link').forEach(a=>a.href=exe?exe.browser_download_url:fallback);document.querySelectorAll('.version-text').forEach(x=>x.textContent=`Remotwerk ${j.tag_name||''}`)}catch(e){document.querySelectorAll('.download-link').forEach(a=>a.href=fallback);document.querySelectorAll('.version-text').forEach(x=>x.textContent='Remotwerk Beta')}}latest();
+  const base='https://raw.githubusercontent.com/stupidpoohh-tech/remotwerk/claude/remotwerk-desktop-app-lcys33/art/clips/char_seal/twerk_loop/';
+  const seq=[['frame-00.png',120],['frame-01.png',200],['frame-02.png',120],['frame-03.png',200]];
+  seq.forEach(([f])=>{const i=new Image();i.src=base+f});let k=0;function play(){const [f,d]=seq[k];document.querySelectorAll('.twerk-frame').forEach(i=>i.src=base+f);k=(k+1)%seq.length;setTimeout(play,d)}play();
+</script>
+</body></html>
