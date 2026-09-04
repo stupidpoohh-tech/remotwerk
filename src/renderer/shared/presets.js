@@ -32,7 +32,10 @@
     { id: 'char_seal',    name: '물개',   swatch: '#9aa0a6' },
     { id: 'char_ribbon',  name: '리본',   swatch: '#2f56c9' },
     { id: 'char_hamster', name: '햄스터', swatch: '#e8b878' },
-    { id: 'char_wolf',    name: '늑대',   swatch: '#b08a63' }
+    { id: 'char_wolf',    name: '늑대',   swatch: '#b08a63' },
+    { id: 'char_rabbit',  name: '토끼',   swatch: '#f6dcd8' },
+    { id: 'char_racoon',  name: '너구리', swatch: '#a9805c' },
+    { id: 'char_dada',    name: '다다',   swatch: '#2f3fa8' }
   ].filter((p) => ART[p.id]).map((p) => Object.assign({}, p, { bundle: ART[p.id] }));
 
   const PRESETS = ART_PRESETS.slice();

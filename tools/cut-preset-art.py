@@ -119,6 +119,54 @@ CHARS = {
         'torsoW': 286, 'armW': 108, 'legW': 132,
         'swatch': '#b08a63',
     },
+    # 토끼 — 귀가 위로 크고 팔이 y≈120~215 에서 옆으로. 발은 y≈360 아래.
+    'rabbit': {
+        'name': '토끼', 'id': 'char_rabbit',
+        'front': 'rabbit-front.png', 'back': 'rabbit-back.png',
+        'root': (200, 330), 'feetY': 391,
+        'pivots': {'armL': (110, 168), 'armR': (290, 168), 'legL': (150, 328), 'legR': (250, 328)},
+        'boxes': {
+            'torso': (60, 18, 340, 358),
+            'armL':  (18, 118, 124, 220),
+            'armR':  (276, 118, 382, 220),
+            'legL':  (60, 300, 196, 395),
+            'legR':  (204, 300, 340, 395),
+        },
+        'torsoW': 280, 'armW': 106, 'legW': 136,
+        'swatch': '#f6dcd8',
+    },
+    # 너구리 — 팔이 y≈140~200 으로 높고, 오른쪽에 줄무늬 꼬리가 있어 몸통 상자를 넓혔다.
+    'racoon': {
+        'name': '너구리', 'id': 'char_racoon',
+        'front': 'racoon-front.png', 'back': 'racoon-back.png',
+        'root': (200, 300), 'feetY': 359,
+        'pivots': {'armL': (108, 172), 'armR': (292, 172), 'legL': (150, 298), 'legR': (250, 298)},
+        'boxes': {
+            'torso': (56, 16, 356, 330),
+            'armL':  (16, 138, 122, 206),
+            'armR':  (278, 138, 384, 206),
+            'legL':  (52, 286, 192, 363),
+            'legR':  (208, 286, 348, 363),
+        },
+        'torsoW': 300, 'armW': 106, 'legW': 140,
+        'swatch': '#a9805c',
+    },
+    # 다다 — 사람 체형. 파란 원피스라 몸통이 길고, 팔이 y≈205~265 에서 뻗는다.
+    'dada': {
+        'name': '다다', 'id': 'char_dada',
+        'front': 'dada-front.png', 'back': 'dada-back.png',
+        'root': (200, 372), 'feetY': 445,
+        'pivots': {'armL': (112, 226), 'armR': (288, 226), 'legL': (168, 370), 'legR': (232, 370)},
+        'boxes': {
+            'torso': (72, 20, 328, 392),
+            'armL':  (20, 200, 126, 270),
+            'armR':  (274, 200, 380, 270),
+            'legL':  (96, 350, 200, 449),
+            'legR':  (200, 350, 304, 449),
+        },
+        'torsoW': 256, 'armW': 106, 'legW': 104,
+        'swatch': '#2f3fa8',
+    },
 }
 SLOTS = ['torso', 'armL', 'armR', 'legL', 'legR']
 
