@@ -1,0 +1,37 @@
+{
+  "id": "turn_front",
+  "character": "char_dada",
+  "canvas": {
+    "w": 512,
+    "h": 512
+  },
+  "anchor": {
+    "x": 256,
+    "y": 470
+  },
+  "displayScale": 0.7029,
+  "charHeight": 340,
+  "loop": false,
+  "loopFrom": 0,
+  "cancelFrom": 99,
+  "frames": [
+    {
+      "file": "frame-00.png",
+      "dur": 100
+    },
+    {
+      "file": "frame-01.png",
+      "dur": 100
+    },
+    {
+      "file": "frame-02.png",
+      "dur": 100
+    }
+  ],
+  "placeholder": true,
+  "note": "frame-00 은 궁디댄스 원화의 첫 자세와 같은 그림이다. frame-01(3/4 측면)은 아직 그린 그림이 아니라 뒷모습을 가로로 눌러 흉내 낸 것이다.",
+  "needsArt": [
+    "frame-01: 3/4 측면 — 진짜 그림 필요"
+  ],
+  "source": "import"
+}

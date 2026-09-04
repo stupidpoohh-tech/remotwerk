@@ -89,21 +89,17 @@ def check(name, im):
         bad.append(f'{name}: 테두리에 불투명 픽셀 {opaque_edge}개 — 배경이 남아 있다'
                    f'(체크무늬를 투명으로 착각했을 수 있다)')
 
-    # 그림 영역
-    box = None
-    xs0, ys0, xs1, ys1 = w, h, -1, -1
-    for y in range(h):
-        for x in range(w):
-            if px[x, y][3] > ALPHA_BG:
-                if x < xs0: xs0 = x
-                if y < ys0: ys0 = y
-                if x > xs1: xs1 = x
-                if y > ys1: ys1 = y
-    if xs1 < 0:
+    # 그림 영역 — **알파가 0보다 크면 그림**으로 본다.
+    # 규격 검사(build-clip-art.py)가 Pillow getbbox 를 쓰므로 같은 자를 써야 한다.
+    # 8 로 두면 안티에일리어싱된 가장자리가 빠져, 여기서는 접지가 맞는데
+    # 다음 단계에서 "발바닥 y=472" 로 걸린다.
+    bb = im.split()[3].getbbox()
+    if not bb:
         bad.append(f'{name}: 그림이 없다(전부 투명)')
         return bad, None
-    box = (xs0, ys0, xs1, ys1)
+    box = (bb[0], bb[1], bb[2] - 1, bb[3] - 1)
 
+    xs0, ys0, xs1, ys1 = box
     if xs0 < EDGE_PAD or ys0 < EDGE_PAD or xs1 > w - 1 - EDGE_PAD or ys1 > h - 1 - EDGE_PAD:
         bad.append(f'{name}: 그림이 캔버스 끝에 닿는다 {box} — 잘렸을 수 있다')
     return bad, box

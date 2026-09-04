@@ -1,0 +1,54 @@
+{
+  "id": "twerk_loop",
+  "character": "char_dada",
+  "canvas": {
+    "w": 512,
+    "h": 512
+  },
+  "anchor": {
+    "x": 256,
+    "y": 470
+  },
+  "displayScale": 0.7029,
+  "charHeight": 340,
+  "loop": true,
+  "loopFrom": 0,
+  "cancelFrom": 0,
+  "frames": [
+    {
+      "file": "frame-00.png",
+      "dur": 120,
+      "ground": [
+        "L",
+        "R"
+      ]
+    },
+    {
+      "file": "frame-01.png",
+      "dur": 200,
+      "ground": [
+        "L",
+        "R"
+      ]
+    },
+    {
+      "file": "frame-02.png",
+      "dur": 120,
+      "ground": [
+        "L",
+        "R"
+      ]
+    },
+    {
+      "file": "frame-03.png",
+      "dur": 200,
+      "ground": [
+        "L",
+        "R"
+      ]
+    }
+  ],
+  "placeholder": true,
+  "note": "실제 원화 4키(중앙 준비/왼쪽 팝/중앙 통과/오른쪽 팝). 눈 검수 전이라 placeholder 유지.",
+  "source": "import"
+}

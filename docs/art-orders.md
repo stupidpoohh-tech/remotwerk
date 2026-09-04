@@ -138,10 +138,11 @@
 
 ### `twerk_loop` — 8장, 루프, 뒷모습 · **이 클립이 제품의 대표 동작이다**
 
-> ## ✅ 원화 도착 — 지금은 4장이다 (2026-09)
+> ## ✅ 원화 도착 — 지금은 4장이다 (2026-09) · **물개 / 다다 둘 다**
 >
-> 사용자가 그려 준 궁디댄스 원화 4장이 들어갔다. 아래 8장 발주표는 **아직 안 온
-> 그림의 발주서로만** 읽는다. 지금 저장소에 있는 것은 다음과 같다.
+> 사용자가 그려 준 궁디댄스 원화 4장이 들어갔다. `char_seal` 과 `char_dada` 가
+> 같은 구성을 쓴다. 아래 8장 발주표는 **아직 안 온 그림의 발주서로만** 읽는다.
+> 지금 저장소에 있는 것은 다음과 같다.
 >
 > | 파일 | 자세 | 유지 |
 > |---|---|---|
@@ -247,16 +248,37 @@ Keep flower shapes, proportions and pixel texture consistent between frames.
 art/clips/char_seal/twerk_loop/frame-00.png  …  frame-07.png
 ```
 
-**넣는 방법** — 손으로 복사하지 않는다. `art/staging/char_seal/<클립>/` 에 놓고
+**넣는 방법** — 손으로 복사하거나 자르지 않는다. 도구 세 개를 순서대로 쓴다.
 
 ```
-python3 tools/import-clip.py char_seal twerk_loop --write
+python3 tools/normalize-art.py <캐릭터> twerk_loop \
+    --match art/clips/<캐릭터>/idle/frame-00.png  <원화1> <원화2> <원화3> <원화4>
+python3 tools/import-clip.py  <캐릭터> twerk_loop --write
+python3 tools/turn-frames.py  <캐릭터>
+python3 tools/import-clip.py  <캐릭터> turn_back  --write
+python3 tools/import-clip.py  <캐릭터> turn_front --write
+python3 tools/build-clip-art.py
 ```
 
-가져오기 도구가 캔버스·투명 배경·잘림·접지를 먼저 검사하고, **하나라도 걸리면 아무것도
+`normalize-art.py` 가 맞추는 것(직접 맞추려다 세 번 틀렸던 자리다):
+
+- **배율은 네 장이 같다.** 장마다 키에 맞춰 따로 재면 몸을 굽힌 프레임이 억지로
+  늘어나 동작이 사라진다.
+- **가로는 발로 맞춘다.** 몸 전체 중심으로 맞추면 옮긴 골반만큼 그림이 반대로 밀려
+  **골반 이동이 통째로 지워진다.**
+- **`--match` 로 대기 자세와 키를 맞춘다.** 규격 키(340)에 그냥 맞추면 대기 자세보다
+  커져서, 뒤도는 순간 캐릭터가 부풀었다 줄어든다(다다 314 → 343, 9%).
+- **옅은 후광을 잘라 낸다.** 받은 원화에는 눈에 안 보이는 알파 1~8 짜리 후광이
+  붙어 있다(물개는 위아래로 200px). 규격 검사는 알파>0 을 그림으로 보므로, 그대로
+  두면 후광의 맨 아랫줄이 바닥선에 놓이고 **발이 공중에 뜬다.**
+
+`import-clip.py` 는 캔버스·투명 배경·잘림·접지를 검사하고 **하나라도 걸리면 아무것도
 쓰지 않는다.** 통과하면 `clip.json` 에 `"source": "import"` 가 박힌다. 눈으로 검수까지
-끝냈을 때만 `--approve` 를 덧붙여 `placeholder` 를 뗀다. 마지막으로
-`python3 tools/build-clip-art.py`.
+끝냈을 때만 `--approve` 를 덧붙여 `placeholder` 를 뗀다.
+
+> **접지 판정은 세 도구가 같은 자를 써야 한다.** 예전에는 굽기 도구가 알파>16,
+> 가져오기가 알파>8, 규격 검사가 알파>0 을 그림으로 봤다. 그래서 앞 단계를 통과한
+> 그림이 다음 단계에서 "발바닥 y=472" 로 걸렸다. 셋 다 **알파>0** 으로 통일했다.
 
 > ⚠ **주의 두 가지**
 > - `node tools/bake-placeholder-clips.js` 는 이 클립을 **건드리지 않는다.**

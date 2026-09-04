@@ -73,7 +73,10 @@ window.MEASURE = function (dataUrl) {
       let minX = 1e9, minY = 1e9, maxX = -1, maxY = -1;
       for (let y = 0; y < cv.height; y++) {
         for (let x = 0; x < cv.width; x++) {
-          if (d[(y * cv.width + x) * 4 + 3] > 16) {
+          // 알파가 0보다 크면 그림으로 본다. 16 으로 두면 안티에일리어싱된
+          // 가장자리가 빠져서, 바닥선을 맞춘 뒤에도 규격 검사(알파>0)에서
+          // 발바닥이 2~3px 아래로 나온다.
+          if (d[(y * cv.width + x) * 4 + 3] > 0) {
             if (x < minX) minX = x; if (x > maxX) maxX = x;
             if (y < minY) minY = y; if (y > maxY) maxY = y;
           }

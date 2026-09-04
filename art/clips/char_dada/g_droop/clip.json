@@ -1,0 +1,66 @@
+{
+  "id": "g_droop",
+  "character": "char_dada",
+  "canvas": {
+    "w": 512,
+    "h": 512
+  },
+  "anchor": {
+    "x": 256,
+    "y": 470
+  },
+  "displayScale": 0.7029,
+  "charHeight": 340,
+  "loop": false,
+  "loopFrom": 0,
+  "cancelFrom": 4,
+  "frames": [
+    {
+      "file": "frame-00.png",
+      "dur": 160
+    },
+    {
+      "file": "frame-01.png",
+      "dur": 240
+    },
+    {
+      "file": "frame-02.png",
+      "dur": 300
+    },
+    {
+      "file": "frame-03.png",
+      "dur": 260
+    },
+    {
+      "file": "frame-04.png",
+      "dur": 160
+    },
+    {
+      "file": "frame-05.png",
+      "dur": 160
+    },
+    {
+      "file": "frame-06.png",
+      "dur": 160
+    },
+    {
+      "file": "frame-07.png",
+      "dur": 260
+    },
+    {
+      "file": "frame-08.png",
+      "dur": 220
+    },
+    {
+      "file": "frame-09.png",
+      "dur": 260
+    },
+    {
+      "file": "frame-10.png",
+      "dur": 300
+    }
+  ],
+  "placeholder": true,
+  "note": "임시 에셋 — 원본 5조각을 자세만 잡아 구운 것. 새로 그린 연기 자세가 아니다. docs/art-orders.md 참고.",
+  "fx": "droop"
+}

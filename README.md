@@ -58,7 +58,7 @@ npm run pack         # 설치파일 없이 폴더로만 빌드(빠른 확인용)
   그리고 스프라이트 클립 규격(캔버스·기준점·접지·접합 자세·리그 대체)을 검사한다.
 
 ```bash
-node tools/app-smoke.js   # ★ 진짜 앱을 띄워 캐릭터가 실제로 보이는지 확인(설정 22가지)
+node tools/app-smoke.js   # ★ 진짜 앱을 띄워 캐릭터가 실제로 보이는지 확인(설정 25가지)
 node tools/flag-check.js  # 업로드 진입점이 실제로 막혔는지 + 기존 캐릭터 보존
 node tools/overlay-startup-test.js  # 네트워크가 끝나지 않을 때도 캐릭터가 뜨는지(npm test 에 포함)
 node tools/anim-check/render.js && python3 tools/anim-check/check.py  # 프레임 단위 검사
@@ -119,13 +119,23 @@ python3 tools/build-clip-art.py          # 클립 규격 검사 + 등록부 재�
 
 ### 원화 반입
 
-원화는 바깥 제작 환경에서 만들고, 여기서는 **가져오기·검사·연결**만 한다.
-`art/staging/<characterId>/<clipId>/` 에 놓고 `tools/import-clip.py` 로 넣는다.
-자세한 절차·규격은 `art/staging/README.md`.
+원화는 바깥 제작 환경에서 만들고, 여기서는 **정규화·가져오기·검사·연결**만 한다.
+절차 전체는 `docs/art-orders.md` 의 "넣는 방법", 규격은 `art/staging/README.md`.
+
+```bash
+python3 tools/normalize-art.py <캐릭터> twerk_loop \
+    --match art/clips/<캐릭터>/idle/frame-00.png <원화 4장>   # 배율·접지·좌우 기준 정렬
+python3 tools/import-clip.py  <캐릭터> twerk_loop --write     # 규격 검사 후에만 반영
+python3 tools/turn-frames.py  <캐릭터>                        # 뒤돌기 이음매를 춤 첫 장에 맞춤
+python3 tools/build-clip-art.py
+```
 
 - 규격을 못 넘기면 **아무 파일도 쓰지 않는다**(기존 정상 에셋 보호).
 - `--approve` 없이는 `placeholder` 가 유지된다. 파일이 있다는 이유로 풀지 않는다.
-- 승인된 클립은 `tools/bake-placeholder-clips.js` 가 **건너뛴다**(`--force` 로만 덮어씀).
+- 가져온 클립(`source: "import"`)은 `tools/bake-placeholder-clips.js` 가 **건너뛴다**
+  (`--force` 로만 덮어씀). 이게 없을 때 실제로 원화가 임시본으로 되돌아갔다.
+- **접지 판정 임계값은 세 도구가 알파>0 으로 같다.** 서로 다르면 앞 단계를 통과한
+  그림이 다음 단계에서 "발바닥이 몇 px 어긋난다" 로 걸린다.
 
 ## 동작(신호) 목록
 
