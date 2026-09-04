@@ -17,7 +17,7 @@
   "frames": [
     {
       "file": "frame-00.png",
-      "dur": 120,
+      "dur": 80,
       "ground": [
         "L",
         "R"
@@ -25,7 +25,7 @@
     },
     {
       "file": "frame-01.png",
-      "dur": 120,
+      "dur": 80,
       "ground": [
         "L",
         "R"
@@ -33,7 +33,7 @@
     },
     {
       "file": "frame-02.png",
-      "dur": 120,
+      "dur": 160,
       "ground": [
         "L",
         "R"
@@ -41,7 +41,7 @@
     },
     {
       "file": "frame-03.png",
-      "dur": 120,
+      "dur": 80,
       "ground": [
         "L",
         "R"
@@ -49,7 +49,7 @@
     },
     {
       "file": "frame-04.png",
-      "dur": 120,
+      "dur": 80,
       "ground": [
         "L",
         "R"
@@ -57,7 +57,7 @@
     },
     {
       "file": "frame-05.png",
-      "dur": 120,
+      "dur": 80,
       "ground": [
         "L",
         "R"
@@ -65,7 +65,7 @@
     },
     {
       "file": "frame-06.png",
-      "dur": 120,
+      "dur": 160,
       "ground": [
         "L",
         "R"
@@ -73,7 +73,7 @@
     },
     {
       "file": "frame-07.png",
-      "dur": 120,
+      "dur": 80,
       "ground": [
         "L",
         "R"

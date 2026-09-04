@@ -123,27 +123,52 @@ const CLIPS = {
   // 5조각 리그에서는 다리가 몸통의 자식이라, 몸통이 돌면 다리도 같이 돈다.
   // 발을 붙여 두려고 다리에 **반대 회전**을 걸어 상쇄한다.
   twerk_loop: (function () {
-    // 골반 8자: x 는 좌우, y 는 위아래(위가 음수). 상체는 2프레임 지연.
-    const hip = [
-      [0, -3], [-6, 2], [-9, 5], [-5, -2],
-      [0, -3], [6, 2], [9, 5], [5, -2]
+    // 궁디댄스 8포즈: 중앙 준비 / 왼쪽 압축 / 왼쪽 팝 / 반동 / 중앙 낮게 / 오른쪽 압축 /
+    //                오른쪽 팝 / 복귀 반동.  (docs/animation-bible.md 6.1)
+    //
+    // ⚠ 위아래를 root.y 로 주면 **아무 일도 일어나지 않는다.**
+    //   bake-placeholder-clips.js 가 접지 프레임의 발바닥을 바닥선(y=470)에 맞추려고
+    //   root.y 를 도로 빼기 때문이다. 트월킹은 8프레임 전부 접지라 상하 성분이 100% 상쇄됐다.
+    //   그래서 낮아짐/올라옴은 **몸 압축(sy)** 으로 준다. 변형 기준점이 발밑이라
+    //   sy 는 발을 붙인 채 몸만 눌리고, 바닥선 보정에 지워지지 않는다.
+    //
+    // ⚠ 이 리그로는 "골반만 움직이고 머리는 가만히" 를 만들 수 없다.
+    //   5조각 리그의 torso 는 머리와 반바지를 **한 덩어리**로 가지고 있어서,
+    //   골반을 옮기면 머리가 같이 가고 몸통을 돌리면 머리만 크게 흔들린다.
+    //   진짜 궁디댄스는 새로 그린 원화가 있어야 한다(docs/art-orders.md 트월킹 절).
+    //   아래는 그때까지 쓰는 임시 배치이며, 리듬과 접지만 맞춰 둔 것이다.
+    const KEY = [
+      // x: 좌우(논리px)  squash: 몸 압축(1이 기본, 작을수록 낮게)  dur: 유지(40ms 격자)
+      { x:  0, squash: 0.985, dur:  80 },   // 1 중앙 준비
+      { x: -5, squash: 0.965, dur:  80 },   // 2 왼쪽으로 가며 압축
+      { x: -9, squash: 1.000, dur: 160 },   // 3 왼쪽 팝 정점 — 여기서 눈이 멎는다
+      { x: -4, squash: 0.955, dur:  80 },   // 4 탄성 반동(중앙보다 왼쪽, 낮게)
+      { x:  0, squash: 0.985, dur:  80 },   // 5 중앙 낮은 통과 자세
+      { x:  5, squash: 0.965, dur:  80 },   // 6 오른쪽으로 가며 압축
+      { x:  9, squash: 1.000, dur: 160 },   // 7 오른쪽 팝 정점
+      { x:  4, squash: 0.955, dur:  80 }    // 8 반동 → 1번으로 이어진다
     ];
-    const lag = 2;
-    const frames = hip.map((h, i) => {
-      const prev = hip[(i - lag + hip.length) % hip.length];
-      const torsoRot = -prev[0] * 0.55;          // 상체가 늦게 따라오며 반대로 기운다
+    const lag = 2;                            // 상체는 골반보다 늦게 따라온다
+    const frames = KEY.map((k, i) => {
+      const prev = KEY[(i - lag + KEY.length) % KEY.length];
+      const torsoRot = -prev.x * 0.55;
       return {
-        dur: 120,
+        dur: k.dur,
         ground: ['L', 'R'],
         pose: {
-          root: { back: true, x: h[0], y: h[1], sx: 1 + Math.abs(h[0]) * 0.004, sy: 1 - Math.abs(h[1]) * 0.006 },
+          root: {
+            back: true, x: k.x,
+            sx: 1 + (1 - k.squash) * 1.6,     // 눌리면 옆으로 퍼진다(부피 보존처럼 보이게)
+            sy: k.squash
+          },
           bones: {
             torso: { rot: torsoRot },
             // 다리는 몸통 회전을 상쇄해 발을 바닥에 붙여 둔다
-            legL_upper: { rot: -torsoRot + h[0] * 0.15 },
-            legR_upper: { rot: -torsoRot - h[0] * 0.15 },
-            armL_upper: { rot: -h[0] * 0.5 },
-            armR_upper: { rot: h[0] * 0.5 }
+            legL_upper: { rot: -torsoRot + k.x * 0.15 },
+            legR_upper: { rot: -torsoRot - k.x * 0.15 },
+            // 팔은 몸 가까이 — T자로 벌리지 않는다
+            armL_upper: { rot: -k.x * 0.35 },
+            armR_upper: { rot: k.x * 0.35 }
           }
         }
       };

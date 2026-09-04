@@ -128,9 +128,113 @@
 > 그릴 방법이 없어서 정면 그림을 가로로 얇게 눌러 넣었다. 회전하는 부피가 아니라
 > 납작해지는 종이로 읽힌다. 이번 발주에서 **우선순위가 가장 높은 그림**이다.
 
-### `twerk_loop` — 8장, 루프, 뒷모습
-| 파일 | 골반 | 상체(1프레임 지연) | 유지 |
-|---|---|---|---|
+### `twerk_loop` — 8장, 루프, 뒷모습 · **이 클립이 제품의 대표 동작이다**
+
+> **왜 지금 것으로는 안 되는가 (측정 결과)**
+>
+> 1. **위아래 성분이 통째로 지워지고 있었다.** `tools/bake-placeholder-clips.js` 는 접지
+>    프레임의 발바닥을 바닥선(y=470)에 맞추려고 `root.y` 를 도로 뺀다. 트월킹은 8프레임이
+>    전부 접지라 골반 8자의 상하 성분이 **100% 상쇄**됐다. → 낮아짐은 `sy`(몸 압축)로
+>    주도록 고쳤다. 이제 프레임 높이가 306~320px 로 실제로 변한다.
+> 2. **5조각 리그로는 "골반만 움직이고 머리는 가만히" 를 만들 수 없다.** `torso` 조각이
+>    머리와 반바지를 **한 덩어리**로 가지고 있다. 골반을 옮기면 머리가 같이 가고,
+>    몸통을 돌리면 반대로 머리만 크게 흔들린다. 즉 이 동작은 **새 원화 없이는 불가능**하다.
+>    지금 들어 있는 8장은 리듬과 접지만 맞춘 임시 배치이며, 눈으로 보면 여전히
+>    **통짜 좌우 미끄러짐**으로 읽힌다.
+
+**연출**: 힐끗 → 궁디 뽁뽁. 골반과 반바지 실루엣이 주연이고 머리·어깨는 조용하다.
+**분위기**: 신난 강아지가 엉덩이를 실룩이는 장난스러운 승리 춤. 반바지는 항상 착용,
+노출·신체 강조 없이 둥글고 말랑한 실루엣으로만 귀여움을 만든다.
+
+| 파일 | 자세 | 유지 |
+|---|---|---|
+| `frame-00` | **중앙 준비.** 낮게 앉은 자세, 두 발 벌려 딛고, 지느러미는 가슴 앞에 모음 | 80ms |
+| `frame-01` | 골반이 왼쪽으로 가며 **압축**. 발 위치 그대로, 반바지 주름이 왼쪽으로 눌림 | 80ms |
+| `frame-02` | **왼쪽 팝 정점.** 둥근 반바지가 왼쪽+살짝 위로 확 밀림, 몸통은 오른쪽으로 반대 곡선 | 160ms |
+| `frame-03` | 탄성 반동. 중앙보다 왼쪽·낮게. **머리는 한 박자 늦게** 따라온다 | 80ms |
+| `frame-04` | 중앙 낮은 통과 자세(00과 같은 크기·스탠스), 흐름은 오른쪽으로 | 80ms |
+| `frame-05` | 골반이 오른쪽으로 가며 압축. 발 위치 동일 | 80ms |
+| `frame-06` | **오른쪽 팝 정점.** 반바지가 오른쪽+살짝 위로, 몸통은 왼쪽으로 반대 곡선 | 160ms |
+| `frame-07` | 반동 → 00 으로 이어진다 | 80ms |
+
+총 **800ms**. 준비·정점을 느끼게 하고 전환은 빠르게. (Bible 의 40ms 격자 유지)
+
+**수치 기준**
+- 골반 좌우 변위: 캐릭터 전체 키의 **8~10%** (340px 기준 ±27~34px)
+- 머리 좌우 변위: 골반 변위의 **1/4 이하**
+- 두 발은 8장 내내 **같은 x·y**. 발바닥 y=470(±1px)
+- 낮아짐은 하체 접힘과 몸통 변형으로. 캐릭터 전체를 아래로 내리지 않는다
+- 팔은 T자로 벌리지 않고 몸 가까이 (지금 임시본의 벌린 팔은 **틀린 참고**다)
+
+**시선**: 뒷모습 + 살짝 3/4. 오른쪽 어깨 너머로 고개를 조금 돌려 감고 웃는 눈 한쪽과
+볼이 보인다. 이 "힐끗" 이 귀여움의 핵심이다.
+
+**생성 프롬프트** (원본 `art/presets/seal-front.png`·`seal-back.png` 를 정체성 참조로 첨부)
+
+```
+Create a NEW 8-frame sprite animation contact sheet, using the two attached images only as
+the canonical identity references for the SAME cheerful gray seal mascot. Preserve gray fur,
+round head, pale muzzle, tiny whiskers, flipper hands and feet, lime-yellow swim shorts with
+the SAME purple flower patches. Do not invent a different mascot.
+
+Output one genuinely transparent RGBA PNG sheet, exactly 4 columns x 2 rows, 8 equal cells,
+2048x1024 canvas (512x512 per cell). No grid lines, labels, numbers, scenery, ground shadows,
+motion lines or particles. Each cell holds the ENTIRE intact seal with transparent margins,
+consistent drawing scale, identical foot baseline at 92% of cell height. Unchanging camera.
+Preserve the original pixel-art look, crisp contours, not smooth 3D.
+
+Action: an irresistibly adorable, wholesome mascot butt-wiggle dance, like an excited puppy
+wiggling its rear. NOT erotic. Swim shorts fully on and unchanged, no nudity or anatomical
+emphasis. Whole body seen from behind at a slight three-quarter angle; head turned a little
+toward the viewer over its right shoulder so one happy closed eye and cheek show. Stance low
+and springy, stubby feet planted apart, fins tucked close to the chest. The rounded
+SHORTS/HIP silhouette leads the dance; do NOT sway the whole rigid body as one piece. Head and
+shoulders stay nearly in place while hips shift sideways much more; torso bends organically
+and shoulders counterbalance. No separated parts or cutout seams.
+
+Eight consecutive full-body poses forming ONE seamless cycle:
+1 centered low preparation, hips centered, shoulders steady.
+2 hips travel left with compression, feet anchored.
+3 maximum LEFT hip pop, shorts pushed distinctly left and slightly up, torso counter-curves right.
+4 elastic rebound left-of-center and down, head follows one beat late.
+5 centered low passing pose matching frame 1 scale and stance, flowing right.
+6 hips travel right with compression, same foot anchors.
+7 maximum RIGHT hip pop, shorts pushed right and slightly up, torso counter-curves left.
+8 elastic rebound right-of-center and down, flowing back into frame 1.
+
+Hip displacement about 8-10% of full character height to each side. Head horizontal
+displacement no more than a quarter of hip displacement. Feet stay in identical positions.
+The eight pictures must be distinct purpose-drawn poses, not rotations or scales of one bitmap.
+Keep flower shapes, proportions and pixel texture consistent between frames.
+```
+
+**넣는 경로** — 시트를 8장으로 잘라 아래 이름 그대로:
+
+```
+art/clips/char_seal/twerk_loop/frame-00.png  …  frame-07.png
+```
+
+그다음 `art/clips/char_seal/twerk_loop/clip.json` 에서 **`"placeholder": true` 줄만 지운다.**
+(유지 시간은 위 표대로 이미 들어가 있다.) 마지막으로 `python3 tools/build-clip-art.py`.
+
+> ⚠ **주의 두 가지**
+> - `node tools/bake-placeholder-clips.js` 를 다시 돌리면 **새 원화를 임시본으로 덮어쓴다.**
+>   진짜 그림을 넣은 뒤에는 그 도구를 이 클립에 쓰지 않는다.
+> - 개념 시트(`seal-wiggle-concept.png`)는 **그대로 못 쓴다.** 측정해 보니 RGB 모드로
+>   알파 채널이 아예 없고, 배경이 242~254 회색 **체크무늬가 그림에 칠해져** 있으며,
+>   셀 크기가 443.5px 로 512 격자가 아니다. 포즈·리듬 참고로만 쓴다.
+
+**검수 항목** (이 중 하나라도 걸리면 재작업)
+1. 8장을 이어 붙였을 때 발이 미끄러지지 않는가 (발 x·y 동일)
+2. 프레임마다 얼굴·꽃무늬가 깜빡이거나 미끄러지지 않는가
+3. 머리 변위가 골반 변위의 1/4 이하인가
+4. 배경 alpha=0 이고 캐릭터 내부는 불투명한가 (체크무늬 잔여물 없음)
+5. 07 → 00 이 튀지 않고 이어지는가
+6. `turn_back` 마지막 자세 → `twerk_loop/frame-00` 이 이어지는가
+7. `twerk_loop/frame-07` → `turn_front` 첫 자세가 이어지는가
+8. **이펙트·소리를 꺼도 0.5초 안에 궁디댄스로 읽히는가** (자동 검사로는 판정 못 한다)
+
+---|---|---|---|
 | `frame-00` | 중앙, 약간 위 | 중앙 | 120ms |
 | `frame-01` | 왼쪽 아래 | 아직 중앙 | 120ms |
 | `frame-02` | 왼쪽 최대, 아래 | 왼쪽으로 따라옴 | 120ms |
