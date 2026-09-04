@@ -28,7 +28,7 @@
     { id: 'g_heart', name: '보고싶어', icon: '💗', hint: '살짝 폴짝 + 하트' },
     { id: 'g_cheer', name: '신나',     icon: '✨', hint: '방방 뛰기 + 반짝' },
     { id: 'g_droop', name: '지쳤어',   icon: '🫠', hint: '축 처져 흔들' },
-    { id: 'g_twerk', name: '트월킹',   icon: '🍑', hint: '뒤돌아 엉덩이 흔들' }
+    { id: 'g_twerk', name: '궁디댄스', icon: '🍑', hint: '뒤돌아 엉덩이 흔들' }
   ];
 
   // 자율 생활 — 전송되지 않고 히스토리에도 남지 않는다. 로컬에서만 재생.

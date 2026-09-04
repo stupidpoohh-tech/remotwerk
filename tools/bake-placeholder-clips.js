@@ -16,7 +16,11 @@ const { chromium } = require('playwright-core');
 const { CLIPS } = require('./clip-poses');
 
 const ROOT = path.join(__dirname, '..');
-const CHAR = process.argv[2] || 'char_seal';
+// 캐릭터 id 는 **옵션이 아닌 첫 인자**다. 예전엔 argv[2] 를 그냥 썼기 때문에
+// `node tools/bake-placeholder-clips.js --force` 가 '--force' 라는 이름의 캐릭터로 해석돼
+// art/clips/--force/ 에 조용히 구워졌다. 덮어쓰기 방지가 도는 것처럼 보이지만 실은
+// 아무 일도 안 하고 있었다.
+const CHAR = process.argv.slice(2).find((a) => !a.startsWith('--')) || 'char_seal';
 const OUT = path.join(ROOT, 'art', 'clips', CHAR);
 const CHROME = process.env.CHROME_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 
@@ -109,7 +113,26 @@ window.POSE = function (pose) {
   console.log(`[${CHAR}] 콘텐츠 상자 ${info.box.w}×${info.box.h}, 배율 ${info.scale.toFixed(3)}`);
 
   const manifest = {};
+  // ★ 승인된 원화 보호 — 이 도구는 **임시 굽기** 도구다.
+  // clip.json 에 placeholder 표시가 없으면 사람이 검수해 통과시킨 원화라는 뜻이다.
+  // 그런 클립은 건너뛴다. 문서 경고만으로는 사고를 막지 못한다(--force 로만 덮어쓴다).
+  const FORCE = process.argv.includes('--force');
+  const skipped = [];
+
   for (const clipId of Object.keys(CLIPS)) {
+    if (!FORCE) {
+      let approved = false;
+      try {
+        const j = JSON.parse(fs.readFileSync(path.join(OUT, clipId, 'clip.json'), 'utf8'));
+        // 두 가지를 다 지킨다.
+        //   placeholder 없음 → 눈 검수를 통과한 원화
+        //   source==='import' → import-clip.py 로 **밖에서 그린 그림을 넣은** 클립.
+        //     아직 검수 전이라 placeholder 가 남아 있어도, 자세만 잡아 구운 임시 그림으로
+        //     되돌리면 원화가 사라진다. (실제로 트월킹 원화가 이 조건에 걸려 있었다.)
+        approved = j.placeholder !== true || j.source === 'import';
+      } catch (_) { approved = false; }   // clip.json 이 없으면 아직 아무것도 없는 것
+      if (approved) { skipped.push(clipId); continue; }
+    }
     const clip = CLIPS[clipId];
     const dir = path.join(OUT, clipId);
     fs.mkdirSync(dir, { recursive: true });
@@ -172,6 +195,10 @@ window.POSE = function (pose) {
 
   await browser.close();
   fs.unlinkSync(tmp);
+  if (skipped.length) {
+    console.log(`\n  ⛔ 원화(가져온 그림)라 건너뜀: ${skipped.join(', ')}`);
+    console.log('     (정말 임시본으로 되돌리려면 --force)');
+  }
   console.log(`\n→ ${OUT}`);
   console.log('다음: node tools/build-clip-art.js');
 })();
