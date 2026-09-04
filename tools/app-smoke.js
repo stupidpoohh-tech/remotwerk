@@ -139,6 +139,10 @@ async function runCase(label, cfg, port, mark) {
       try { await p.screenshot({ path: path.join(OUT, `${label}-${name}.png`) }); } catch (_) {}
     }
 
+    // 설정 창은 이 앱의 작업표시줄 대표 창이다. 실행했는데 안 뜨면 사용자는
+    // 앱이 켜졌는지조차 알 수 없다(예전에 페어링 후 아무 창도 안 떴다).
+    if (!seen.settings) problems.push('설정 창이 뜨지 않았다');
+
     const o = seen.overlay;
     if (!o) {
       problems.push('오버레이 창이 없다');

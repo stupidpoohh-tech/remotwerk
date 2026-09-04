@@ -278,6 +278,19 @@ function createSettings() {
   win.settings = w;
   bringToFront(w);
   w.once('ready-to-show', () => bringToFront(w));
+
+  // 설정 창이 이 앱의 **작업표시줄 대표 창**이다.
+  //
+  // 오버레이는 투명·클릭 통과·포커스 없음이라 작업표시줄에 뜰 수 없다(그렇게 만들면
+  // 캐릭터를 누를 때마다 작업 중인 창에서 포커스를 빼앗아 비침습성 원칙을 어긴다).
+  // 그래서 평범한 창인 설정 창을 남겨 두고, 닫기를 누르면 **최소화**한다.
+  // 앱이 켜져 있는 동안 작업표시줄에서 계속 보이고, 눌러서 되돌아올 수 있다.
+  // 완전히 끄는 것은 트레이 메뉴의 '종료'(또는 캐릭터 우클릭 → 종료)다.
+  w.on('close', (e) => {
+    if (app.isQuiting) return;
+    e.preventDefault();
+    w.minimize();
+  });
   w.on('closed', () => { win.settings = null; });
   return w;
 }
@@ -334,12 +347,20 @@ function hideAll() {
   }
 }
 
+// 보스키의 기준은 **캐릭터가 보이는가** 다.
+// 예전에는 아무 창이나 하나 떠 있으면(설정 창만 열려 있어도) '숨기기'를 골랐다.
+// 설정 창이 작업표시줄 대표 창이 되면서 거의 항상 떠 있으므로, 그대로 두면
+// 보스키가 '복원' 을 영영 못 고른다.
+function overlayVisible() {
+  return !!(win.overlay && !win.overlay.isDestroyed() && win.overlay.isVisible());
+}
+
 function anyVisible() {
   return Object.values(win).some((w) => w && !w.isDestroyed() && w.isVisible());
 }
 
 function toggleBossKey() {
-  if (anyVisible()) {
+  if (overlayVisible() || anyVisible()) {
     hideAll();
   } else {
     // 복원 시엔 오버레이만 다시 띄운다(다른 창은 사용자가 필요할 때 연다).
@@ -618,10 +639,13 @@ if (!app.requestSingleInstanceLock()) {
     registerIpc();
     registerShortcuts();
 
-    // 페어링 전이면 설정 화면부터 띄운다. 오버레이/트레이 생성보다 먼저 열어,
-    // 그쪽에서 예외가 나더라도 설정 창이 막히지 않게 한다.
+    // 설정 창을 띄운다. 오버레이/트레이 생성보다 먼저 열어, 그쪽에서 예외가 나더라도
+    // 설정 창이 막히지 않게 한다. 이 창이 작업표시줄 대표 창 역할도 한다.
+    //
+    // 예전에는 페어링 전(!roomId)에만 띄웠다. 그래서 한 번 페어링하고 나면 실행해도
+    // 아무 창도 안 뜨고, 트레이를 못 찾으면 앱을 켰는지조차 알 수 없었다.
     // 단, 로그인 시 자동 실행으로 켜진 경우엔 조용히 시작한다(업무 방해 금지).
-    if (!cfg.roomId && !startedByAutoLaunch) createSettings();
+    if (!startedByAutoLaunch) createSettings();
 
     // 오버레이/트레이/디스플레이 이벤트는 실패해도 앱이 죽지 않도록 각각 보호한다.
     try { createOverlay(); } catch (e) { logError('createOverlay', e); }
