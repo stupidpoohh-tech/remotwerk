@@ -133,10 +133,73 @@ const CFG = { roomId: 'r1', firebase: { apiKey: 'x' }, characterId: 'char_seal',
     ok('Firebase 경로에 ts↔세션시각 비교가 없다', !/live:\s*\(?v\.ts/.test(fbPart));
   }
 
+  // --- 5. 신호를 재생하다 캐릭터가 멈춰 버리지 않는가 ------------------------
+  // 'gesture' 상태에서 못 빠져나오면 캐릭터는 **영영 정지**한다. decide() 는
+  // gesture 중이면 그냥 돌아가고, 이동 루프도 walk 가 아니면 아무것도 안 한다.
+  {
+    const sandbox = {
+      console, setTimeout, clearTimeout, Date, Math, JSON, Promise,
+      requestAnimationFrame: (fn) => setTimeout(() => fn(Date.now()), 16),
+      cancelAnimationFrame: (id) => clearTimeout(id)
+    };
+    sandbox.window = sandbox;
+    vm.createContext(sandbox);
+    for (const f of ['gestures', 'animations', 'actor']) {
+      vm.runInContext(fs.readFileSync(path.join(SHARED, f + '.js'), 'utf8'), sandbox);
+    }
+
+    function makeActor(playImpl) {
+      const played = [];
+      const player = {
+        play(gid, o) { played.push(gid); return playImpl(gid, o); },
+        stop() {}, setFlip() {}, stepAdvance: () => 0, cycleMs: () => 0
+      };
+      const a = sandbox.RW.actor.create({
+        player, gestureGraceMs: 60,             // 검사에서는 짧게
+        idleMin: 100000, idleMax: 100001        // 자율 전환이 끼어들지 않게
+      });
+      return { a, played };
+    }
+
+    // (1) 재생기가 모르는 동작 — play() 가 false 를 돌려주고 onDone 을 안 부른다.
+    {
+      const { a, played } = makeActor(() => false);
+      a.playGesture('g_twerk');
+      ok('재생기가 못 받은 신호여도 gesture 에 갇히지 않는다',
+         a.state !== 'gesture', `state=${a.state}`);
+      ok('바로 대기/걷기 자세로 되돌아간다',
+         played.includes('idle') || played.includes('wander'), played.join(','));
+      a.stop();
+    }
+
+    // (2) 재생은 시작됐는데 끝났다는 연락이 안 온다(창이 가려져 rAF 가 멈춘 상황).
+    {
+      const { a, played } = makeActor(() => true);   // onDone 을 영영 안 부른다
+      a.playGesture('g_twerk');
+      ok('재생 중에는 gesture 상태다', a.state === 'gesture', `state=${a.state}`);
+      await new Promise((r) => setTimeout(r, 200));
+      ok('연락이 안 와도 감시 타이머가 대기로 되돌린다',
+         a.state !== 'gesture', `state=${a.state}`);
+      ok('되돌아가며 대기/걷기를 다시 재생한다',
+         played.length > 1, played.join(','));
+      a.stop();
+    }
+  }
+
+  // --- 6. 오버레이 창의 화면 갱신 절약이 꺼져 있는가 -------------------------
+  // 켜져 있으면 창이 가려졌을 때 크로미움이 rAF 를 멈춰 캐릭터가 그대로 정지한다.
+  {
+    const main = fs.readFileSync(path.join(SHARED, '..', '..', 'main', 'main.js'), 'utf8');
+    ok('창 설정에 backgroundThrottling: false 가 있다',
+       /backgroundThrottling:\s*false/.test(main));
+  }
+
   if (fails.length) {
     console.error(`\n✗ 실패 ${fails.length}건 / 통과 ${pass}건`);
     for (const f of fails) console.error('  - ' + f);
     process.exit(1);
   }
   console.log(`✓ 신호 수신 경로 ${pass}건 통과`);
+  // 배우가 다음 전환을 예약해 두므로 그대로 두면 프로세스가 안 끝난다.
+  process.exit(0);
 })();

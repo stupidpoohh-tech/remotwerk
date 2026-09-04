@@ -31,7 +31,12 @@
     // **세로 이동은 하지 않는다.** 캐릭터는 바닥에 선 채 좌우로만 다닌다.
     // (위아래로 떠다니면 "바닥에 선 몸" 이라는 인상이 깨지고, 창 위쪽으로 올라가
     //  작업 화면을 가린다.)
-    rangeX: 260, rangeY: 0
+    rangeX: 260, rangeY: 0,
+    // 신호 재생이 끝났다는 연락이 안 올 때 강제로 대기로 되돌리기까지의 여유(ms).
+    // 실제 대기는 (동작 예상 길이 × 2 + 이 값) 이다. 정상 재생을 자르지 않을 만큼
+    // 넉넉해야 하고, 멈춘 채로 오래 두지 않을 만큼은 짧아야 한다.
+    // 이게 없으면 캐릭터가 'gesture' 상태에 갇혀 영영 멈춘다(검사에서는 짧게 준다).
+    gestureGraceMs: 4000
   };
 
   function create(opts) {
@@ -103,17 +108,41 @@
       speed = 0;
       clearTimer();
       player.setFlip(false);                    // 신호는 항상 정면
-      player.play(gid, {
-        onDone() {
-          if (queued) {
-            const next = queued; queued = null;
-            state = 'idle';                     // playGesture 의 중복 진입 방지
-            playGesture(next);
-            return;
-          }
-          decide();                             // 끝나면 대기/걷기로 복귀
+
+      let done = false;
+      function finish() {
+        if (done) return;                       // 감시 타이머와 onDone 이 겹쳐도 한 번만
+        done = true;
+        clearTimer();
+        // ★ **상태를 먼저 내린다.** decide() 는 state === 'gesture' 면 그냥 돌아간다.
+        // 예전에는 gesture 인 채로 decide() 를 불러서, 신호가 끝나도 아무 일도
+        // 일어나지 않았다 — 다음 예약도 없고 이동 루프도 walk 가 아니라
+        // **캐릭터가 그 자리에서 영영 멈췄다.** 신호를 한 번 받으면 그걸로 끝이었다.
+        state = 'idle';
+        if (queued) {
+          const next = queued; queued = null;
+          playGesture(next);
+          return;
         }
-      });
+        decide();                               // 끝나면 대기/걷기로 복귀
+      }
+
+      const started = player.play(gid, { onDone: finish });
+
+      // ★ 'gesture' 상태에서 빠져나오지 못하면 캐릭터가 **영영 멈춘다.**
+      // decide() 는 gesture 중이면 그냥 돌아가고, 이동 루프도 walk 가 아니면 아무것도
+      // 안 하므로, 복귀 신호를 한 번 놓치는 순간 그대로 정지 화면이 된다.
+      // 빠져나오지 못하는 길이 둘 있었다.
+      //   1) 재생기가 그 동작을 모르면 play() 가 **false 만 돌려주고 onDone 을 안 부른다.**
+      //   2) 재생 중 창이 가려져 rAF 가 멈추면 onDone 이 오지 않는다.
+      // 그래서 (1)은 즉시 되돌리고, (2)는 감시 타이머로 받아 낸다.
+      if (!started) { finish(); return; }
+
+      // 감시 타이머 — 예상 길이보다 넉넉히 지나도 안 끝나면 강제로 복귀시킨다.
+      // setTimeout 은 rAF 와 달리 창이 가려져도(백그라운드 절약을 꺼 둔 상태에서는)
+      // 밀릴지언정 결국 도착한다.
+      const expected = (player.cycleMs && player.cycleMs()) || 0;
+      timer = setTimeout(finish, expected * 2 + cfg.gestureGraceMs);
     }
 
     // ---- 이동 루프 ----
