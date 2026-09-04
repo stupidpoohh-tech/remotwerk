@@ -208,13 +208,31 @@ tools/
 각 화면의 `<meta http-equiv="Content-Security-Policy">` 에 Firebase 가 실제로 쓰는 주소가
 전부 들어 있어야 한다.
 
-| 용도 | 주소 |
-|---|---|
-| 구형 DB REST/롱폴링 | `https://*.firebaseio.com` |
-| 지역 DB REST/롱폴링 | `https://*.firebasedatabase.app` |
-| 구형 DB 실시간 | `wss://*.firebaseio.com` |
-| **지역 DB 실시간** | **`wss://*.firebasedatabase.app`** |
-| 익명 인증 · Storage | `https://*.googleapis.com` |
+**통로마다 걸리는 지시어가 다르고, 그게 직관과 어긋난다.**
+
+| 용도 | 주소 | 어느 지시어에 걸리는가 |
+|---|---|---|
+| Firebase SDK 동적 import | `https://www.gstatic.com` | `script-src` |
+| DB REST | `https://*.firebasedatabase.app` | `connect-src` |
+| **DB 롱폴링** | **`https://*.firebasedatabase.app`** | **`script-src`** ← fetch 가 아니라 `<script>` 주입이다 |
+| DB 실시간 | `wss://*.firebasedatabase.app` | `connect-src` |
+| 익명 인증 · Storage | `https://*.googleapis.com` | `connect-src` |
+
+> 구형(미국) 인스턴스를 쓰면 위의 `firebasedatabase.app` 자리가 `firebaseio.com` 이 된다.
+> 둘 다 넣어 둔다.
+>
+> **롱폴링이 `script-src` 를 받는다는 것이 함정이다.** RTDB 는 WebSocket 이 막힌 망에서
+> 롱폴링으로 넘어가는데, 이 통로가 `<script src="…/.lp?…">` 주입이라 `connect-src` 로는
+> 열리지 않는다. 여기가 빠져 있으면 **WebSocket 도 롱폴링도 막힌 채**, 화면에는
+> "네트워크를 확인하세요" 라고만 나온다 — 실제로 사용자에게 망 탓이라고 잘못 안내했다.
+
+```bash
+node tools/csp-check.js   # 6개 화면 × 5가지 통로를 진짜 브라우저에서 확인
+```
+
+CSP 위반은 네트워크 없이도 발생하므로 이 검사는 오프라인에서도 정확하다.
+그리고 연결 진단은 연결을 시도하는 동안 `securitypolicyviolation` 을 함께 들어서,
+**앱이 스스로 막은 것**과 바깥 망이 막은 것을 구분해 보고한다.
 
 > v0.6.x 에서 초대 코드 만들기가 "방을 만드는 중…" 에서 멈춘 원인이 마지막 줄이었다.
 > 이 DB 는 싱가포르 지역 인스턴스라 실시간 연결이 `wss://*.firebasedatabase.app` 인데

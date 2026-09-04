@@ -220,6 +220,16 @@
     }
 
     // 주소는 살아 있다. 남은 것은 실시간 연결뿐이다.
+    //
+    // 연결하는 동안 **CSP 위반을 같이 듣는다.** 앱 자신의 보안 설정이 막은 것과
+    // 바깥 네트워크가 막은 것은 증상이 같은데, 전자는 우리 버그다.
+    // (실제로 롱폴링은 <script> 주입으로 동작해서 connect-src 가 아니라 script-src 를
+    //  받는데, 그게 빠져 있어서 "망이 막았다"고 잘못 안내한 적이 있다.)
+    const violations = [];
+    const onCsp = (e) => violations.push(e.violatedDirective + ' ← ' + String(e.blockedURI || '').slice(0, 80));
+    const canListen = typeof document !== 'undefined' && document.addEventListener;
+    if (canListen) document.addEventListener('securitypolicyviolation', onCsp);
+
     const now = fb.transport === 'longpoll' ? '롱폴링' : 'WebSocket';
     try {
       await waitConnected(8000);
@@ -227,6 +237,11 @@
       return { steps, cause: null, working: cfg.databaseURL, transport: fb.transport };
     } catch (e) {
       push('실시간 연결(' + now + ')', false, (e && e.message) || String(e));
+
+      if (violations.length) {
+        push('앱의 보안 설정(CSP)', false, violations.join(' / '));
+        return { steps, cause: 'csp', working: cfg.databaseURL, violations };
+      }
       // REST 는 되는데 소켓만 안 된다 = 이 망이 WebSocket 을 막는다.
       // RTDB 는 롱폴링으로도 붙을 수 있다. 롱폴링은 평범한 https 라 이미 통하는 길이다.
       if (fb.transport !== 'longpoll' && fb.canLongPoll) {
@@ -235,6 +250,8 @@
       push('롱폴링 전환 가능 여부', false,
            fb.canLongPoll ? '이미 롱폴링인데도 연결되지 않았습니다' : '이 SDK 버전은 롱폴링 전환을 지원하지 않습니다');
       return { steps, cause: 'socket-final', working: cfg.databaseURL, canLongPoll: false };
+    } finally {
+      if (canListen) document.removeEventListener('securitypolicyviolation', onCsp);
     }
   }
 
