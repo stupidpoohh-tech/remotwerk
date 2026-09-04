@@ -5,9 +5,12 @@
  * electron-builder 는 build/icon.png 하나로 Windows(.ico)·macOS(.icns) 를 자동 생성한다.
  *
  * 실제 아트가 준비되면 이 스크립트를 쓰지 말고 512×512 이상 PNG 를 build/icon.png 로
- * 바꿔 넣으면 된다.
+ * 바꿔 넣으면 된다. **지금은 실제 아이콘이 들어와 있으므로 이 스크립트는 기본적으로
+ * 아무 일도 하지 않는다** — CI 가 무심코 실제 아이콘을 플레이스홀더로 덮어쓰는 사고를
+ * 막기 위해서다(빌드 워크플로에서도 이 단계를 뺐다).
  *
- * 사용법:  node tools/make-icon.js
+ * 사용법:  node tools/make-icon.js         # 이미 있으면 건너뛴다
+ *          node tools/make-icon.js --force # 그래도 다시 그린다
  */
 
 const fs = require('fs');
@@ -155,5 +158,11 @@ const png = Buffer.concat([
 const outDir = path.join(__dirname, '..', 'build');
 fs.mkdirSync(outDir, { recursive: true });
 const outPath = path.join(outDir, 'icon.png');
+// 실제 아이콘을 플레이스홀더로 덮어쓰지 않는다. 다시 그리려면 --force.
+if (fs.existsSync(outPath) && !process.argv.includes('--force')) {
+  console.log(`이미 아이콘이 있어 그대로 둡니다: ${outPath}`);
+  console.log('플레이스홀더로 다시 그리려면: node tools/make-icon.js --force');
+  process.exit(0);
+}
 fs.writeFileSync(outPath, png);
 console.log(`아이콘 생성: ${outPath} (${W}×${H}, ${(png.length / 1024).toFixed(1)} KB)`);

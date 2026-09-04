@@ -36,9 +36,6 @@ jobs:
       - name: 회귀 테스트
         run: npm test
 
-      - name: 아이콘 생성
-        run: npm run icon
-
       - name: 설치파일 빌드 (아티팩트용)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish == false }}
         run: npx electron-builder --win --publish never

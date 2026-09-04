@@ -29,8 +29,10 @@
   // 그림이 있는 제공 캐릭터. preset-art.js 가 없으면(구버전) 조용히 건너뛴다.
   const ART = (root.RW && root.RW.presetArt) || {};
   const ART_PRESETS = [
-    { id: 'char_seal',   name: '물개',   swatch: '#9aa0a6' },
-    { id: 'char_ribbon', name: '리본',   swatch: '#2f56c9' }
+    { id: 'char_seal',    name: '물개',   swatch: '#9aa0a6' },
+    { id: 'char_ribbon',  name: '리본',   swatch: '#2f56c9' },
+    { id: 'char_hamster', name: '햄스터', swatch: '#e8b878' },
+    { id: 'char_wolf',    name: '늑대',   swatch: '#b08a63' }
   ].filter((p) => ART[p.id]).map((p) => Object.assign({}, p, { bundle: ART[p.id] }));
 
   const PRESETS = ART_PRESETS.slice();

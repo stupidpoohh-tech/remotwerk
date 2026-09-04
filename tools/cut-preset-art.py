@@ -79,6 +79,46 @@ CHARS = {
         'torsoW': 295, 'armW': 116, 'legW': 92,
         'swatch': '#3355cc',
     },
+    # 햄스터 — 몸이 아주 둥글고 넓다. 팔이 y≈140~215 에서 옆으로 뻗고,
+    # 발은 바닥에 붙은 작은 두 조각이다(400폭 공간에서 실측).
+    'hamster': {
+        'name': '햄스터',
+        'id': 'char_hamster',
+        'front': 'hamster-front.png',
+        'back': 'hamster-back.png',
+        'root': (200, 318),
+        'feetY': 356,
+        'pivots': {'armL': (108, 182), 'armR': (292, 182), 'legL': (150, 316), 'legR': (250, 316)},
+        'boxes': {
+            'torso': (50, 16, 350, 348),
+            'armL':  (16, 132, 122, 216),
+            'armR':  (278, 132, 384, 216),
+            'legL':  (56, 300, 190, 360),
+            'legR':  (210, 300, 344, 360),
+        },
+        'torsoW': 300, 'armW': 106, 'legW': 134,
+        'swatch': '#e8b878',
+    },
+    # 늑대 — 귀가 위로 솟고 오른쪽에 꼬리가 있다(몸통 상자를 그쪽으로 넓혔다).
+    # 팔은 y≈195~270, 발은 y≈380 아래.
+    'wolf': {
+        'name': '늑대',
+        'id': 'char_wolf',
+        'front': 'wolf-front.png',
+        'back': 'wolf-back.png',
+        'root': (200, 380),
+        'feetY': 433,
+        'pivots': {'armL': (112, 226), 'armR': (288, 226), 'legL': (140, 378), 'legR': (260, 378)},
+        'boxes': {
+            'torso': (74, 18, 360, 400),
+            'armL':  (18, 188, 126, 272),
+            'armR':  (274, 188, 382, 272),
+            'legL':  (66, 360, 198, 437),
+            'legR':  (202, 360, 334, 437),
+        },
+        'torsoW': 286, 'armW': 108, 'legW': 132,
+        'swatch': '#b08a63',
+    },
 }
 SLOTS = ['torso', 'armL', 'armR', 'legL', 'legR']
 

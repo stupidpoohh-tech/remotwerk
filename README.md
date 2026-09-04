@@ -68,9 +68,10 @@ python3 tools/build-clip-art.py          # 클립 규격 검사 + 등록부 재�
 
 - **패키징**: `electron-builder`. Windows 는 NSIS 설치파일(사용자 단위 설치라 관리자 권한
   불필요), macOS 는 dmg, Linux 는 AppImage.
-- **아이콘**: `build/icon.png`(512×512) 하나로 각 플랫폼 아이콘이 자동 생성된다.
-  현재는 `npm run icon`(`tools/make-icon.js`)이 코드로 그린 **플레이스홀더**다.
-  실제 아트가 생기면 같은 경로에 512×512 이상 PNG 를 덮어쓰면 된다.
+- **아이콘**: `build/icon.png`(1080×1080) 하나로 각 플랫폼 아이콘이 자동 생성된다.
+  실제 아트가 들어와 있으므로 `npm run icon`(플레이스홀더 생성기)은 **기본적으로 아무 일도
+  하지 않는다**(`--force` 로만 덮어쓴다). 빌드 워크플로에서도 이 단계를 뺐다 —
+  CI 가 실제 아이콘을 플레이스홀더로 되돌리는 사고를 막기 위해서다.
 - **자동 시작**: 설정창 또는 트레이에서 켤 수 있다(`app.setLoginItemSettings`).
   자동 시작으로 켜진 실행은 설정창을 띄우지 않고 조용히 시작한다.
 - **자동 업데이트**: `electron-updater` + GitHub Releases. **패키징된 빌드에서만** 동작하며
@@ -140,7 +141,7 @@ src/
       transport.js  # 신호 송수신/히스토리 + 커스텀 캐릭터 공유(Firebase Storage)
   assets/presets/   # 프리셋 에셋 포맷(rig.json) + 포맷 문서
   assets/clips/     # 앱에 들어가는 스프라이트 클립 PNG(빌드 산출물)
-art/presets/        # 제공 캐릭터 원본 그림(앱에는 안 들어간다 → preset-art.js 로 변환)
+art/presets/        # 제공 캐릭터 원본 그림 4종(앱에는 안 들어간다 → preset-art.js 로 변환)
 art/clips/          # 클립 원본 프레임 + clip.json (여기에 그림을 넣는다)
 docs/
   animation-bible.md # 제작 기준(캔버스·기준점·연기·접합·프레임 예산·승인 체크리스트)
