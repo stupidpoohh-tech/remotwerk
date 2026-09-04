@@ -461,6 +461,27 @@ for (const id of ART_IDS) {
   }).catch((e) => { fails.push('진단 테스트 자체가 실패 — ' + e.message); report(); });
 }
 
+// --- 15. 트레이 아이콘 파일 --------------------------------------------------
+//
+// 트레이 아이콘이 없으면 오버레이는 작업표시줄에 안 뜨는 창이라 **앱을 찾을 방법이 없다.**
+// 패키징 대상(src/**) 안에 있어야 설치본에도 들어간다.
+{
+  const MAIN = path.join(__dirname, '..', 'src', 'main');
+  for (const [f, w] of [['tray-16.png', 16], ['tray-32.png', 32]]) {
+    const p = path.join(MAIN, f);
+    ok(`트레이 아이콘 존재: ${f}`, fs.existsSync(p));
+    if (!fs.existsSync(p)) continue;
+    const b = fs.readFileSync(p);
+    ok(`${f}: PNG 형식`, b.slice(1, 4).toString() === 'PNG');
+    // IHDR 의 너비(빅엔디안 4바이트)
+    ok(`${f}: ${w}px`, b.readUInt32BE(16) === w, String(b.readUInt32BE(16)));
+  }
+  const mainJs = fs.readFileSync(path.join(MAIN, 'main.js'), 'utf8');
+  ok('트레이가 실제 아이콘 파일을 쓴다', /createFromPath\([^)]*tray-16\.png/.test(mainJs));
+  ok('캐릭터 되돌리기 메뉴가 있다', /recenterCharacter/.test(mainJs));
+  ok('리모컨 전역 단축키는 없다', !/globalShortcut\.register\(\s*'CommandOrControl\+Shift\+R'/.test(mainJs));
+}
+
 // --- 결과 -------------------------------------------------------------------
 function report() {
   if (fails.length) {

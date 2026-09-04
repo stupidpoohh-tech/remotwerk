@@ -27,6 +27,20 @@ let tray = null;
 function logDir() { return path.join(app.getPath('userData'), 'logs'); }
 function logFile() { return path.join(logDir(), 'main.log'); }
 
+// 오류가 아닌 사실도 남긴다. "캐릭터가 안 보인다" 같은 신고는 추측으로는 못 좁힌다 —
+// 오버레이가 어디에 몇 픽셀로 떠 있는지, 어떤 캐릭터를 그리는지가 기록에 있어야 한다.
+function logInfo(tag, data) {
+  const line = `[${new Date().toISOString()}] ${tag}: ${typeof data === 'string' ? data : JSON.stringify(data)}\n`;
+  console.log(line.trim());
+  try {
+    fs.mkdirSync(logDir(), { recursive: true });
+    try {
+      if (fs.statSync(logFile()).size > 1024 * 1024) fs.writeFileSync(logFile(), '');
+    } catch (_) { /* 파일 없음 */ }
+    fs.appendFileSync(logFile(), line);
+  } catch (_) { /* 로깅 실패는 무시 */ }
+}
+
 function logError(tag, err) {
   const line = `[${new Date().toISOString()}] ${tag}: ${(err && err.stack) || err}\n`;
   console.error(line.trim());
@@ -158,6 +172,18 @@ function createOverlay() {
 
   w.loadFile(path.join(RENDERER, 'overlay', 'overlay.html'));
   win.overlay = w;
+
+  {
+    const cfg = config.load();
+    logInfo('overlay', {
+      bounds: { x, y, width, height },
+      displays: screen.getAllDisplays().length,
+      pos: cfg.overlayPos, scale: cfg.overlayScale,
+      me: cfg.characterId, partner: cfg.partnerCharacterId,
+      customs: (cfg.customCharacters || []).map((c) => c.id),
+      paired: !!cfg.roomId, focusMode: !!cfg.focusMode
+    });
+  }
   w.on('closed', () => { win.overlay = null; });
   return w;
 }
@@ -327,8 +353,22 @@ function toggleBossKey() {
 // ---------------------------------------------------------------------------
 
 function buildTrayIcon() {
-  // 텍스트 에셋 없이도 "보이는" 아이콘을 코드로 그린다(보라색 원형 점).
-  // (실제 배포 시 assets 의 아이콘으로 교체)
+  // 실제 앱 아이콘을 쓴다. 트레이 아이콘이 정체불명의 점이면 사용자가 앱을 못 찾는다.
+  // (Windows 11 은 새 트레이 아이콘을 기본으로 숨김 영역에 넣기 때문에 더 그렇다.)
+  try {
+    const img = nativeImage.createFromPath(path.join(__dirname, 'tray-16.png'));
+    if (!img.isEmpty()) {
+      const hi = nativeImage.createFromPath(path.join(__dirname, 'tray-32.png'));
+      if (!hi.isEmpty()) {
+        img.addRepresentation({ scaleFactor: 2, width: 32, height: 32, buffer: hi.toPNG() });
+      }
+      return img;
+    }
+  } catch (e) {
+    logError('buildTrayIcon', e);
+  }
+
+  // 아이콘 파일을 못 읽으면 코드로 그린 점이라도 띄운다(트레이가 아예 없으면 앱을 못 찾는다).
   const size = 16, r = 7, cx = 7.5, cy = 7.5;
   const buf = Buffer.alloc(size * size * 4, 0);
   for (let y = 0; y < size; y++) {
@@ -341,6 +381,18 @@ function buildTrayIcon() {
   const img = nativeImage.createEmpty();
   img.addRepresentation({ width: size, height: size, scaleFactor: 1, buffer: buf });
   return img;
+}
+
+// 캐릭터를 화면 가운데로 되돌리고, 숨어 있었다면 다시 띄운다.
+// 위치·크기를 한꺼번에 되돌리므로 "어디 갔는지 모르겠다" 상태에서 무조건 빠져나올 수 있다.
+function recenterCharacter() {
+  const next = config.save({ overlayPos: { x: 0.5, y: 0.6 }, overlayScale: 1 });
+  const o = win.overlay || createOverlay();
+  if (!o.isDestroyed()) {
+    o.showInactive();
+    fitOverlayToVirtualDesktop();
+  }
+  broadcastConfig(next);
 }
 
 function buildTray() {
@@ -362,6 +414,10 @@ function refreshTrayMenu() {
   const menu = Menu.buildFromTemplate([
     { label: '리모컨 열기', click: () => createRemote() },
     { label: '히스토리 열기', click: () => createHistory() },
+    { type: 'separator' },
+    // 캐릭터를 잃어버렸을 때의 탈출구.
+    // 모니터를 바꾸거나 끝으로 끌어 두면 화면 밖으로 나가 영영 못 찾을 수 있다.
+    { label: '캐릭터 화면 가운데로 되돌리기', click: () => recenterCharacter() },
     { type: 'separator' },
     {
       label: '집중 모드',
