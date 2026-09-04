@@ -28,7 +28,10 @@
     walkMin: 2600, walkMax: 6200,
     walkChance: 0.6,
     // 이동 한계(집 위치 기준 논리픽셀)
-    rangeX: 260, rangeY: 60
+    // **세로 이동은 하지 않는다.** 캐릭터는 바닥에 선 채 좌우로만 다닌다.
+    // (위아래로 떠다니면 "바닥에 선 몸" 이라는 인상이 깨지고, 창 위쪽으로 올라가
+    //  작업 화면을 가린다.)
+    rangeX: 260, rangeY: 0
   };
 
   function create(opts) {
@@ -129,8 +132,7 @@
           startIdle();
         } else {
           x = Math.max(-cfg.rangeX, Math.min(cfg.rangeX, nx));
-          // 걸을 때 아주 약하게 위아래로 흔들린다(발걸음과 무관한 코드 이동은 넣지 않는다)
-          y = Math.max(-cfg.rangeY, Math.min(cfg.rangeY, y));
+          y = 0;      // 수평 이동만. 세로 오프셋은 만들지 않는다.
         }
         onMove(x, y);
       }

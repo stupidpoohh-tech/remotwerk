@@ -25,11 +25,52 @@
   //
   // 프레임 전환은 **교체**다. 서로 다른 자세를 crossfade 하면 두 그림이 겹쳐 보여
   // 잔상이 된다. 자세를 잇는 일은 그림(중간 프레임)이 담당한다(Animation Bible 4절).
+
+  // ---- 전체 변형 레이어 ----
+  //
+  // 재생기가 그린 것을 통째로 감싸고, **캐릭터의 발밑 기준점**을 원점으로 눌렀다 편다.
+  // 컨테이너(anchorEl)의 원점이 곧 발밑 기준점이라 transform-origin 은 0 0 이면 된다.
+  // 바깥의 표시 배율·좌우 반전·화면 위치는 다른 레이어에 있으므로 그대로 곱해진다
+  // (기존 transform 을 덮어쓰지 않는다).
+  function makeDeformLayer(container) {
+    const layer = document.createElement('div');
+    layer.className = 'rw-deform';
+    layer.style.position = 'absolute';
+    layer.style.left = '0';
+    layer.style.top = '0';
+    layer.style.transformOrigin = '0 0';
+    container.appendChild(layer);
+    return layer;
+  }
+
+  // 변형이 정의된 동작이면, **기본 자세를 유지한 채** 전체를 눌렀다 편다.
+  // (기존 클립의 고개 숙이기·회전·흔들기가 겹쳐 적용되지 않도록 그 클립은 재생하지 않는다.)
+  function runDeform(def, layer, holdBase, options, rafRef) {
+    holdBase();
+    const start = performance.now();
+    function tick(now) {
+      if (rafRef.cancelled) return;
+      const t = now - start;
+      const d = RW.deform.at(def, t);
+      layer.style.transform = `scale(${d.sx}, ${d.sy})`;
+      if (t >= def.duration) {
+        layer.style.transform = '';          // 정확히 원래 비율로 되돌린다(잔상 금지)
+        rafRef.id = null;
+        if (options && options.onDone) options.onDone();
+        return;
+      }
+      rafRef.id = requestAnimationFrame(tick);
+    }
+    rafRef.id = requestAnimationFrame(tick);
+    return true;
+  }
+
   function createSprite(container, charId) {
     const meta = RW.clips.forCharacter(charId);
+    const deformLayer = makeDeformLayer(container);
     const el = document.createElement('div');
     el.className = 'rw-sprite';
-    container.appendChild(el);
+    deformLayer.appendChild(el);
 
     // 프레임 이미지를 미리 로드해 둔다. 준비되기 전에 재생하면 한 프레임이 빈다.
     const preloaded = Object.create(null);
@@ -146,10 +187,18 @@
                width: right - left, height: (bb[3] + 1 - bb[1]) * fy };
     }
 
+    let deformRaf = null;
     function stop() {
       cancelled = true;
       if (raf) cancelAnimationFrame(raf);
       raf = null;
+      // 변형이 남으면 다음 동작이 눌린 채로 시작하거나 크기가 누적된다.
+      if (deformRaf) {
+        deformRaf.cancelled = true;
+        if (deformRaf.id) cancelAnimationFrame(deformRaf.id);
+        deformRaf = null;
+      }
+      deformLayer.style.transform = '';
       setFx(null);
     }
 
@@ -160,6 +209,18 @@
       stop();
       cancelled = false;
       curClipId = gestureId;
+
+      // 전체 변형 동작(예: 지쳤어)은 기본 자세 완성 프레임을 유지한 채 눌렀다 편다.
+      const def = RW.deform && RW.deform.get(gestureId);
+      if (def) {
+        setFx((RW.clips.get(charId, gestureId) || {}).fx || null);
+        const idle = RW.clips.get(charId, 'idle');
+        const base = idle && idle.frames[0];
+        cur = { seq: base ? [base] : [], total: def.duration };
+        const ref = { cancelled: false, id: null };
+        deformRaf = ref;
+        return runDeform(def, deformLayer, () => { if (base) show(base); }, options, ref);
+      }
       // 이펙트 종류는 클립 메타가 정한다(트월킹처럼 없는 동작은 끈다).
       setFx((RW.clips.get(charId, gestureId) || {}).fx || null);
       const built = buildSeq(plan);
@@ -213,18 +274,41 @@
   // ---------------------------------------------------------------------- 리그
   // 기존 5조각 경로. 사용자 업로드 캐릭터와 아직 클립이 없는 캐릭터가 쓴다.
   function createRig(container, spec) {
-    const ctrl = RW.engine.mount(container, spec);
+    // 리그도 **조립이 끝난 캐릭터 전체**에 변형을 건다. 조각마다 따로 누르면
+    // 이음매가 벌어지므로, 엔진이 그린 결과를 통째로 감싼다.
+    const deformLayer = makeDeformLayer(container);
+    const ctrl = RW.engine.mount(deformLayer, spec);
     let curId = null;
+    let deformRaf = null;
+
+    function clearDeform() {
+      if (deformRaf) {
+        deformRaf.cancelled = true;
+        if (deformRaf.id) cancelAnimationFrame(deformRaf.id);
+        deformRaf = null;
+      }
+      deformLayer.style.transform = '';
+    }
     return {
       kind: 'rig',
       box: spec.skeleton.box,
       play(gestureId, options) {
         if (!RW.animations.get(gestureId)) return false;
+        clearDeform();
         curId = gestureId;
+
+        // 전체 변형 동작이면 기존 클립(고개 숙이기·회전·흔들기)을 재생하지 않는다.
+        // 대신 기본 자세(대기)를 유지한 채 캐릭터 전체를 눌렀다 편다 — 중복 적용 방지.
+        const def = RW.deform && RW.deform.get(gestureId);
+        if (def) {
+          const ref = { cancelled: false, id: null };
+          deformRaf = ref;
+          return runDeform(def, deformLayer, () => ctrl.play('idle', {}), options || {}, ref);
+        }
         ctrl.play(gestureId, options || {});
         return true;
       },
-      stop() { ctrl.stop(); },
+      stop() { clearDeform(); ctrl.stop(); },
       setFlip() { /* 리그는 클립 안에서 flip 을 다룬다 */ },
       stepAdvance() {
         const a = RW.animations.get('wander');
@@ -247,7 +331,7 @@
         return { left: x0, top: y0, right: x1, bottom: y1, width: x1 - x0, height: y1 - y0 };
       },
       placeholder: false,
-      destroy() { ctrl.stop(); container.innerHTML = ''; },
+      destroy() { clearDeform(); ctrl.stop(); container.innerHTML = ''; },
       ctrl
     };
   }

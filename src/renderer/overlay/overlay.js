@@ -139,9 +139,13 @@
     // 화면 위/왼쪽으로 밀려 나간다. 실제로 overlayPos 가 0,0 이면 (-100,-192) 에 그려져
     // 사용자는 "캐릭터가 사라졌다"고 느낀다. 모니터 구성이 바뀌어도 마찬가지다.
     // 붙잡을 대상은 style 값이 아니라 **그려진 상자**여야 한다.
+    // 변형 동작(지쳤어)은 캐릭터를 가로로 18% 넓힌다. 화면 끝에 딱 붙여 두면
+    // 눌리는 순간 잘리므로, 그만큼 여백을 미리 확보해 둔다.
+    const dm = (RW.deform && RW.deform.maxScale) ? RW.deform.maxScale() : { sx: 1, sy: 1 };
     const M = 4;
     const g = renderGeom(x, y, s);
-    const dx = Math.max(M, Math.min(g.left, Math.max(M, W - g.w - M))) - g.left;
+    const padX = Math.ceil(g.w * (dm.sx - 1) / 2);
+    const dx = Math.max(M + padX, Math.min(g.left, Math.max(M + padX, W - g.w - M - padX))) - g.left;
     const dy = Math.max(M, Math.min(g.top, Math.max(M, H - g.h - M))) - g.top;
 
     charEl.style.left = Math.round(x + dx) + 'px';
