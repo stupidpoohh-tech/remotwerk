@@ -22,26 +22,23 @@
   // ---- 초기화 ----
   async function main() {
     cfg = await host.getConfig();
-    transport = RW.transport.createTransport(cfg);
-
+    // 로컬 표시와 복원은 네트워크 연결보다 먼저 준비한다.
+    applyCharDef({ kind: 'local', id: cfg.partnerCharacterId || 'char_ribbon' });
     positionChar();
     window.addEventListener('resize', positionChar);
-
-    await transport.ready.catch((e) => console.error('[overlay] transport', e));
-
-    // 상대 캐릭터 결정: 프리셋 id 또는 다운로드한 커스텀 번들
-    try {
-      applyCharDef(await transport.getPartnerCharacter());
-    } catch (_) {
-      applyCharDef({ kind: 'local', id: cfg.partnerCharacterId || 'char_ribbon' });
-    }
-    // 자율 생활은 buildFromRig() 안에서 시작된다.
-
-    transport.onSignal(onSignal);
-    // 상대가 캐릭터를 바꾸면 실시간 교체(Firebase)
-    if (transport.onPartnerCharacter) transport.onPartnerCharacter(applyCharDef);
     host.onConfigChanged(onConfigChanged);
     setupDrag();
+
+    try {
+      transport = RW.transport.createTransport(cfg);
+      await transport.ready;
+      transport.onSignal(onSignal);
+      // 최초 조회가 지연되어도 이후 실시간 변경을 받을 수 있다.
+      if (transport.onPartnerCharacter) transport.onPartnerCharacter(applyCharDef);
+      applyCharDef(await transport.getPartnerCharacter());
+    } catch (e) {
+      console.error('[overlay] transport; keeping local character', e);
+    }
   }
 
   // 정규화된 캐릭터 정의 → 렌더. kind: 'bundle'(커스텀) | 'preset' | 'local'
@@ -134,8 +131,8 @@
 
     // 저장된 위치는 "골반이 놓일 자리" 다. 가로 기준점은 originX 라 배율과 무관하고,
     // 세로는 기준점이 발밑(originY+groundY)이라 배율에 따라 groundY 만큼 보정된다.
-    let x = clamp01(pos.x) * W - charBox.originX + Math.round(roamX);
-    let y = clamp01(pos.y) * H - charBox.originY - charBox.groundY * (1 - s) + Math.round(roamY);
+    let x = clamp01(pos.x, 0.82) * W - charBox.originX + Math.round(roamX);
+    let y = clamp01(pos.y, 0.72) * H - charBox.originY - charBox.groundY * (1 - s) + Math.round(roamY);
 
     // **캐릭터가 화면 밖으로 나가지 않게 붙잡는다.**
     // 비율(0~1)만 제한하면 부족하다 — 0,0 이어도 기준점이 발밑·골반이라 캐릭터 몸은
@@ -163,7 +160,13 @@
     const s = Number(cfg && cfg.overlayScale);
     return isFinite(s) && s > 0 ? Math.max(0.4, Math.min(2.5, s)) : 1;
   }
-  function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+  // 저장값이 깨져 있을 수 있다(NaN·문자열·누락). 그대로 쓰면 CSS 좌표가 NaN 이 되어
+  // 캐릭터가 화면에서 사라진다. 숫자가 아니면 기본값으로 되돌린다.
+  function clamp01(v, dflt) {
+    const n = Number(v);
+    if (!isFinite(n)) return dflt == null ? 0.5 : dflt;
+    return Math.max(0, Math.min(1, n));
+  }
 
   // ---- 자율 생활 · 배회 ----
   // 상태 전환(대기↔걷기)과 좌표 이동은 actor.js 가 담당한다.
@@ -190,11 +193,18 @@
   async function onConfigChanged(next) {
     const prevPartner = cfg.partnerCharacterId;
     const prevCustoms = JSON.stringify(cfg.customCharacters || []);
+    // 위치가 바뀌었으면(예: 트레이의 "가운데로 되돌리기") 배회 누적분을 0으로 되돌린다.
+    // 안 그러면 되돌려 놓아도 그 순간의 배회 오프셋만큼 밀린 자리에 나타난다.
+    const p0 = (cfg && cfg.overlayPos) || {}, p1 = (next && next.overlayPos) || {};
+    if (p0.x !== p1.x || p0.y !== p1.y) {
+      roamX = 0; roamY = 0;
+      if (actor && typeof actor.resetPosition === 'function') actor.resetPosition();
+    }
     cfg = next;
     positionChar();
     // 로컬 데모에서만: 상대 캐릭터는 config 로 지정되므로 변경 시 다시 그림.
     // (Firebase 모드의 상대 캐릭터는 members 감시(onPartnerCharacter)로 반영된다.)
-    if (transport.mode === 'local') {
+    if (!transport || transport.mode === 'local') {
       const customsChanged = JSON.stringify(next.customCharacters || []) !== prevCustoms;
       if ((next.partnerCharacterId && next.partnerCharacterId !== prevPartner) || customsChanged) {
         lastCharSig = null; // 번들 편집 등으로 같은 id라도 강제 재빌드

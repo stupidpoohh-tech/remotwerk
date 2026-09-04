@@ -58,7 +58,8 @@ npm run pack         # 설치파일 없이 폴더로만 빌드(빠른 확인용)
   그리고 스프라이트 클립 규격(캔버스·기준점·접지·접합 자세·리그 대체)을 검사한다.
 
 ```bash
-node tools/app-smoke.js  # ★ 진짜 앱을 띄워 캐릭터가 실제로 보이는지 확인(가상 화면)
+node tools/app-smoke.js  # ★ 진짜 앱을 띄워 캐릭터가 실제로 보이는지 확인(설정 22가지)
+node tools/overlay-startup-test.js  # 네트워크가 끝나지 않을 때도 캐릭터가 뜨는지(npm test 에 포함)
 node tools/anim-check/render.js && python3 tools/anim-check/check.py  # 프레임 단위 검사
 node tools/anim-check/timeline.js        # 실제 재생 시간축 검사(스프라이트)
 node tools/anim-check/timeline.js --rig  # 〃 (리그 호환 경로)

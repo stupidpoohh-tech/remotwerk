@@ -385,13 +385,41 @@ function buildTrayIcon() {
 
 // 캐릭터를 화면 가운데로 되돌리고, 숨어 있었다면 다시 띄운다.
 // 위치·크기를 한꺼번에 되돌리므로 "어디 갔는지 모르겠다" 상태에서 무조건 빠져나올 수 있다.
+// 숨겨져 있던 오버레이를 다시 띄운다. 여러 경로(트레이·두 번째 실행·activate)가
+// 같은 함수를 쓰게 해서, 어디로 들어오든 캐릭터가 되살아나게 한다.
+function showOverlay() {
+  const o = (win.overlay && !win.overlay.isDestroyed()) ? win.overlay : createOverlay();
+  if (o && !o.isDestroyed() && !o.isVisible()) o.showInactive();
+  return o;
+}
+
 function recenterCharacter() {
-  const next = config.save({ overlayPos: { x: 0.5, y: 0.6 }, overlayScale: 1 });
-  const o = win.overlay || createOverlay();
-  if (!o.isDestroyed()) {
-    o.showInactive();
-    fitOverlayToVirtualDesktop();
+  const o = showOverlay();
+  if (o && !o.isDestroyed()) fitOverlayToVirtualDesktop();
+
+  // **가상 데스크톱의 한가운데가 아니라 실제 모니터의 한가운데로 보낸다.**
+  // 가상 데스크톱은 모든 모니터를 둘러싼 직사각형이라, 모니터가 대각선으로 놓이면
+  // 그 한가운데(0.5, 0.6)가 어느 화면에도 속하지 않는 빈 공간일 수 있다.
+  // 그러면 "가운데로 되돌리기" 를 눌러도 캐릭터가 여전히 안 보인다.
+  let pos = { x: 0.5, y: 0.6 };
+  try {
+    const d = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()) || screen.getPrimaryDisplay();
+    const wa = d.workArea;
+    const b = (o && !o.isDestroyed()) ? o.getBounds() : null;
+    if (b && b.width > 0 && b.height > 0) {
+      const cx = wa.x + wa.width / 2;
+      const cy = wa.y + wa.height * 0.6;
+      pos = {
+        x: Math.max(0, Math.min(1, (cx - b.x) / b.width)),
+        y: Math.max(0, Math.min(1, (cy - b.y) / b.height))
+      };
+    }
+    logInfo('recenter', { display: wa, overlay: b, pos });
+  } catch (e) {
+    logError('recenterCharacter', e);
   }
+
+  const next = config.save({ overlayPos: pos, overlayScale: 1 });
   broadcastConfig(next);
 }
 
@@ -571,6 +599,9 @@ if (!app.requestSingleInstanceLock()) {
   // 앱은 트레이에 상주하므로, 이미 실행 중일 때 다시 켜면 이 핸들러가 뜬다.
   // 페어링 전이면 설정창을, 이후면 리모컨을 앞으로 띄운다.
   app.on('second-instance', () => {
+    // 이미 켜져 있는데 또 실행했다는 건 "안 보인다" 는 뜻일 때가 많다.
+    // 숨겨진 오버레이부터 되살린다(예전엔 설정/리모컨만 열어 캐릭터는 계속 안 보였다).
+    showOverlay();
     const cfg = config.load();
     if (!cfg.roomId) createSettings();
     else createRemote();
@@ -598,9 +629,7 @@ if (!app.requestSingleInstanceLock()) {
     try { registerDisplayEvents(); } catch (e) { logError('registerDisplayEvents', e); }
     try { setupAutoUpdate(); } catch (e) { logError('setupAutoUpdate', e); }
 
-    app.on('activate', () => {
-      if (!win.overlay || win.overlay.isDestroyed()) createOverlay();
-    });
+    app.on('activate', () => { showOverlay(); });
   });
 
   // 오버레이 상주 앱이므로 모든 창을 닫아도 종료하지 않는다(트레이로 유지).

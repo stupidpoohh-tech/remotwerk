@@ -1,14 +1,14 @@
 {
   "name": "remotwerk",
   "productName": "Remotwerk",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "description": "커플 데스크톱 캐릭터 앱 — 상대 화면 위에 상주하며 몸짓 신호를 주고받는 현존(presence) 아바타",
   "main": "src/main/main.js",
   "author": "Remotwerk",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "test": "node tools/selftest.js",
+    "test": "node tools/selftest.js && node tools/overlay-startup-test.js",
     "smoke": "node tools/app-smoke.js",
     "dev": "electron . --dev",
     "icon": "node tools/make-icon.js",

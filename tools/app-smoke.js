@@ -44,7 +44,24 @@ const CASES = {
                             customCharacters: [{ id: 'c1', name: '깨진것', bundle: { slots: {} } }] },
   '커스텀에 bundle 없음':   { characterId: 'c2', partnerCharacterId: 'c2',
                             customCharacters: [{ id: 'c2', name: '빈것' }] },
-  '설정이 아예 깨짐':       null   // config.json 에 잘못된 JSON 을 넣는다
+  '설정이 아예 깨짐':       null,  // config.json 에 잘못된 JSON 을 넣는다
+
+  // ★ Firebase 경로. 페어링이 되어 있으면(roomId) 오버레이가 네트워크를 탄다.
+  //   이 컨테이너는 바깥으로 못 나가므로 transport.ready 가 지연·실패하는 상황이
+  //   그대로 재현된다 — 사용자 PC 에서 캐릭터가 안 보이던 바로 그 경로다.
+  //   여기에 케이스가 없어서 15/15 통과인데도 실제로는 안 보였다.
+  //   단, 이 환경에서는 SDK 를 아예 못 받아와 ready 가 **즉시 거부**된다.
+  //   사용자 PC 처럼 ready 가 **끝나지 않고 대기**하는 조건은 여기서 재현되지 않으므로
+  //   tools/overlay-startup-test.js(pending 케이스)가 그쪽을 맡는다. 둘 다 돌려야 한다.
+  '페어링됨 + 서버 안 됨':   { roomId: 'r_smoke_test' },
+  '페어링됨 + 큰 배율':     { roomId: 'r_smoke_test', overlayScale: 2.5 },
+  '페어링됨 + 화면 끝':     { roomId: 'r_smoke_test', overlayPos: { x: 0, y: 0 } },
+
+  // 저장값이 깨진 경우 — 진단 보고서 P1. NaN 이 CSS 좌표로 들어가면 캐릭터가 사라진다.
+  '좌표가 NaN':           { overlayPos: { x: null, y: 'abc' } },
+  '좌표 키가 없음':         { overlayPos: {} },
+  '배율이 이상함':          { overlayScale: 'x' },
+  '좌표가 범위 밖':         { overlayPos: { x: 9, y: -3 } }
 };
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
