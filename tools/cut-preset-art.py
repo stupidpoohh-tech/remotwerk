@@ -61,24 +61,6 @@ CHARS = {
         'torsoW': 214, 'armW': 118, 'legW': 140,
         'swatch': '#9aa0a6',
     },
-    'girl': {
-        'name': '리본',
-        'id': 'char_ribbon',
-        'front': 'ribbon-front.png',
-        'back': 'ribbon-back.png',
-        'root': (200, 400),
-        'feetY': 478,
-        'pivots': {'armL': (116, 258), 'armR': (284, 258), 'legL': (142, 398), 'legR': (258, 398)},
-        'boxes': {
-            'torso': (55, 2, 350, 408),
-            'armL':  (2, 198, 118, 288),
-            'armR':  (282, 198, 398, 288),
-            'legL':  (96, 396, 188, 480),
-            'legR':  (212, 396, 304, 480),
-        },
-        'torsoW': 295, 'armW': 116, 'legW': 92,
-        'swatch': '#3355cc',
-    },
     # 햄스터 — 몸이 아주 둥글고 넓다. 팔이 y≈140~215 에서 옆으로 뻗고,
     # 발은 바닥에 붙은 작은 두 조각이다(400폭 공간에서 실측).
     'hamster': {
@@ -134,22 +116,6 @@ CHARS = {
         },
         'torsoW': 280, 'armW': 106, 'legW': 136,
         'swatch': '#f6dcd8',
-    },
-    # 너구리 — 팔이 y≈140~200 으로 높고, 오른쪽에 줄무늬 꼬리가 있어 몸통 상자를 넓혔다.
-    'racoon': {
-        'name': '너구리', 'id': 'char_racoon',
-        'front': 'racoon-front.png', 'back': 'racoon-back.png',
-        'root': (200, 300), 'feetY': 359,
-        'pivots': {'armL': (108, 172), 'armR': (292, 172), 'legL': (150, 298), 'legR': (250, 298)},
-        'boxes': {
-            'torso': (56, 16, 356, 330),
-            'armL':  (16, 138, 122, 206),
-            'armR':  (278, 138, 384, 206),
-            'legL':  (52, 286, 192, 363),
-            'legR':  (208, 286, 348, 363),
-        },
-        'torsoW': 300, 'armW': 106, 'legW': 140,
-        'swatch': '#a9805c',
     },
     # 다다 — 사람 체형. 파란 원피스라 몸통이 길고, 팔이 y≈205~265 에서 뻗는다.
     'dada': {
@@ -338,3 +304,44 @@ with open(OUT, 'w') as f:
     json.dump(bundles, f, ensure_ascii=False, separators=(',', ':'))
     f.write(";\n})(typeof window !== 'undefined' ? window : globalThis);\n")
 print('→', OUT, os.path.getsize(OUT) // 1024, 'KB')
+
+
+# 목록에서 뺀 캐릭터 — 리본(char_ribbon)·너구리(char_racoon)
+#   사용자가 뺐다. 그림 데이터를 굽지 않으므로 preset-art.js 가 그만큼 가벼워진다.
+#   예전 설정에 이 id 가 남아 있어도 presets.js 의 RETIRED 가 다른 캐릭터로 넘겨준다.
+#   되살리려면 아래 주석 블록을 CHARS 안으로 되돌리고 이 파일을 다시 돌리면 된다.
+#
+#    'girl': {
+#        'name': '리본',
+#        'id': 'char_ribbon',
+#        'front': 'ribbon-front.png',
+#        'back': 'ribbon-back.png',
+#        'root': (200, 400),
+#        'feetY': 478,
+#        'pivots': {'armL': (116, 258), 'armR': (284, 258), 'legL': (142, 398), 'legR': (258, 398)},
+#        'boxes': {
+#            'torso': (55, 2, 350, 408),
+#            'armL':  (2, 198, 118, 288),
+#            'armR':  (282, 198, 398, 288),
+#            'legL':  (96, 396, 188, 480),
+#            'legR':  (212, 396, 304, 480),
+#        },
+#        'torsoW': 295, 'armW': 116, 'legW': 92,
+#        'swatch': '#3355cc',
+#    },
+#    # 너구리 — 팔이 y≈140~200 으로 높고, 오른쪽에 줄무늬 꼬리가 있어 몸통 상자를 넓혔다.
+#    'racoon': {
+#        'name': '너구리', 'id': 'char_racoon',
+#        'front': 'racoon-front.png', 'back': 'racoon-back.png',
+#        'root': (200, 300), 'feetY': 359,
+#        'pivots': {'armL': (108, 172), 'armR': (292, 172), 'legL': (150, 298), 'legR': (250, 298)},
+#        'boxes': {
+#            'torso': (56, 16, 356, 330),
+#            'armL':  (16, 138, 122, 206),
+#            'armR':  (278, 138, 384, 206),
+#            'legL':  (52, 286, 192, 363),
+#            'legR':  (208, 286, 348, 363),
+#        },
+#        'torsoW': 300, 'armW': 106, 'legW': 140,
+#        'swatch': '#a9805c',
+#    },

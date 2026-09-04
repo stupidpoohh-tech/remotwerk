@@ -39,7 +39,9 @@ const allGestures = RW.gestures.ACTIVE.concat(RW.gestures.AMBIENT);
 for (const g of allGestures) {
   ok(`애니메이션 존재: ${g.id}`, !!RW.animations.get(g.id));
 }
-ok('능동 신호 4개', RW.gestures.ACTIVE.length === 4, String(RW.gestures.ACTIVE.length));
+ok('능동 신호 3개', RW.gestures.ACTIVE.length === 3, String(RW.gestures.ACTIVE.length));
+ok('빠진 신호도 히스토리에서 이름이 나온다',
+   RW.gestures.get('g_heart').name === '보고싶어' && RW.gestures.get('g_heart').retired === true);
 ok('은퇴 신호는 이름으로 복구된다', RW.gestures.get('g5_leave').retired === true);
 
 // --- 2. 애니메이션 데이터 위생 ----------------------------------------------
@@ -237,10 +239,9 @@ for (const st of STAGES) {
 }
 
 // --- 9. 제공 캐릭터(그림 프리셋) ---------------------------------------------
-const ART_IDS = ['char_seal', 'char_ribbon', 'char_hamster', 'char_wolf',
-                 'char_rabbit', 'char_racoon', 'char_dada'];
+const ART_IDS = ['char_seal', 'char_dada', 'char_hamster', 'char_wolf', 'char_rabbit'];
 const presetIds = RW.presets.PRESETS.map((p) => p.id);
-ok('제공 캐릭터 7종', presetIds.length === 7, presetIds.join(','));
+ok('제공 캐릭터 5종', presetIds.length === 5, presetIds.join(','));
 ok('제공 캐릭터 순서', ART_IDS.every((id, i) => presetIds[i] === id), presetIds.join(','));
 for (const id of ART_IDS) {
   const p = RW.presets.get(id);
@@ -365,7 +366,7 @@ for (const id of ART_IDS) {
       ok(`클립 계획 있음: ${g}`, RW.clips.planFor(CHAR, g) !== null);
     }
     ok('클립 없는 캐릭터는 계획이 없다(리그로 폴백)',
-       RW.clips.planFor('char_ribbon', 'idle') === null);
+       RW.clips.planFor('char_hamster', 'idle') === null);
 
     const idle0 = meta.clips.idle.frames[0].image;
     for (const id of Object.keys(meta.clips)) {
@@ -579,6 +580,16 @@ for (const id of ART_IDS) {
 
   const ov = fs.readFileSync(path.join(SHARED, '..', 'overlay', 'overlay.js'), 'utf8');
   ok('화면 끝에서 넓어질 여백을 확보한다', /maxScale\(\)[\s\S]{0,200}padX/.test(ov));
+
+  // 스프라이트 판정에 필요한 클립 목록은 **동작 목록에서 유도**되어야 한다.
+  // 손으로 적어 두면 동작을 하나 뺄 때 이 줄을 잊고, 증상은 "그 동작이 안 나온다" 가
+  // 아니라 **캐릭터 전체가 5조각 리그로 떨어진다** 로 나타나 원인을 찾기 어렵다.
+  // (player.js 는 DOM 이 필요해 여기서 실행하지 않는다. 소스로 확인하고,
+  //  실제 동작은 app-smoke 의 '물개(스프라이트)'·'다다(스프라이트)' 케이스가 잡는다 —
+  //  목록이 어긋나면 그 케이스가 '스프라이트 0' 으로 떨어진다.)
+  ok('필요 클립 목록을 손으로 적어 두지 않았다', !/const REQUIRED = \[/.test(pl));
+  ok('필요 클립 목록을 동작 목록에서 유도한다',
+     /function required\(\)[\s\S]{0,300}RW\.gestures\.AMBIENT[\s\S]{0,80}RW\.gestures\.ACTIVE/.test(pl));
 }
 
 // --- 결과 -------------------------------------------------------------------

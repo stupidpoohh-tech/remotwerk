@@ -118,7 +118,7 @@
 
     // 좌석에 앉았으니 멤버 정보 기록
     await withTimeout(dbMod.set(dbMod.ref(db, `rooms/${roomId}/members/${uid}`), {
-      characterId: cfg.characterId || 'char_ribbon',
+      characterId: cfg.characterId || 'char_dada',
       joinedAt: dbMod.serverTimestamp()
     }), '멤버 등록');
 

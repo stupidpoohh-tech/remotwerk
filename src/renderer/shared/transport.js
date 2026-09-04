@@ -80,7 +80,7 @@
         const bundle = await downloadBundle(val.characterRef).catch(() => null);
         if (bundle) return { kind: 'bundle', id: val.characterId || 'custom', bundle };
       }
-      return { kind: 'preset', id: val.characterId || 'char_ribbon' };
+      return { kind: 'preset', id: val.characterId || 'char_dada' };
     }
     function partnerValFrom(snap) {
       let v = null;
@@ -231,7 +231,7 @@
           .sort((a, b) => a.ts - b.ts);
       },
       async getPartnerCharacter() {
-        return { kind: 'local', id: cfg.partnerCharacterId || 'char_ribbon' };
+        return { kind: 'local', id: cfg.partnerCharacterId || 'char_dada' };
       },
       onPartnerCharacter() { return () => {}; },
       async setMyCharacter() { /* 로컬 데모: 공유 저장소 업로드 없음 */ },

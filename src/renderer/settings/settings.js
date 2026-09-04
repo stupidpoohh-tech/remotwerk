@@ -17,12 +17,12 @@
   const uploadEnabled = !!(host && host.features && host.features.characterUpload);
   let cfg = null;
   let myChar = 'char_seal';
-  let partnerChar = 'char_ribbon';
+  let partnerChar = 'char_dada';
 
   async function main() {
     cfg = await host.getConfig();
     myChar = cfg.characterId || 'char_seal';
-    partnerChar = cfg.partnerCharacterId || 'char_ribbon';
+    partnerChar = cfg.partnerCharacterId || 'char_dada';
 
     $('firebase').value = cfg.firebase ? JSON.stringify(cfg.firebase, null, 2) : '';
 
@@ -322,7 +322,7 @@
     const next = (cfg.customCharacters || []).filter((x) => x.id !== c.id);
     const patch = { customCharacters: next };
     if (cfg.characterId === c.id) { patch.characterId = 'char_seal'; myChar = 'char_seal'; }
-    if (cfg.partnerCharacterId === c.id) { patch.partnerCharacterId = 'char_ribbon'; partnerChar = 'char_ribbon'; }
+    if (cfg.partnerCharacterId === c.id) { patch.partnerCharacterId = 'char_dada'; partnerChar = 'char_dada'; }
     await host.setConfig(patch);
     cfg = await host.getConfig();
     rebuildGrids();

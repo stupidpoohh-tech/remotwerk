@@ -48,7 +48,7 @@
       ]
     }
   ],
-  "placeholder": true,
-  "note": "실제 원화 4키(중앙 준비/왼쪽 팝/중앙 통과/오른쪽 팝). 눈 검수 전이라 placeholder 유지.",
-  "source": "import"
+  "source": "import",
+  "reviewed": true,
+  "note": "실제 원화 4키(중앙 준비/왼쪽 팝/중앙 통과/오른쪽 팝). 눈으로 확인해 통과."
 }

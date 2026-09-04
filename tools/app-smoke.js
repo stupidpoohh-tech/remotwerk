@@ -39,7 +39,7 @@ const CASES = {
   '크게 + 오른쪽 아래':      { overlayScale: 2.5, overlayPos: { x: 1, y: 1 } },
   '작게 + 왼쪽 위':         { overlayScale: 0.5, overlayPos: { x: 0, y: 0 } },
   // ★ 스프라이트 클립을 가진 캐릭터. 리그(5조각)가 아니라 완성 프레임으로 그려지는
-  //   전혀 다른 경로다. 기본 케이스는 char_ribbon(리그)이라 이 경로를 한 번도 밟지
+  //   전혀 다른 경로다. 기본 케이스는 리그 캐릭터라 이 경로를 한 번도 밟지
   //   않았다 — 궁디댄스 원화를 넣은 캐릭터가 실제 앱에서 보이는지 여기서 확인한다.
   '물개(스프라이트)':       { characterId: 'char_seal', partnerCharacterId: 'char_seal' },
   '다다(스프라이트)':       { characterId: 'char_dada', partnerCharacterId: 'char_dada' },

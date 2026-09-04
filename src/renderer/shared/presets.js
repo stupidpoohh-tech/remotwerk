@@ -30,12 +30,10 @@
   const ART = (root.RW && root.RW.presetArt) || {};
   const ART_PRESETS = [
     { id: 'char_seal',    name: '물개',   swatch: '#9aa0a6' },
-    { id: 'char_ribbon',  name: '리본',   swatch: '#2f56c9' },
+    { id: 'char_dada',    name: '다다',   swatch: '#2f3fa8' },
     { id: 'char_hamster', name: '햄스터', swatch: '#e8b878' },
     { id: 'char_wolf',    name: '늑대',   swatch: '#b08a63' },
-    { id: 'char_rabbit',  name: '토끼',   swatch: '#f6dcd8' },
-    { id: 'char_racoon',  name: '너구리', swatch: '#a9805c' },
-    { id: 'char_dada',    name: '다다',   swatch: '#2f3fa8' }
+    { id: 'char_rabbit',  name: '토끼',   swatch: '#f6dcd8' }
   ].filter((p) => ART[p.id]).map((p) => Object.assign({}, p, { bundle: ART[p.id] }));
 
   const PRESETS = ART_PRESETS.slice();
@@ -43,10 +41,16 @@
   const byId = {};
   for (const p of PRESETS) byId[p.id] = p;
 
-  // 없어진 색 프리셋(preset1~3). 목록에서는 빼되, **예전에 이걸 고른 설정이
-  // 깨지지 않게** 그림 프리셋으로 대신 보여 준다. (get() 이 빈 값을 돌려주면
-  // 오버레이가 아무것도 못 그린다.)
-  const RETIRED = { preset1: 'char_seal', preset2: 'char_ribbon', preset3: 'char_seal' };
+  // 목록에서 빠진 캐릭터. **예전에 이걸 고른 설정이 깨지지 않게** 남아 있는
+  // 캐릭터로 대신 보여 준다. (get() 이 빈 값을 돌려주면 오버레이가 아무것도 못 그린다.)
+  //   preset1~3 : 아트가 없던 시절의 색 도형 프리셋
+  //   char_ribbon(리본)·char_racoon(너구리) : 사용자가 뺀 캐릭터.
+  //     그림 데이터도 preset-art.js 에서 빠졌으므로 여기 대체가 **반드시 필요하다.**
+  //     리본은 오랫동안 기본 상대 캐릭터였어서, 이 줄이 없으면 예전 사용자 화면이 빈다.
+  const RETIRED = {
+    preset1: 'char_seal', preset2: 'char_seal', preset3: 'char_seal',
+    char_ribbon: 'char_dada', char_racoon: 'char_wolf'
+  };
 
   function get(id) {
     if (byId[id]) return byId[id];

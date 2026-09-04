@@ -8,6 +8,11 @@ html, body {
   html, body { background: #1a1a20; color: #ececf1; }
   input, textarea { background: #24242c; color: #ececf1; border-color: #33333f; }
   .tile { background: #24242c; }
+  /* 이름 뒤에 까는 바탕도 어두운 쪽으로 — 밝은 바탕을 그대로 두면 어두운 창에서
+     타일 아래쪽만 하얗게 뜬다. */
+  .tile .cap {
+    background: linear-gradient(180deg, rgba(36,36,44,0) 0%, rgba(36,36,44,.82) 45%, #24242c 100%);
+  }
 }
 
 body { padding: 18px 20px 90px; }
@@ -92,7 +97,17 @@ button {
 }
 .tile.selected { border-color: #8a63ff; }
 .tile .preview { position: absolute; inset: 0; }
-.tile .cap { font-size: 12px; padding: 6px; z-index: 2; }
+/* 이름은 그림 **위에** 얹힌다. 캐릭터마다 다리·발 위치가 달라서 그냥 두면
+   글자가 그림에 묻혀 안 읽힌다(햄스터·토끼가 그랬다). 바탕을 살짝 깔아
+   그림은 그대로 보이면서 글자만 뜨게 한다. */
+.tile .cap {
+  font-size: 12px;
+  padding: 10px 6px 5px;
+  z-index: 2;
+  width: 100%;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.82) 45%, #fff 100%);
+}
 .tile.add { align-items: center; justify-content: center; font-size: 30px; color: #8a63ff; cursor: pointer; border: 2px dashed #c9c1e8; }
 .tile.add:hover { background: #f2eeff; }
 .tile.add .cap { position: absolute; bottom: 0; font-size: 11px; color: #6a6a76; }

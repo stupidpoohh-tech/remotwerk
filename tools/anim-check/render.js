@@ -10,7 +10,7 @@ const { chromium } = require('playwright-core');
 const fs = require('fs');
 const path = require('path');
 
-const CHARS = process.env.CHARS ? process.env.CHARS.split(',') : ['char_seal', 'char_ribbon'];
+const CHARS = process.env.CHARS ? process.env.CHARS.split(',') : ['char_seal', 'char_dada'];
 const CHROME = process.env.CHROME_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const ANIMS = process.env.ANIMS ? process.env.ANIMS.split(',')
   : ['g_heart', 'g_cheer', 'g_droop', 'g_twerk', 'idle', 'wander'];

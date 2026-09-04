@@ -13,7 +13,7 @@ async function check(kind) {
   const char = { style: {}, querySelector: () => anchor, addEventListener() {},
     appendChild() {}, classList: { add() {}, remove() {}, toggle() {} } };
   const cfg = { overlayPos: { x: .82, y: .72 }, overlayScale: 1,
-    partnerCharacterId: 'char_ribbon', customCharacters: [] };
+    partnerCharacterId: 'char_dada', customCharacters: [] };
   const transport = {
     mode: 'firebase',
     ready: kind === 'pending' ? new Promise(r => { resolveReady = r; })

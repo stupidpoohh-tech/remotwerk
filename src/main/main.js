@@ -269,7 +269,10 @@ function createHistory() {
 function createSettings() {
   if (win.settings && !win.settings.isDestroyed()) { bringToFront(win.settings); return win.settings; }
   const w = new BrowserWindow({
-    width: 480, height: 620,
+    // 내용이 1900px 가까이 되는 긴 화면이라 어차피 스크롤된다. 그래도 620 은
+    // "캐릭터 고르기" 한 구획도 다 안 들어가서, 미리보기와 저장 버튼이 매번 잘렸다.
+    // 760 이면 1080p 작업표시줄까지 감안해도 넉넉히 들어간다(창은 조절 가능).
+    width: 480, height: 760,
     title: 'Remotwerk — 설정',
     resizable: true,
     center: true,

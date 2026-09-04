@@ -30,7 +30,7 @@ function defaults() {
     characterId: 'char_seal',
     // 상대가 고른 캐릭터(내 화면에 상주). 실서비스에선 Firebase members에서 읽지만
     // 로컬/데모 모드를 위해 캐시해 둔다.
-    partnerCharacterId: 'char_ribbon',
+    partnerCharacterId: 'char_dada',
     // 집중 모드: 켜면 들어오는 신호를 라이브 재생하지 않고 히스토리로만 쌓는다.
     focusMode: false,
     // 오버레이 캐릭터 위치(드래그로 이동, 화면 비율 0..1로 저장)

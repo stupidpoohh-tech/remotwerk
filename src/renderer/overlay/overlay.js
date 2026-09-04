@@ -23,7 +23,7 @@
   async function main() {
     cfg = await host.getConfig();
     // 로컬 표시와 복원은 네트워크 연결보다 먼저 준비한다.
-    applyCharDef({ kind: 'local', id: cfg.partnerCharacterId || 'char_ribbon' });
+    applyCharDef({ kind: 'local', id: cfg.partnerCharacterId || 'char_dada' });
     positionChar();
     window.addEventListener('resize', positionChar);
     host.onConfigChanged(onConfigChanged);
@@ -212,7 +212,7 @@
       const customsChanged = JSON.stringify(next.customCharacters || []) !== prevCustoms;
       if ((next.partnerCharacterId && next.partnerCharacterId !== prevPartner) || customsChanged) {
         lastCharSig = null; // 번들 편집 등으로 같은 id라도 강제 재빌드
-        applyCharDef({ kind: 'local', id: next.partnerCharacterId || 'char_ribbon' });
+        applyCharDef({ kind: 'local', id: next.partnerCharacterId || 'char_dada' });
       }
     }
   }

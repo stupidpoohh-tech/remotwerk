@@ -341,11 +341,21 @@
   // charDef 는 characters.rigFor 가 주는 { skeleton, rig } 이고, charId 는 클립을
   // 찾기 위한 캐릭터 id 다. 클립이 **모든 동작**에 대해 준비된 경우에만 스프라이트를
   // 쓴다(일부만 있으면 동작마다 화풍이 튀어서 더 어색하다).
-  const REQUIRED = ['idle', 'wander', 'g_heart', 'g_cheer', 'g_droop', 'g_twerk'];
+  //
+  // 목록을 **여기에 손으로 적지 않는다.** 동작 목록(gestures.js)에서 유도한다.
+  // 손으로 적으면 동작을 하나 추가·삭제할 때마다 이 줄을 같이 고쳐야 하는데,
+  // 잊으면 증상이 "그 동작이 안 나온다" 가 아니라 **캐릭터 전체가 5조각 리그로
+  // 돌아간다** 이다. 원인과 증상이 멀어서 찾기 어렵다.
+  // (실제로 g_heart 를 뺐을 때 이 줄에 남아 있으면 물개·다다의 모든 동작이
+  //  통째로 리그로 떨어진다.)
+  function required() {
+    if (!RW.gestures) return ['idle', 'wander'];
+    return [...RW.gestures.AMBIENT, ...RW.gestures.ACTIVE].map((g) => g.id);
+  }
 
   function canUseSprite(charId) {
     if (!RW.clips || !charId) return false;
-    return REQUIRED.every((g) => RW.clips.planFor(charId, g) !== null);
+    return required().every((g) => RW.clips.planFor(charId, g) !== null);
   }
 
   function create(container, charId, spec) {
@@ -353,5 +363,5 @@
     return createRig(container, spec);
   }
 
-  RW.player = { create, canUseSprite, createRig, createSprite, REQUIRED };
+  RW.player = { create, canUseSprite, createRig, createSprite, required };
 })(typeof window !== 'undefined' ? window : globalThis);

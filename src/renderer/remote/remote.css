@@ -89,7 +89,9 @@ html, body {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 6px 2px 5px;
+  /* 신호가 4개에서 3개로 줄어 버튼 하나가 넓어졌다. 글자·아이콘도 같이 키워야
+     넓은 버튼 가운데 작은 글씨가 떠 있는 모양이 안 된다. */
+  padding: 9px 2px 8px;
   border: 1px solid #e6e3f2;
   border-radius: 11px;
   background: #fff;
@@ -98,8 +100,8 @@ html, body {
   font-family: inherit;
   transition: transform .08s ease, border-color .12s ease, background .12s ease, box-shadow .12s ease;
 }
-.btn .ic { font-size: 19px; line-height: 1; }
-.btn .nm { font-size: 9.5px; font-weight: 600; letter-spacing: -0.3px; }
+.btn .ic { font-size: 23px; line-height: 1; }
+.btn .nm { font-size: 11px; font-weight: 600; letter-spacing: -0.3px; }
 .btn:hover {
   border-color: #b7a1ff;
   box-shadow: 0 3px 8px rgba(138, 99, 255, 0.18);
