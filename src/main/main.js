@@ -116,7 +116,18 @@ function baseWebPrefs() {
     preload: PRELOAD,
     contextIsolation: true,
     nodeIntegration: false,
-    sandbox: false
+    sandbox: false,
+    // ★ 화면 갱신 절약 기능을 끈다.
+    //
+    // 크로미움은 창이 가려졌거나 배경이라고 판단하면 requestAnimationFrame 과
+    // 타이머를 **멈춰 버린다**(기본값 true). 보통은 전력을 아끼는 좋은 기능이지만,
+    // 오버레이는 포커스를 받지 않고(focusable:false) 작업표시줄에도 없고 투명해서
+    // 크로미움이 "안 보이는 창" 으로 보기 딱 좋다. 그러면 캐릭터가 마지막 프레임에서
+    // **그대로 멈춘다** — 앱은 살아 있고 트레이·설정은 멀쩡한데 캐릭터만 정지한다.
+    // 다른 창을 전체 화면으로 쓰다가 돌아오면 멈춰 있는 이유가 이것이다.
+    //
+    // 캐릭터가 계속 살아 움직이는 것이 이 앱의 존재 이유이므로 끈다.
+    backgroundThrottling: false
   };
 }
 
