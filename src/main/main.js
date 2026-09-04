@@ -11,6 +11,7 @@ const {
 } = require('electron');
 
 const config = require('./config');
+const features = require('../features');
 
 const isDev = process.argv.includes('--dev');
 const PRELOAD = path.join(__dirname, 'preload.js');
@@ -297,6 +298,12 @@ function createSettings() {
 
 // editId 를 주면 그 캐릭터를 불러와 편집한다(없으면 새로 만들기).
 function createRigger(editId) {
+  // 기능이 꺼져 있으면 창을 만들지 않는다. 화면에서 버튼만 숨기면 IPC 로는 여전히
+  // 열 수 있으므로, 마지막 관문은 여기다.
+  if (!features.characterUpload) {
+    logInfo('rigger', '기능이 꺼져 있어 열지 않음(features.characterUpload=false)');
+    return null;
+  }
   // 편집 대상이 바뀌면 기존 창을 닫고 새로 연다(창 안에서 대상 교체보다 단순하고 안전).
   if (win.rigger && !win.rigger.isDestroyed()) {
     if (!editId) { bringToFront(win.rigger); return win.rigger; }
@@ -493,7 +500,6 @@ function refreshTrayMenu() {
     },
     { type: 'separator' },
     { label: '페어링 · 캐릭터 설정', accelerator: 'CommandOrControl+Shift+S', click: () => createSettings() },
-    { label: '캐릭터 만들기 (업로드·리깅)', click: () => createRigger() },
     { label: '동작 뷰어 (디버그)', click: () => createViewer() },
     { type: 'separator' },
     { label: '종료', click: () => { app.isQuiting = true; app.quit(); } }
@@ -529,7 +535,10 @@ function registerIpc() {
   ipcMain.on('ui:open-remote', () => createRemote());
   ipcMain.on('ui:open-history', () => createHistory());
   ipcMain.on('ui:open-settings', () => createSettings());
-  ipcMain.on('ui:open-rigger', (_e, editId) => createRigger(editId || null));
+  ipcMain.on('ui:open-rigger', (_e, editId) => {
+    if (!features.characterUpload) return;      // 꺼져 있으면 요청을 무시한다
+    createRigger(editId || null);
+  });
   ipcMain.on('ui:open-viewer', () => createViewer());
   ipcMain.on('ui:hide-all', () => hideAll());
   ipcMain.on('ui:quit', () => { app.isQuiting = true; app.quit(); });

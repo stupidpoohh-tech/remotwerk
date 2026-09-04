@@ -5,9 +5,13 @@
 // 여기서는 설정 저장, 창 제어, 오버레이 클릭 통과 토글만 담당한다.
 
 const { contextBridge, ipcRenderer } = require('electron');
+const features = require('../features');
 
 contextBridge.exposeInMainWorld('rwHost', {
   platform: process.platform,
+
+  // 기능 플래그 — src/features.js 하나가 원본이다(메인·렌더러가 같은 값을 본다).
+  features: Object.freeze({ ...features }),
 
   // ---- 설정 ----
   getConfig: () => ipcRenderer.invoke('config:get'),
@@ -22,7 +26,12 @@ contextBridge.exposeInMainWorld('rwHost', {
   openRemote: () => ipcRenderer.send('ui:open-remote'),
   openHistory: () => ipcRenderer.send('ui:open-history'),
   openSettings: () => ipcRenderer.send('ui:open-settings'),
-  openRigger: (editId) => ipcRenderer.send('ui:open-rigger', editId || null),
+  // 꺼져 있으면 요청 자체를 보내지 않는다(메인 쪽에서도 한 번 더 막는다).
+  openRigger: (editId) => {
+    if (!features.characterUpload) return false;
+    ipcRenderer.send('ui:open-rigger', editId || null);
+    return true;
+  },
   openViewer: () => ipcRenderer.send('ui:open-viewer'),
   hideAll: () => ipcRenderer.send('ui:hide-all'),
   closeSelf: () => ipcRenderer.send('ui:close-self'),

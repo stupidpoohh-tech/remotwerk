@@ -11,6 +11,10 @@
   const host = window.rwHost;
 
   const $ = (id) => document.getElementById(id);
+
+  // 기능 플래그는 preload 가 src/features.js 를 그대로 넘겨 준다.
+  // 구버전 preload(플래그 없음)에서도 죽지 않도록 기본은 꺼짐으로 본다.
+  const uploadEnabled = !!(host && host.features && host.features.characterUpload);
   let cfg = null;
   let myChar = 'char_seal';
   let partnerChar = 'char_ribbon';
@@ -379,18 +383,27 @@
         ? '<span class="custom-badge">내 제작</span>'
         : (c.catalog ? '<span class="custom-badge catalog">공용</span>' : '');
       // 내가 만든 캐릭터만 편집·삭제할 수 있다(공용/프리셋은 불가).
+      //
+      // 업로드 기능이 꺼져 있으면 **편집 버튼만** 뺀다. 삭제는 남긴다 —
+      // 이미 가진 캐릭터를 정리할 수는 있어야 하고, 그건 새로 만드는 기능이 아니다.
+      // 목록 자체는 그대로다. 만들기를 숨긴다고 이미 만든 캐릭터를 감추지 않는다.
+      const canEdit = c.custom && uploadEnabled;
       const tools = c.custom
-        ? '<div class="tile-tools"><button class="tt edit" title="편집">✎</button>' +
+        ? '<div class="tile-tools">' +
+          (canEdit ? '<button class="tt edit" title="편집">✎</button>' : '') +
           '<button class="tt del" title="삭제">🗑</button></div>'
         : '';
       tile.innerHTML = `<div class="preview"></div>${badge}${tools}<div class="cap">${c.name}</div>`;
       renderPreview(tile.querySelector('.preview'), c.id);
 
-      if (c.custom) {
+      if (canEdit) {
+        // 버튼이 없는데 이벤트를 걸면 null 오류가 난다. 있을 때만 건다.
         tile.querySelector('.edit').addEventListener('click', (e) => {
           e.stopPropagation();
           host.openRigger(c.id);
         });
+      }
+      if (c.custom) {
         tile.querySelector('.del').addEventListener('click', (e) => {
           e.stopPropagation();
           deleteCharacter(c);
@@ -406,13 +419,16 @@
     }
     tiles[getSel()] && tiles[getSel()].classList.add('selected');
 
-    // (+) 캐릭터 만들기(리깅·업로드 도구 열기)
-    const add = document.createElement('div');
-    add.className = 'tile add';
-    add.title = '내 캐릭터 만들기 (이미지 업로드 · 大자 정합)';
-    add.innerHTML = `+<div class="cap">캐릭터 만들기</div>`;
-    add.addEventListener('click', () => host.openRigger());
-    el.appendChild(add);
+    // (+) 캐릭터 만들기 — 업로드 기능이 켜져 있을 때만 만든다.
+    // 꺼져 있으면 타일을 **아예 만들지 않는다**(눌러서 막다른 화면이 뜨는 구성을 피한다).
+    if (uploadEnabled) {
+      const add = document.createElement('div');
+      add.className = 'tile add';
+      add.title = '내 캐릭터 만들기 (이미지 업로드 · 大자 정합)';
+      add.innerHTML = `+<div class="cap">캐릭터 만들기</div>`;
+      add.addEventListener('click', () => host.openRigger());
+      el.appendChild(add);
+    }
   }
 
   // 미니 프리뷰 — 뉴트럴 포즈로 캐릭터를 그린다(축소). 프리셋/커스텀 공통.
